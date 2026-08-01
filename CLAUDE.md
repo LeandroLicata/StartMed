@@ -12,7 +12,7 @@ PHPUnit 12. Code, comments, and domain names are in Spanish — follow that conv
 ## Commands
 
 ```bash
-composer run dev            # runs server + queue worker + pail logs + vite concurrently
+composer run dev            # server + queue worker + vite concurrently
 php artisan serve           # server only (http://127.0.0.1:8000; Laragon vhost: http://startmed.test)
 npm run dev                 # vite only
 
@@ -20,14 +20,35 @@ php artisan test                        # full suite (SQLite in-memory, see phpu
 php artisan test --filter=ModelosTest   # single test class/method
 composer run test                       # clears config cache first, then runs tests
 
-./vendor/bin/pint          # code formatter (Laravel Pint)
+./vendor/bin/pint          # code formatter (Laravel Pint) — run before finishing
 
 php artisan migrate:fresh --seed   # recreate dev DB from scratch
 php artisan db:show                # list tables; db:table cirugia for columns/indexes
 ```
 
 Dev DB is MySQL (`startmed`). Tests use SQLite `:memory:` and never touch dev data.
-Seeder admin user: `admin` / `admin1234`.
+
+`composer run dev` deliberately **excludes `php artisan pail`**: Pail needs the
+`pcntl` extension, which does not exist in PHP for Windows, and the script uses
+`--kill-others`, so including it killed the other processes on startup. Logs are in
+`storage/logs/laravel.log`.
+
+**Stale `public/hot`**: if Vite is killed abruptly it leaves that file behind, and
+every page then renders with no CSS at all (Blade points assets at a dev server that
+is not running). Delete it or restart `npm run dev`. Verifying a page by curl after
+`npm run build` requires removing it first.
+
+### Seed users
+
+All demo users except `admin` use password `demo1234`; each lands on the panel its
+role allows.
+
+| user | role |
+|---|---|
+| `admin` / `admin1234` | Administrador (sees everything) |
+| `gonzalez` | Gestor de quirófano |
+| `perez`, `lopez` | Cirujano |
+| `ramos` | Anestesista |
 
 ## Architecture
 
@@ -76,6 +97,41 @@ column (FK, owner/local key, pivot) exists. **Adding a table without its model, 
 renaming a column without updating the model, breaks this test** — it is the guardrail
 for schema/model drift.
 
+The models were generated from the live FK graph (`information_schema`), so relation
+names follow that mechanical rule. Careful: the relation to `TipoASA` is `tipoAsa()`
+(derived from the column `idTipoAsa`), not `tipoASA()`. When unsure, grep the model
+rather than guessing.
+
+### Reading a surgery's state — `App\Support\ResumenCirugia`
+
+Do not re-derive module state in controllers or views. `ResumenCirugia` wraps a
+`Cirugia` and answers what it still needs before it can go ahead, resolving the
+current record of each module (the row whose end date is `NULL`).
+
+```php
+Cirugia::with(ResumenCirugia::RELACIONES)->get()->map(fn ($c) => new ResumenCirugia($c));
+
+$caso->estaLista();      // bool
+$caso->pendientes();     // Collection<string> of what is missing
+$caso->semaforo();       // 'exito' | 'aviso' | 'error'
+$caso->asa();            // 'ASA III'
+```
+
+**Always eager-load with `ResumenCirugia::RELACIONES`** (plus `RELACIONES_EXPEDIENTE`
+for the full case file). The class assumes everything is loaded and never queries;
+`DashboardTest` and `PanelesTest` assert the query count does not grow with the number
+of surgeries, so a missing relation surfaces as a failing test, not a slow page.
+
+### Seeders
+
+`DatabaseSeeder` → `CatalogosSeeder` (reference tables) + admin user, then, **only in
+`local`**, `DemoSeeder` (6 surgeries in different states, dates relative to today),
+`ExpedienteSeeder` (prep, consent, pre-anesthesia questionnaire) and `HistorialSeeder`
+(6 months of closed surgeries for the Dirección charts). All are idempotent.
+
+In tests `app()->environment('local')` is false, so `$this->seed()` yields catalogs +
+admin only; seed the demo classes explicitly when a test needs data.
+
 ### Authentication
 
 Login uses the domain `Usuario` table via a custom guard, **not** Laravel's `users`
@@ -92,9 +148,62 @@ Password reset by email is **not** configured (`config/auth.php` `'passwords' =>
 `Usuario` has no email column; the address lives in `Personal.mailInstitucional` /
 `Persona.contacto_email_direccion`, and the official channel hasn't been chosen yet.
 
+### Authorization
+
+The `rol` middleware (`App\Http\Middleware\VerificarRol`) gates routes by domain role,
+read from `RolPersonal` counting only current assignments. `Administrador` passes every
+check without holding each functional role.
+
+```php
+Route::get('/cirujano', CirujanoController::class)->middleware('rol:Cirujano');
+```
+
+`Usuario::rutaInicial()` decides where a user lands after login — panels differ per
+role, so sending everyone to `/dashboard` produced a 403 right after a correct login.
+`/` (route name `inicio`) resolves it; users with no role get the `sin-acceso` view
+instead of a bare 403.
+
 ### Routing / frontend
 
-Routes are minimal (`routes/web.php`): `/` redirects to dashboard or login;
-guest-only login routes; auth-only logout + dashboard view. Views are Blade in
-`resources/views/`, assets bundled by Vite (`resources/css/app.css`,
-`resources/js/app.js`) with Tailwind 4.
+Server-rendered Blade — there is no React and no JSON API. The only app JavaScript is
+the mobile sidebar toggle in `resources/js/app.js`.
+
+| route | role | view |
+|---|---|---|
+| `/dashboard` | Gestor de quirófano, Dirección médica | `dashboard` |
+| `/cirujano` | Cirujano | `paneles/cirujano` |
+| `/anestesista` | Anestesista | `paneles/anestesista` |
+| `/direccion` | Dirección médica | `paneles/direccion` |
+| `/cirugias/{cirugia}` | any authenticated | `cirugias/show` |
+| `/cirugias/{cirugia}/portal-paciente` | any authenticated | `cirugias/portal-paciente` |
+
+Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
+`layouts/guest` (login). Views use `@extends` / `@section('contenido')`.
+
+### Brand and UI components
+
+Colors come from the Hospital Universitario brand manual and live as Tailwind theme
+tokens in `resources/css/app.css`: `hu-azul` `#003764`, `hu-dorado` `#C7A36E`,
+`hu-gris` `#59595B`, used as `bg-hu-azul`, `text-hu-dorado`, … The `-claro`,
+`-oscuro`, `-suave` and `-tenue` variants are **not** in the manual; they were derived
+for hover, active state and backgrounds. Typeface is Montserrat (400/600/900),
+self-hosted at build time.
+
+Reusable components in `resources/views/components/` — prefer them over ad-hoc markup:
+`boton`, `input`, `alerta`, `tarjeta`, `estado`, `metrica`, `icono`. Per the manual,
+`<x-boton>` defaults to a fully rounded confirmation button and `forma="grupo"` gives
+the 12px radius used for button groups. `<x-input>` handles its own validation error
+and `old()` value.
+
+Icons are Material Symbols, loaded from a **subsetted** stylesheet. **A new icon must
+be added to the `icon_names` list in `layouts/app.blade.php` or it silently will not
+render.** The `FILL` axis is what makes the active nav item solid and the rest outline.
+
+### Known gaps — do not assume these work
+
+- **Patients cannot authenticate.** `Usuario` hangs off `Personal`, and a patient is a
+  `Persona` with no staff record. `cirugias/portal-paciente` is a preview the staff
+  opens; a real patient login needs a schema decision first.
+- **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
+  *why*, so the Dirección panel cannot break suspensions down by cause.
+- **No surgery duration** on `Cirugia`, so the OR agenda shows start times only.
