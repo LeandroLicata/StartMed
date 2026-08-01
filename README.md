@@ -48,12 +48,14 @@ npm run build
 
 ## Levantar el proyecto
 
+Necesitás MySQL corriendo (en Laragon, **Start All**).
+
 ```bash
 composer run dev
 ```
 
-Arranca cuatro procesos en paralelo — servidor (`http://127.0.0.1:8000`), worker
-de colas, logs en vivo (`pail`) y Vite. Se corta todo con `Ctrl+C`.
+Arranca tres procesos en paralelo — servidor (`http://127.0.0.1:8000`), worker
+de colas y Vite. Se corta todo con `Ctrl+C`.
 
 A mano, en dos terminales:
 
@@ -62,9 +64,28 @@ php artisan serve
 npm run dev
 ```
 
-En Laragon el virtual host queda en `http://startmed.test` automáticamente.
+En Laragon el virtual host queda en `http://startmed.test` automáticamente; ahí
+solo hace falta `npm run dev` aparte si estás tocando el frontend.
 
 **Usuario del seeder:** `admin` / `admin1234`
+
+### Logs
+
+El script `dev` **no** incluye `php artisan pail`, aunque el paquete esté
+instalado: Pail necesita la extensión `pcntl`, que no existe en PHP para
+Windows. Como el script usa `--kill-others`, incluirlo hacía que Pail muriera al
+arrancar y se llevara puestos a los otros procesos.
+
+Los logs están en `storage/logs/laravel.log`. Para seguirlos en vivo:
+
+```powershell
+Get-Content storage\logs\laravel.log -Wait -Tail 20   # PowerShell
+```
+
+```bash
+tail -f storage/logs/laravel.log                      # Linux / macOS
+php artisan pail                                      # Linux / macOS
+```
 
 ## Autenticación
 
