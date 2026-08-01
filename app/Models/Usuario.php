@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Collection;
 
 #[Fillable(['idPersonal', 'nombreUsuario', 'passwordUsuario', 'fechaBajaUsuario'])]
 #[Hidden(['passwordUsuario'])]
@@ -48,6 +49,44 @@ class Usuario extends Authenticatable
     public function estaDadoDeBaja(): bool
     {
         return $this->fechaBajaUsuario !== null;
+    }
+
+    /**
+     * Nombres de los roles vigentes del usuario.
+     *
+     * @return Collection<int, string>
+     */
+    public function roles(): Collection
+    {
+        return $this->personal?->rolesVigentes->pluck('nombreRol') ?? collect();
+    }
+
+    /**
+     * El administrador entra a todas las secciones sin necesidad de tener
+     * asignado cada rol funcional.
+     */
+    public function tieneRol(string ...$roles): bool
+    {
+        $propios = $this->roles();
+
+        return $propios->contains('Administrador')
+            || $propios->intersect($roles)->isNotEmpty();
+    }
+
+    /**
+     * Panel al que se manda al usuario despues de iniciar sesion. Cada rol
+     * tiene el suyo, asi que no se puede mandar a todos al mismo lado.
+     *
+     * Devuelve null si el usuario no tiene ningun rol que le de acceso.
+     */
+    public function rutaInicial(): ?string
+    {
+        return match (true) {
+            $this->tieneRol('Gestor de quirófano', 'Dirección médica') => 'dashboard',
+            $this->tieneRol('Cirujano') => 'cirujano',
+            $this->tieneRol('Anestesista') => 'anestesista',
+            default => null,
+        };
     }
 
     public function personal(): BelongsTo

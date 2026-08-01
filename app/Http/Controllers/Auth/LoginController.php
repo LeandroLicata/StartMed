@@ -42,7 +42,8 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        // La ruta inicial depende del rol, la resuelve el punto de entrada.
+        return redirect()->intended(route('inicio'));
     }
 
     public function logout(Request $request): RedirectResponse

@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Persona;
 use App\Models\Personal;
+use App\Models\Rol;
 use App\Models\TipoDocumento;
 use App\Models\Usuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,7 +14,7 @@ class LoginTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function crearUsuario(array $atributos = []): Usuario
+    private function crearUsuario(array $atributos = [], ?string $rol = 'Gestor de quirófano'): Usuario
     {
         $tipoDocumento = TipoDocumento::create(['nombreTipoDocumento' => 'DNI']);
 
@@ -25,6 +26,13 @@ class LoginTest extends TestCase
         ]);
 
         $personal = Personal::create(['idPersona' => $persona->idPersona]);
+
+        if ($rol) {
+            $personal->roles()->attach(
+                Rol::create(['nombreRol' => $rol])->idRol,
+                ['fechaHoraAsignacionRolPersonal' => now()],
+            );
+        }
 
         return Usuario::create(array_merge([
             'idPersonal' => $personal->idPersonal,
@@ -47,9 +55,31 @@ class LoginTest extends TestCase
         $this->post('/login', [
             'nombreUsuario' => 'aperez',
             'password' => 'secreto123',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('inicio'));
 
         $this->assertAuthenticatedAs($usuario);
+    }
+
+    public function test_cada_rol_aterriza_en_su_propio_panel(): void
+    {
+        $gestor = $this->crearUsuario();
+        $this->assertSame('dashboard', $gestor->rutaInicial());
+
+        $this->actingAs($gestor)->get('/')->assertRedirect(route('dashboard'));
+    }
+
+    public function test_un_usuario_sin_roles_ve_una_explicacion_en_vez_de_un_403(): void
+    {
+        $usuario = $this->crearUsuario(rol: null);
+
+        $this->assertNull($usuario->rutaInicial());
+
+        $this->actingAs($usuario)->get('/')
+            ->assertOk()
+            ->assertSee('Todavía no tenés un rol asignado');
+
+        // Y las secciones con rol siguen cerradas.
+        $this->actingAs($usuario)->get('/dashboard')->assertForbidden();
     }
 
     public function test_la_contrasena_se_guarda_hasheada(): void
