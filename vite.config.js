@@ -8,9 +8,10 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
             refresh: true,
+            // Montserrat regular / semibold / black, segun el Manual de Marca HU.
             fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
+                bunny('Montserrat', {
+                    weights: [400, 600, 900],
                 }),
             ],
         }),
