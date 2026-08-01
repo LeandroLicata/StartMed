@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\GrupoSanguineo;
 use App\Models\Persona;
 use App\Models\Personal;
 use App\Models\Rol;
@@ -17,17 +16,7 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        foreach (['DNI', 'Pasaporte', 'Libreta Civica', 'Libreta de Enrolamiento'] as $nombre) {
-            TipoDocumento::firstOrCreate(['nombreTipoDocumento' => $nombre]);
-        }
-
-        foreach (['0-', '0+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'] as $nombre) {
-            GrupoSanguineo::firstOrCreate(['nombreGrupoSanguineo' => $nombre]);
-        }
-
-        foreach (['Administrador', 'Cirujano', 'Anestesista', 'Instrumentador', 'Enfermero'] as $nombre) {
-            Rol::firstOrCreate(['nombreRol' => $nombre]);
-        }
+        $this->call(CatalogosSeeder::class);
 
         $dni = TipoDocumento::where('nombreTipoDocumento', 'DNI')->firstOrFail();
 
@@ -51,5 +40,14 @@ class DatabaseSeeder extends Seeder
             ['nombreUsuario' => 'admin'],
             ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => 'admin1234'],
         );
+
+        // Datos de demostracion: no correr en produccion.
+        if (app()->environment('local')) {
+            $this->call([
+                DemoSeeder::class,
+                ExpedienteSeeder::class,
+                HistorialSeeder::class,
+            ]);
+        }
     }
 }
