@@ -26,20 +26,15 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Creá la base y ajustá el `.env`:
-
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=startmed
-DB_USERNAME=root
-DB_PASSWORD=
-```
+Creá la base:
 
 ```sql
 CREATE DATABASE startmed CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
+
+El `.env.example` ya viene apuntando a MySQL con las credenciales por defecto de
+Laragon (`root` sin contraseña). Si tu MySQL usa otro usuario o puerto, ajustá
+`DB_USERNAME`, `DB_PASSWORD` o `DB_PORT` en el `.env`.
 
 ```bash
 php artisan migrate --seed
