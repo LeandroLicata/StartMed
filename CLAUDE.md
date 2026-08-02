@@ -176,9 +176,88 @@ the mobile sidebar toggle in `resources/js/app.js`.
 | `/direccion` | Dirección médica | `paneles/direccion` |
 | `/cirugias/{cirugia}` | any authenticated | `cirugias/show` |
 | `/cirugias/{cirugia}/portal-paciente` | any authenticated | `cirugias/portal-paciente` |
+| `/admin`, `/admin/catalogos/…`, `/admin/usuarios/…` | Administrador | `admin/*` |
 
 Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
 `layouts/guest` (login). Views use `@extends` / `@section('contenido')`.
+
+### Administración — the only write side of the app
+
+Everything outside `/admin` is read-only. `/admin` is where the master data the other
+sections consume gets loaded, and where users are created.
+
+**One door, on purpose.** The sidebar carries a single `Administración` item (marked
+active across `admin.*` via the `activaEn` key in `partials/nav.blade.php`); the `/admin`
+index is the hub that groups all 26 catalogs. Resist re-adding per-catalog shortcuts to
+the sidebar: they duplicate that index, mix configuration in with the operational
+panels, and a label like "Materiales" promises a module while delivering one table out
+of the four in its group.
+
+**Catalogs are driven by a map, not by 26 controllers.** `App\Support\Catalogos`
+declares the 26 master tables (slug → model, labels, group, soft-delete column, fields);
+`Admin\CatalogoController` + `CatalogoRequest` + two Blade views serve all of them.
+**To add a catalog, add an entry to that map — do not write a controller.** Most tables
+fit `Catalogos::simple()`, which derives `nombre<X>` / `fechaBaja<X>` from the model's
+PK. Declare the odd ones explicitly: `Rol` uses `fechaHoraBajaRol` and `Establecimiento`
+uses `fechaEstablecimiento`. Field types come from `Catalogos::TIPOS`.
+
+`CatalogosTest::test_el_mapa_coincide_con_el_esquema` is to the map what `ModelosTest`
+is to the models: it checks every declared column exists, is fillable, and uses a known
+type. It also renders the index and the create form of all 26.
+
+**Deleting is always logical** — write `now()` into the `fechaBaja*` column, offer
+reactivation, never `DELETE`.
+
+**Some catalog rows are code, not data.** The app matches catalog names as literal
+strings — `Usuario::tieneRol()` looks for `'Administrador'`, `ResumenCirugia` and the
+panels look for `'Realizada'`, `'Suspendida'`, `'Aprobada'`, `'Completada'`, and the six
+material states *in precedence order*. Renaming one of those rows from the ABM breaks the
+app **without raising anything**: indicators silently go to zero. So each catalog declares
+its load-bearing rows in the map, and `CatalogoController::protegerFilaDelSistema()`
+blocks both `update` and `destroy` for them (the listing marks them "Del sistema" and
+drops the deactivate button; the edit form explains why and hides its submit).
+
+```php
+'protegidos' => ['Realizada', 'Suspendida', 'En riesgo'],
+'motivoProteccion' => 'Los paneles cuentan las cirugías buscando estos estados…',
+```
+
+**Adding a new literal comparison against a catalog name means adding that name to
+`protegidos`.** `CatalogosTest::test_toda_fila_protegida_existe_en_el_catalogo` keeps the
+declared list from drifting away from what is actually seeded.
+
+An admin also cannot remove their own `Administrador` role or deactivate their own user,
+which together with the above makes a zero-admin state unreachable through the UI.
+
+**Creating a user writes four tables** in one transaction: `Persona` → `Personal` →
+`Usuario` → `RolPersonal`. Roles go through `Personal::sincronizarRoles()`, **not
+`sync()`** — `RolPersonal` is history, so dropping a role sets
+`fechaHoraBajaAsignacionRolPersonal` and leaves the row. Passwords are assigned in plain
+text (the `hashed` cast on `Usuario` does the rest); there is no email reset, so
+`/admin/usuarios/{usuario}/clave` is the only way to replace one.
+
+**Every write is audited.** No domain table has `created_at`, so there was no way to tell
+who created a user or deactivated a catalog. `App\Support\Auditor` writes one `Auditoria`
+row per admin action — who, when, which action, which record, and a JSON diff of the
+fields that actually changed. `/admin/auditoria` reads it back, filterable by author,
+action and table.
+
+It is called **explicitly from the controllers**, not wired to Eloquent events: the point
+is to record what an administrator did, not what a seeder or a test did. Three rules when
+extending it:
+
+- Capture `Auditor::foto($modelo)` **before** the save — saving resyncs the model's
+  originals, so a diff taken afterwards is empty.
+- Nothing is recorded when `getChanges()` is empty, so pressing save without editing
+  doesn't pollute the log.
+- `Auditor::RESERVADOS` keeps passwords out. Never add a credential field to a diff.
+
+`Auditoria` is the one table that does **not** come from the original data model — that
+is why `ModelosTest` now expects 66 models, not 65.
+
+**Validation messages live in `lang/es/validation.php`.** `APP_LOCALE=es` with no
+translations published makes Laravel print the raw key (`validation.required`), so a
+new rule used in a form needs its line there.
 
 ### Brand and UI components
 
@@ -190,10 +269,29 @@ for hover, active state and backgrounds. Typeface is Montserrat (400/600/900),
 self-hosted at build time.
 
 Reusable components in `resources/views/components/` — prefer them over ad-hoc markup:
-`boton`, `input`, `alerta`, `tarjeta`, `estado`, `metrica`, `icono`. Per the manual,
-`<x-boton>` defaults to a fully rounded confirmation button and `forma="grupo"` gives
-the 12px radius used for button groups. `<x-input>` handles its own validation error
-and `old()` value.
+`boton`, `input`, `select`, `textarea`, `checkbox`, `alerta`, `tarjeta`, `estado`,
+`metrica`, `icono`. Per the manual, `<x-boton>` defaults to a fully rounded confirmation
+button and `forma="grupo"` gives the 12px radius used for button groups. The four form
+components share one API (`nombre`, `etiqueta`, `valor`, `ayuda`, `requerido`) and each
+handles its own `old()` value and validation error — keep that shape if you add another.
+
+Flash messages: redirect `->with('exito' | 'error' | 'aviso' | 'info', '…')` and
+`partials/flash.blade.php`, already included by `layouts/app`, renders it as `<x-alerta>`.
+
+Destructive actions confirm through a native `<dialog>` (`components/confirmar.blade.php`,
+rendered **once** by `layouts/app`), never `confirm()`. A form opts in by declaring its
+copy — no JavaScript at the call site:
+
+```blade
+<form method="POST" action="…"
+      data-confirmar-titulo="Dar de baja «Hemograma»"
+      data-confirmar="No se borra: se puede reactivar cuando haga falta."
+      data-confirmar-accion="Dar de baja">
+```
+
+The handler in `resources/js/app.js` is delegated, so it covers forms added later. That
+file is still the app's entire JavaScript — keep it that way; a confirmation library
+would outweigh the whole bundle and fight the brand tokens.
 
 Icons are Material Symbols, loaded from a **subsetted** stylesheet. **A new icon must
 be added to the `icon_names` list in `layouts/app.blade.php` or it silently will not
@@ -207,3 +305,10 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.
 - **No surgery duration** on `Cirugia`, so the OR agenda shows start times only.
+- **Not every master table has a screen.** The `/admin` catalog map deliberately leaves
+  out `ConfigConsentimiento` and `ConfigTipoExamenPreAnestesico*` (templates with a
+  validity range and a nested question→answer tree) and `MaterialProveedor` /
+  `MaterialProveedorTipoMedida` (pricing per supplier, also date-ranged). They need
+  their own screens, not the generic ABM.
+- **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
+  disabled; a `Persona` who is not staff has no screen of its own.
