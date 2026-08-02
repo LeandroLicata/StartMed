@@ -30,63 +30,142 @@
         />
 
         <x-metrica
-            :valor="$enRiesgo->count()"
+            :valor="$enRiesgoCount"
             etiqueta="Casos en riesgo"
             icono="warning"
-            :tono="$enRiesgo->isEmpty() ? 'exito' : 'error'"
+            :tono="$enRiesgoCount === 0 ? 'exito' : 'error'"
             detalle="Con algún requisito sin cumplir"
         />
     </div>
 
-    {{-- Riesgo de suspensión --}}
-    @if ($enRiesgo->isNotEmpty())
-        <x-tarjeta titulo="Riesgo de suspensión" icono="warning" class="mt-6">
-            <x-slot:acciones>
-                <x-estado tono="error">{{ $enRiesgo->count() }}</x-estado>
-            </x-slot:acciones>
+    {{-- Agenda de hoy por quirófano --}}
+    <x-tarjeta titulo="Agenda de hoy" icono="meeting_room" class="mt-6">
+        @if ($agenda->isEmpty())
+            <p class="py-6 text-center text-sm text-hu-gris-medio">
+                Ningún quirófano tiene cirugías asignadas para hoy.
+            </p>
+        @else
+            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                @foreach ($agenda as $nombreQuirofano => $casos)
+                    <div class="rounded-xl border border-hu-gris-suave/70">
+                        <div class="flex items-center justify-between gap-2 rounded-t-xl bg-hu-azul px-4 py-2.5 text-white">
+                            <p class="truncate text-sm font-semibold">{{ $nombreQuirofano }}</p>
+                            <span class="shrink-0 text-xs text-white/70">
+                                {{ $casos->count() }} {{ str('cirugía')->plural($casos->count()) }}
+                            </span>
+                        </div>
 
-            <ul class="divide-y divide-hu-gris-suave/60">
-                @foreach ($enRiesgo as $caso)
-                    <li class="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                        <ul class="divide-y divide-hu-gris-suave/60 px-4">
+                            @foreach ($casos as $caso)
+                                <li>
+                                    <a
+                                        href="{{ route('cirugias.show', $caso->cirugia) }}"
+                                        class="-mx-1 flex items-start gap-3 rounded-lg px-1 py-3 transition-colors hover:bg-hu-azul-tenue/40"
+                                    >
+                                        <span class="w-12 shrink-0 text-sm font-black text-hu-azul">
+                                            {{ $caso->cuando()?->format('H:i') }}
+                                        </span>
+
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate text-sm font-semibold text-hu-azul">
+                                                {{ $caso->nombrePaciente() }}
+                                            </p>
+                                            <p class="truncate text-xs text-hu-gris-medio">
+                                                {{ $caso->procedimiento() }}
+                                            </p>
+                                        </div>
+
+                                        <x-estado :tono="$caso->semaforo()" class="shrink-0">
+                                            {{ $caso->estaLista() ? 'Listo' : 'Pendiente' }}
+                                        </x-estado>
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+    </x-tarjeta>
+
+    {{-- Cirugías de hoy --}}
+    <x-tarjeta titulo="Cirugías de hoy" icono="event" class="mt-6">
+        <x-slot:acciones>
+            <x-estado tono="info">{{ $cirugiasDeHoy->count() }}</x-estado>
+        </x-slot:acciones>
+
+        <ul class="divide-y divide-hu-gris-suave/60">
+            @forelse ($cirugiasDeHoy as $caso)
+                <li>
+                    <a
+                        href="{{ route('cirugias.show', $caso->cirugia) }}"
+                        class="-mx-1 flex flex-wrap items-center justify-between gap-3 rounded-lg px-1 py-3 transition-colors hover:bg-hu-azul-tenue/40"
+                    >
                         <div class="min-w-0">
                             <p class="font-semibold text-hu-azul">
                                 {{ $caso->nombrePaciente() }}
                                 <span class="font-normal text-hu-gris-medio">· {{ $caso->procedimiento() }}</span>
                             </p>
-
-                            <ul class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-hu-gris">
-                                @foreach ($caso->pendientes() as $pendiente)
-                                    <li class="flex items-center gap-1">
-                                        <x-icono nombre="error" class="text-sm text-red-600" relleno />
-                                        {{ $pendiente }}
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
-
-                        <div class="text-right">
-                            <p class="text-sm font-semibold text-hu-azul">
-                                {{ $caso->cuando()?->translatedFormat('D j/m · H:i') }}
-                            </p>
-                            @php($dias = $caso->diasRestantes())
-                            <p class="text-xs {{ $dias !== null && $dias <= 2 ? 'font-semibold text-red-700' : 'text-hu-gris-medio' }}">
-                                @if ($dias === 0)
-                                    Es hoy
-                                @elseif ($dias === 1)
-                                    Falta 1 día
-                                @else
-                                    Faltan {{ $dias }} días
+                            <p class="text-xs text-hu-gris-medio">
+                                {{ $caso->cuando()?->format('H:i') }} hs
+                                @if ($caso->quirofano)
+                                    · {{ $caso->quirofano->nombreQuirofano }}
                                 @endif
                             </p>
                         </div>
-                    </li>
-                @endforeach
-            </ul>
-        </x-tarjeta>
-    @endif
+
+                        <x-estado :tono="$caso->semaforo()" :icono="$caso->estaLista() ? 'check_circle' : 'warning'">
+                            {{ $caso->estaLista() ? 'Listo' : $caso->estado() }}
+                        </x-estado>
+                    </a>
+                </li>
+            @empty
+                <li class="py-6 text-center text-sm text-hu-gris-medio">
+                    No hay cirugías programadas para hoy.
+                </li>
+            @endforelse
+        </ul>
+    </x-tarjeta>
 
     {{-- Checklist por paciente --}}
     <x-tarjeta titulo="Estado de los pacientes" icono="groups" class="mt-6">
+        <form method="GET" action="{{ route('dashboard') }}" class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            <div class="sm:col-span-2">
+                <x-input nombre="q" etiqueta="Buscar" :valor="$filtros['q'] ?? null" ayuda="Paciente o DNI" />
+            </div>
+
+            <x-select
+                nombre="estado"
+                etiqueta="Estado"
+                :opciones="$estadosCirugia->pluck('nombreEstadoCirugia', 'nombreEstadoCirugia')"
+                :valor="$filtros['estado'] ?? null"
+            />
+
+            <x-select
+                nombre="idQuirofano"
+                etiqueta="Quirófano"
+                :opciones="$quirofanosCatalogo->mapWithKeys(fn ($q) => [$q->idQuirofano => 'Nº '.$q->nroQuirofano.' — '.$q->nombreQuirofano])"
+                :valor="$filtros['idQuirofano'] ?? null"
+            />
+
+            <x-select
+                nombre="idObraSocial"
+                etiqueta="Obra social"
+                :opciones="$obrasSocialesCatalogo->pluck('nombreObraSocial', 'idObraSocial')"
+                :valor="$filtros['idObraSocial'] ?? null"
+            />
+
+            <x-input nombre="desde" etiqueta="Desde" tipo="date" :valor="$filtros['desde'] ?? null" />
+            <x-input nombre="hasta" etiqueta="Hasta" tipo="date" :valor="$filtros['hasta'] ?? null" />
+
+            <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-6">
+                <x-boton tipo="submit" forma="grupo">Filtrar</x-boton>
+                @if (array_filter($filtros))
+                    <x-boton variante="fantasma" forma="grupo" :href="route('dashboard')">Limpiar filtros</x-boton>
+                @endif
+            </div>
+        </form>
+
         <div class="-mx-5 overflow-x-auto">
             <table class="w-full min-w-208 text-sm">
                 <thead>
@@ -103,9 +182,14 @@
                 </thead>
 
                 <tbody class="divide-y divide-hu-gris-suave/60">
-                    @forelse ($cirugias as $caso)
-                        <tr class="align-middle hover:bg-hu-azul-tenue/40">
+                    @forelse ($cirugiasFiltradas as $caso)
+                        <tr class="relative align-middle hover:bg-hu-azul-tenue/40">
                             <td class="px-5 py-3">
+                                <a
+                                    href="{{ route('cirugias.show', $caso->cirugia) }}"
+                                    class="absolute inset-0"
+                                    aria-label="Ver cirugía de {{ $caso->nombrePaciente() }}"
+                                ></a>
                                 <p class="font-semibold text-hu-azul">{{ $caso->nombrePaciente() }}</p>
                                 <p class="text-xs text-hu-gris-medio">
                                     {{ $caso->plan?->nombrePlan ?? 'Sin plan' }}
@@ -168,58 +252,13 @@
                     @empty
                         <tr>
                             <td colspan="8" class="px-5 py-10 text-center text-hu-gris-medio">
-                                No hay cirugías programadas de hoy en adelante.
+                                Ninguna cirugía coincide con la búsqueda.
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-    </x-tarjeta>
-
-    {{-- Agenda de hoy por quirófano --}}
-    <x-tarjeta titulo="Agenda de hoy" icono="meeting_room" class="mt-6">
-        @if ($agenda->isEmpty())
-            <p class="py-6 text-center text-sm text-hu-gris-medio">
-                Ningún quirófano tiene cirugías asignadas para hoy.
-            </p>
-        @else
-            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                @foreach ($agenda as $nombreQuirofano => $casos)
-                    <div class="rounded-xl border border-hu-gris-suave/70">
-                        <div class="flex items-center justify-between gap-2 rounded-t-xl bg-hu-azul px-4 py-2.5 text-white">
-                            <p class="truncate text-sm font-semibold">{{ $nombreQuirofano }}</p>
-                            <span class="shrink-0 text-xs text-white/70">
-                                {{ $casos->count() }} {{ str('cirugía')->plural($casos->count()) }}
-                            </span>
-                        </div>
-
-                        <ul class="divide-y divide-hu-gris-suave/60 px-4">
-                            @foreach ($casos as $caso)
-                                <li class="flex items-start gap-3 py-3">
-                                    <span class="w-12 shrink-0 text-sm font-black text-hu-azul">
-                                        {{ $caso->cuando()?->format('H:i') }}
-                                    </span>
-
-                                    <div class="min-w-0 flex-1">
-                                        <p class="truncate text-sm font-semibold text-hu-azul">
-                                            {{ $caso->nombrePaciente() }}
-                                        </p>
-                                        <p class="truncate text-xs text-hu-gris-medio">
-                                            {{ $caso->procedimiento() }}
-                                        </p>
-                                    </div>
-
-                                    <x-estado :tono="$caso->semaforo()" class="shrink-0">
-                                        {{ $caso->estaLista() ? 'Listo' : 'Pendiente' }}
-                                    </x-estado>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endforeach
-            </div>
-        @endif
     </x-tarjeta>
 
     {{-- Dónde se traban los casos --}}

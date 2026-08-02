@@ -52,7 +52,9 @@ class DashboardTest extends TestCase
             ->assertOk()
             ->assertSee('Ramírez, Luis')
             ->assertSee('Prótesis total de rodilla')
-            ->assertSee('Riesgo de suspensión');
+            ->assertSee('Agenda de hoy')
+            ->assertSee('Cirugías de hoy')
+            ->assertSee('Estado de los pacientes');
     }
 
     public function test_una_cirugia_sin_pendientes_queda_lista(): void
