@@ -28,6 +28,9 @@ class CatalogoController extends Controller
         $estado = $request->string('estado')->toString();
 
         $registros = FiltroBaja::aplicar($config['modelo']::query(), $estado, $config['baja'])
+            // Para poder decir cuántos registros usan cada fila antes de darla
+            // de baja. Son subconsultas, no una consulta por fila.
+            ->withCount(Catalogos::relacionesDeUso($config))
             ->orderBy(Catalogos::columnaTitulo($config))
             ->paginate(25)
             ->withQueryString();

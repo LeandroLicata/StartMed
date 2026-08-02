@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\ObraSocial;
 use App\Models\Plan;
 use App\Models\Rol;
+use App\Models\TipoCirugia;
 use App\Models\TipoEstudio;
 use App\Models\Usuario;
 use App\Support\Catalogos;
@@ -475,6 +476,65 @@ class CatalogosTest extends TestCase
 
         // Un solo diálogo aunque el listado tenga varias filas.
         $this->assertSame(1, substr_count($respuesta->getContent(), 'id="dialogo-confirmar"'));
+    }
+
+    /**
+     * Antes de dar de baja algo conviene saber si está en uso. El conteo sale
+     * de las relaciones inversas del modelo, que se reflejan en vez de
+     * declararse para que no se desincronicen del grafo de claves foráneas.
+     */
+    public function test_el_listado_muestra_cuantos_registros_usan_cada_fila(): void
+    {
+        $this->seed(DemoSeeder::class);
+
+        $respuesta = $this->actingAs($this->admin())
+            ->get(route('admin.catalogos.index', 'tipo-cirugia'))
+            ->assertOk();
+
+        $usados = TipoCirugia::withCount('cirugias')->get()->firstWhere('cirugias_count', '>', 0);
+
+        $this->assertNotNull($usados, 'DemoSeeder debería dejar tipos de cirugía en uso');
+        $respuesta->assertSee('data-confirmar="Lo referencian '.$usados->cirugias_count, false);
+    }
+
+    public function test_un_tipo_sin_usar_no_ofrece_un_conteo_inventado(): void
+    {
+        $this->actingAs($this->admin())
+            ->post(route('admin.catalogos.store', 'tipo-estudio'), ['nombreTipoEstudio' => 'Espirometría']);
+
+        // Recién creado, no lo referencia nada: el mensaje va sin la frase.
+        $this->actingAs($this->admin())
+            ->get(route('admin.catalogos.index', 'tipo-estudio'))
+            ->assertOk()
+            ->assertSee('data-confirmar="Deja de ofrecerse', false);
+    }
+
+    /**
+     * El conteo son subconsultas dentro de la misma consulta, así que el
+     * listado no puede crecer en consultas cuando crecen las filas.
+     */
+    public function test_el_conteo_de_usos_no_dispara_una_consulta_por_fila(): void
+    {
+        $contar = function (): int {
+            \DB::flushQueryLog();
+            \DB::enableQueryLog();
+            $this->actingAs($this->admin())
+                ->get(route('admin.catalogos.index', 'tipo-estudio'))
+                ->assertOk();
+            $n = count(\DB::getQueryLog());
+            \DB::disableQueryLog();
+
+            return $n;
+        };
+
+        $contar();                 // descarta el arranque
+        $conSeis = $contar();
+
+        foreach (range(1, 15) as $i) {
+            TipoEstudio::create(['nombreTipoEstudio' => "Estudio de prueba {$i}"]);
+        }
+
+        $this->assertSame($conSeis, $contar(), 'hay un N+1 en el conteo de usos');
     }
 
     public function test_un_catalogo_inexistente_da_404(): void

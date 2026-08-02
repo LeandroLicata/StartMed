@@ -29,7 +29,12 @@ use App\Models\TipoIndicacion;
 use App\Models\TipoMedida;
 use App\Models\TipoPreparacion;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+use ReflectionClass;
+use ReflectionMethod;
+use ReflectionNamedType;
 
 /**
  * Las tablas maestras que administra la seccion de administracion, declaradas
@@ -227,7 +232,21 @@ final class Catalogos
                 'singular' => 'Establecimiento',
                 'plural' => 'Establecimientos',
                 'grupo' => 'Hemoderivados',
-                // La tabla trae una sola columna de fecha, sin "Baja" en el nombre.
+                /*
+                 * Es la baja logica, aunque el nombre no lo diga. Los otros 25
+                 * catalogos del esquema tienen exactamente una columna de fecha
+                 * y en todos es la de baja; ninguno tiene fechas adicionales.
+                 * Las fechas extra del modelo viven solo en tablas de historial
+                 * o transaccionales, con sus propios patrones (fechaInicio /
+                 * fechaFin, fechaAsignacion / fechaDesasignacion).
+                 *
+                 * El nombre recortado tiene precedente: CirugiaQuirofano usa
+                 * fechaHoraAsignacion sin el sufijo de la tabla, mientras sus
+                 * hermanas si lo llevan.
+                 *
+                 * Si alguna vez se confirma que significa otra cosa, esta es la
+                 * suposicion que hay que tumbar.
+                 */
                 'baja' => 'fechaEstablecimiento',
                 'campos' => [
                     'nombreEstablecimiento' => ['etiqueta' => 'Nombre', 'requerido' => true, 'unico' => true, 'max' => 180],
@@ -310,6 +329,47 @@ final class Catalogos
     public static function columnaTitulo(array $config): string
     {
         return array_key_first($config['campos']);
+    }
+
+    /**
+     * Relaciones que apuntan de vuelta al catalogo, para poder contar cuantos
+     * registros usan cada fila antes de darla de baja.
+     *
+     * Se reflejan en vez de declararse: los modelos se generaron del grafo de
+     * claves foraneas, asi que la lista siempre esta completa y no se puede
+     * desincronizar. ModelosTest ya garantiza que todas compilen.
+     *
+     * @param  array<string, mixed>  $config
+     * @return list<string>
+     */
+    public static function relacionesDeUso(array $config): array
+    {
+        static $cache = [];
+
+        return $cache[$config['modelo']] ??= collect(
+            (new ReflectionClass($config['modelo']))->getMethods(ReflectionMethod::IS_PUBLIC)
+        )
+            ->filter(function (ReflectionMethod $metodo) {
+                $tipo = $metodo->getReturnType();
+
+                return $tipo instanceof ReflectionNamedType
+                    && ! $tipo->isBuiltin()
+                    && is_subclass_of($tipo->getName(), HasOneOrMany::class);
+            })
+            ->map(fn (ReflectionMethod $metodo) => $metodo->getName())
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Cuantos registros referencian a esta fila, sumando todas sus relaciones.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    public static function usos(array $config, Model $registro): int
+    {
+        return collect(self::relacionesDeUso($config))
+            ->sum(fn (string $relacion) => (int) $registro->{Str::snake($relacion).'_count'});
     }
 
     /**

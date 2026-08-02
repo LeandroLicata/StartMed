@@ -48,6 +48,9 @@
                         @foreach ($columnas as $campo)
                             <th class="px-3 pb-2 font-semibold first:px-5">{{ $campo['etiqueta'] }}</th>
                         @endforeach
+                        <th class="px-3 pb-2 text-right font-semibold" title="Cuántos registros del sistema referencian cada fila">
+                            En uso
+                        </th>
                         <th class="px-3 pb-2 font-semibold">Estado</th>
                         <th class="px-5 pb-2 text-right font-semibold">Acciones</th>
                     </tr>
@@ -59,6 +62,13 @@
                             $deBaja = $registro->{$config['baja']} !== null;
                             // Filas de las que depende el código: se muestran, no se tocan.
                             $protegido = Catalogos::estaProtegido($config, $registro);
+                            $usos = Catalogos::usos($config, $registro);
+
+                            // Se arma acá y no dentro del atributo: un @if
+                            // pegado a texto rompe la compilación de Blade.
+                            $avisoDeUso = $usos > 0
+                                ? 'Lo referencian '.$usos.' '.str('registro')->plural($usos).', que no se van a tocar. '
+                                : '';
                         @endphp
 
                         <tr class="align-middle hover:bg-hu-azul-tenue/40">
@@ -73,6 +83,10 @@
                                     @endif
                                 </td>
                             @endforeach
+
+                            <td class="px-3 py-3 text-right tabular-nums {{ $usos === 0 ? 'text-hu-gris-medio' : 'font-semibold text-hu-azul' }}">
+                                {{ $usos === 0 ? '—' : $usos }}
+                            </td>
 
                             <td class="px-3 py-3">
                                 @if ($protegido)
@@ -115,7 +129,7 @@
                                             method="POST"
                                             action="{{ route('admin.catalogos.destroy', [$config['slug'], $registro->getKey()]) }}"
                                             data-confirmar-titulo="Dar de baja «{{ $registro->$columnaTitulo }}»"
-                                            data-confirmar="Deja de ofrecerse en el resto del sistema, pero no se borra: se puede reactivar cuando haga falta."
+                                            data-confirmar="{{ $avisoDeUso }}Deja de ofrecerse de acá en adelante, pero no se borra: se puede reactivar cuando haga falta."
                                             data-confirmar-accion="Dar de baja"
                                         >
                                             @csrf
@@ -130,7 +144,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $columnas->count() + 2 }}" class="px-5 py-10 text-center text-hu-gris-medio">
+                            <td colspan="{{ $columnas->count() + 3 }}" class="px-5 py-10 text-center text-hu-gris-medio">
                                 @if ($estado === \App\Support\FiltroBaja::BAJAS)
                                     No hay {{ mb_strtolower($config['plural']) }} dados de baja.
                                 @else
