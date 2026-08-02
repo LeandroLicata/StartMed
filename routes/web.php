@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CatalogoController;
 use App\Http\Controllers\Admin\ConsentimientoController;
+use App\Http\Controllers\Admin\CuestionarioController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\AnestesistaController;
 use App\Http\Controllers\Auth\LoginController;
@@ -94,6 +95,20 @@ Route::middleware('auth')->group(function () {
         Route::get('consentimientos/{tipoCirugia}/{version}/corregir', [ConsentimientoController::class, 'edit'])->name('consentimientos.edit');
         Route::put('consentimientos/{tipoCirugia}/{version}', [ConsentimientoController::class, 'update'])->name('consentimientos.update');
         Route::delete('consentimientos/{tipoCirugia}', [ConsentimientoController::class, 'destroy'])->name('consentimientos.destroy');
+
+        /*
+         * Cuestionario preanestesico: arbol de version -> preguntas -> opciones,
+         * todo sobre una sola pantalla por version para no pedir JavaScript.
+         */
+        Route::get('cuestionario', [CuestionarioController::class, 'index'])->name('cuestionario.index');
+        Route::post('cuestionario', [CuestionarioController::class, 'store'])->name('cuestionario.store');
+        Route::get('cuestionario/{version}', [CuestionarioController::class, 'show'])->name('cuestionario.show');
+        Route::delete('cuestionario/{version}', [CuestionarioController::class, 'destroy'])->name('cuestionario.destroy');
+        Route::post('cuestionario/{version}/preguntas', [CuestionarioController::class, 'agregarPregunta'])->name('cuestionario.preguntas.store');
+        Route::put('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'actualizarPregunta'])->name('cuestionario.preguntas.update');
+        Route::delete('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'eliminarPregunta'])->name('cuestionario.preguntas.destroy');
+        Route::post('cuestionario/{version}/preguntas/{pregunta}/respuestas', [CuestionarioController::class, 'agregarRespuesta'])->name('cuestionario.respuestas.store');
+        Route::delete('cuestionario/{version}/preguntas/{pregunta}/respuestas/{respuesta}', [CuestionarioController::class, 'eliminarRespuesta'])->name('cuestionario.respuestas.destroy');
 
         Route::get('usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::get('usuarios/nuevo', [UsuarioController::class, 'create'])->name('usuarios.create');

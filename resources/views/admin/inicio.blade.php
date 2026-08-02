@@ -56,6 +56,21 @@
             <x-tarjeta class="w-full">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
+                        <p class="text-sm font-semibold text-hu-azul">Cuestionario preanestésico</p>
+                        <p class="text-xs text-hu-gris-medio">
+                            Las preguntas que completa el paciente antes de la evaluación.
+                        </p>
+                    </div>
+
+                    <x-boton :href="route('admin.cuestionario.index')" variante="contorno" icono="assignment">
+                        Administrar
+                    </x-boton>
+                </div>
+            </x-tarjeta>
+
+            <x-tarjeta class="w-full">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
                         <p class="text-sm font-semibold text-hu-azul">Auditoría</p>
                         <p class="text-xs text-hu-gris-medio">
                             Quién dio de alta, editó o dio de baja cada cosa, y qué cambió.

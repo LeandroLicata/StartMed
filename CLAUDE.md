@@ -252,6 +252,16 @@ and for `ExpedienteSeeder`, which used to carry its own copy. **An unknown marke
 validation error, not a warning**: it would survive into the document the patient signs
 and nobody would notice until after the signature.
 
+**The pre-anaesthesia questionnaire freezes once answered** (`Admin\CuestionarioController`,
+`/admin/cuestionario`). Same versioning idea as consents, but the rule is stricter and for
+a different reason: `ResumenCirugia::cuestionario()` reads the question and option text
+**live** from `ConfigTipoExamenPreAnestesicoPregunta` — there is no snapshot here. Editing
+a question after somebody answered it would retroactively change what that patient was
+asked. So a version is editable only while it is current *and* unanswered; publishing a
+new one clones the whole tree so it can be tweaked. The three levels (version → questions
+→ options) live on **one screen with many small forms**, which keeps the project's
+near-zero JavaScript.
+
 **Every write is audited.** No domain table has `created_at`, so there was no way to tell
 who created a user or deactivated a catalog. `App\Support\Auditor` writes one `Auditoria`
 row per admin action — who, when, which action, which record, and a JSON diff of the
