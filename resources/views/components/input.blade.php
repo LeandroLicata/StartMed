@@ -4,6 +4,7 @@
     'tipo' => 'text',
     'valor' => null,
     'ayuda' => null,
+    'placeholder' => null,
     'requerido' => false,
 ])
 
@@ -28,6 +29,7 @@
         name="{{ $nombre }}"
         type="{{ $tipo }}"
         value="{{ $valorActual }}"
+        @if ($placeholder) placeholder="{{ $placeholder }}" @endif
         @if ($requerido) required @endif
         @if ($hayError) aria-invalid="true" aria-describedby="{{ $nombre }}-error" @endif
         {{ $attributes->class([

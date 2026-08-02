@@ -88,51 +88,14 @@
         @endif
     </x-tarjeta>
 
-    {{-- Cirugías de hoy --}}
-    <x-tarjeta titulo="Cirugías de hoy" icono="event" class="mt-6">
+    {{-- Cirugías de la semana --}}
+    <x-tarjeta titulo="Cirugías de la semana" icono="event" class="mt-6">
         <x-slot:acciones>
-            <x-estado tono="info">{{ $cirugiasDeHoy->count() }}</x-estado>
+            <x-estado tono="info">{{ $cirugiasFiltradas->count() }}</x-estado>
         </x-slot:acciones>
 
-        <ul class="divide-y divide-hu-gris-suave/60">
-            @forelse ($cirugiasDeHoy as $caso)
-                <li>
-                    <a
-                        href="{{ route('cirugias.show', $caso->cirugia) }}"
-                        class="-mx-1 flex flex-wrap items-center justify-between gap-3 rounded-lg px-1 py-3 transition-colors hover:bg-hu-azul-tenue/40"
-                    >
-                        <div class="min-w-0">
-                            <p class="font-semibold text-hu-azul">
-                                {{ $caso->nombrePaciente() }}
-                                <span class="font-normal text-hu-gris-medio">· {{ $caso->procedimiento() }}</span>
-                            </p>
-                            <p class="text-xs text-hu-gris-medio">
-                                {{ $caso->cuando()?->format('H:i') }} hs
-                                @if ($caso->quirofano)
-                                    · {{ $caso->quirofano->nombreQuirofano }}
-                                @endif
-                            </p>
-                        </div>
-
-                        <x-estado :tono="$caso->semaforo()" :icono="$caso->estaLista() ? 'check_circle' : 'warning'">
-                            {{ $caso->estaLista() ? 'Listo' : $caso->estado() }}
-                        </x-estado>
-                    </a>
-                </li>
-            @empty
-                <li class="py-6 text-center text-sm text-hu-gris-medio">
-                    No hay cirugías programadas para hoy.
-                </li>
-            @endforelse
-        </ul>
-    </x-tarjeta>
-
-    {{-- Checklist por paciente --}}
-    <x-tarjeta titulo="Estado de los pacientes" icono="groups" class="mt-6">
         <form method="GET" action="{{ route('dashboard') }}" class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-            <div class="sm:col-span-2">
-                <x-input nombre="q" etiqueta="Buscar" :valor="$filtros['q'] ?? null" ayuda="Paciente o DNI" />
-            </div>
+            <x-input nombre="q" etiqueta="Buscar" :valor="$filtros['q'] ?? null" placeholder="Paciente o DNI" />
 
             <x-select
                 nombre="estado"
@@ -160,7 +123,7 @@
 
             <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-6">
                 <x-boton tipo="submit" forma="grupo">Filtrar</x-boton>
-                @if (array_filter($filtros))
+                @if ($hayFiltrosActivos)
                     <x-boton variante="fantasma" forma="grupo" :href="route('dashboard')">Limpiar filtros</x-boton>
                 @endif
             </div>
