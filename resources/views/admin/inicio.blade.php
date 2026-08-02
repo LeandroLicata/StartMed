@@ -41,6 +41,21 @@
             <x-tarjeta class="w-full">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
+                        <p class="text-sm font-semibold text-hu-azul">Consentimientos informados</p>
+                        <p class="text-xs text-hu-gris-medio">
+                            El texto que firma el paciente, por tipo de cirugía.
+                        </p>
+                    </div>
+
+                    <x-boton :href="route('admin.consentimientos.index')" variante="contorno" icono="draw">
+                        Administrar
+                    </x-boton>
+                </div>
+            </x-tarjeta>
+
+            <x-tarjeta class="w-full">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
                         <p class="text-sm font-semibold text-hu-azul">Auditoría</p>
                         <p class="text-xs text-hu-gris-medio">
                             Quién dio de alta, editó o dio de baja cada cosa, y qué cambió.

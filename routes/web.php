@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CatalogoController;
+use App\Http\Controllers\Admin\ConsentimientoController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\AnestesistaController;
 use App\Http\Controllers\Auth\LoginController;
@@ -81,6 +82,18 @@ Route::middleware('auth')->group(function () {
         Route::put('catalogos/{catalogo}/{registro}', [CatalogoController::class, 'update'])->name('catalogos.update');
         Route::delete('catalogos/{catalogo}/{registro}', [CatalogoController::class, 'destroy'])->name('catalogos.destroy');
         Route::post('catalogos/{catalogo}/{registro}/reactivar', [CatalogoController::class, 'restore'])->name('catalogos.restore');
+
+        /*
+         * Las plantillas de consentimiento no entran en el ABM generico: son
+         * texto con vigencia, asi que se tratan por versiones.
+         */
+        Route::get('consentimientos', [ConsentimientoController::class, 'index'])->name('consentimientos.index');
+        Route::get('consentimientos/{tipoCirugia}', [ConsentimientoController::class, 'show'])->name('consentimientos.show');
+        Route::get('consentimientos/{tipoCirugia}/nueva', [ConsentimientoController::class, 'create'])->name('consentimientos.create');
+        Route::post('consentimientos/{tipoCirugia}', [ConsentimientoController::class, 'store'])->name('consentimientos.store');
+        Route::get('consentimientos/{tipoCirugia}/{version}/corregir', [ConsentimientoController::class, 'edit'])->name('consentimientos.edit');
+        Route::put('consentimientos/{tipoCirugia}/{version}', [ConsentimientoController::class, 'update'])->name('consentimientos.update');
+        Route::delete('consentimientos/{tipoCirugia}', [ConsentimientoController::class, 'destroy'])->name('consentimientos.destroy');
 
         Route::get('usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::get('usuarios/nuevo', [UsuarioController::class, 'create'])->name('usuarios.create');

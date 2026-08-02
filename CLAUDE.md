@@ -236,6 +236,22 @@ which together with the above makes a zero-admin state unreachable through the U
 text (the `hashed` cast on `Usuario` does the rest); there is no email reset, so
 `/admin/usuarios/{usuario}/clave` is the only way to replace one.
 
+**Consent templates are versioned, not edited** (`Admin\ConsentimientoController`,
+`/admin/consentimientos`). They are deliberately outside the catalog map: one longText
+per `TipoCirugia` with a validity range, so publishing closes the current version
+(`fechaFinConfigConsentimiento = now()`) and opens a new one, the same way the schema
+models every other history. A version that nobody signed can still be corrected in
+place; once `ConsentimientoPaciente` rows point at it, only a new version is allowed —
+otherwise the audit trail would claim a signed consent came from text that has since
+changed. What patients signed is never at risk either way: `ConsentimientoPaciente`
+keeps its own immutable `textoRenderizadoConsentimiento` plus a SHA-256.
+
+`App\Support\Consentimiento` owns the `{{paciente}}` / `{{dni}}` / `{{procedimiento}}` /
+`{{cirujano}}` markers and resolves them — for the real document, for the admin preview,
+and for `ExpedienteSeeder`, which used to carry its own copy. **An unknown marker is a
+validation error, not a warning**: it would survive into the document the patient signs
+and nobody would notice until after the signature.
+
 **Every write is audited.** No domain table has `created_at`, so there was no way to tell
 who created a user or deactivated a catalog. `App\Support\Auditor` writes one `Auditoria`
 row per admin action — who, when, which action, which record, and a JSON diff of the

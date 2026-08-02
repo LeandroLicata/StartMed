@@ -20,6 +20,7 @@ use App\Models\PreparacionPacienteTipoPreparacionTipoIndicacion;
 use App\Models\TipoCirugia;
 use App\Models\TipoIndicacion;
 use App\Models\TipoPreparacion;
+use App\Support\Consentimiento;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -164,14 +165,7 @@ class ExpedienteSeeder extends Seeder
             return;
         }
 
-        $paciente = $cirugia->paciente;
-
-        $texto = strtr($plantilla->textoConfigConsentimiento, [
-            '{{paciente}}' => $paciente?->nombre_completo ?? '',
-            '{{dni}}' => $paciente?->documento ?? '',
-            '{{procedimiento}}' => $cirugia->tipoCirugia->nombreTipoCirugia,
-            '{{cirujano}}' => $cirugia->cirujano?->persona?->nombre_completo ?? '',
-        ]);
+        $texto = Consentimiento::paraCirugia($plantilla->textoConfigConsentimiento, $cirugia);
 
         ConsentimientoPaciente::firstOrCreate(
             ['idCirugia' => $cirugia->idCirugia],
