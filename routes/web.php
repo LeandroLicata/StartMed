@@ -3,6 +3,7 @@
 use App\Http\Controllers\AnestesistaController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CirugiaController;
+use App\Http\Controllers\CirugiaCreacionController;
 use App\Http\Controllers\CirujanoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
@@ -48,6 +49,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/direccion', DireccionController::class)
         ->middleware('rol:Dirección médica')
         ->name('direccion');
+
+    // Alta de una cirugia nueva: buscar/dar de alta al paciente por DNI y
+    // completar quirofano, equipo y cobertura. Exclusivo del gestor. Va antes
+    // de '/cirugias/{cirugia}' para que 'nueva' no se interprete como un id.
+    Route::middleware('rol:Gestor de quirófano')->group(function () {
+        Route::get('/cirugias/nueva', [CirugiaCreacionController::class, 'buscar'])
+            ->name('cirugias.crear');
+        Route::post('/cirugias/nueva/paciente', [CirugiaCreacionController::class, 'crearPaciente'])
+            ->name('cirugias.crear.paciente');
+        Route::get('/cirugias/nueva/{persona}', [CirugiaCreacionController::class, 'formulario'])
+            ->name('cirugias.crear.formulario');
+        Route::post('/cirugias', [CirugiaCreacionController::class, 'store'])
+            ->name('cirugias.store');
+    });
 
     Route::get('/cirugias/{cirugia}', [CirugiaController::class, 'show'])
         ->name('cirugias.show');

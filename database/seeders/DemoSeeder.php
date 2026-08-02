@@ -201,10 +201,8 @@ class DemoSeeder extends Seeder
             ['telefonoObraSocial' => '08003333828', 'emailObraSocial' => 'autorizaciones@swissmedical.com.ar', 'diasVigenciaOrden' => 30],
         );
 
-        $sinCobertura = ObraSocial::firstOrCreate(
-            ['nombreObraSocial' => 'Sin obra social'],
-            ['diasVigenciaOrden' => 0],
-        );
+        // 'Sin obra social' / Plan 'Particular' ya los crea CatalogosSeeder.
+        $sinCobertura = ObraSocial::where('nombreObraSocial', 'Sin obra social')->firstOrFail();
 
         return [
             'OSDE 410' => Plan::firstOrCreate(
@@ -230,6 +228,7 @@ class DemoSeeder extends Seeder
             'lopez' => ['López', 'Silvia', '19887432', 'Cirujano', 'MP 5109', 's.lopez@hospital.uncuyo.edu.ar'],
             'ramos' => ['Ramos', 'Hernán', '18554120', 'Anestesista', 'MP 4677', 'h.ramos@hospital.uncuyo.edu.ar'],
             'gonzalez' => ['González', 'Romina', '30112987', 'Gestor de quirófano', null, 'r.gonzalez@hospital.uncuyo.edu.ar'],
+            'panel' => ['Gestión', 'Panel', '00000001', 'Gestor de quirófano', null, 'L390585@gmail.com'],
         ];
 
         $equipo = [];
@@ -248,9 +247,14 @@ class DemoSeeder extends Seeder
                 ],
             ]);
 
+            // 'panel' es una cuenta real (no demo): el login es el email, en
+            // minusculas para que coincida sin importar como lo tipeen.
+            $nombreUsuario = $clave === 'panel' ? mb_strtolower($mail) : $clave;
+            $password = $clave === 'panel' ? $mail : 'demo1234';
+
             Usuario::firstOrCreate(
-                ['nombreUsuario' => $clave],
-                ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => 'demo1234'],
+                ['nombreUsuario' => $nombreUsuario],
+                ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => $password],
             );
 
             $equipo[$clave] = $personal;

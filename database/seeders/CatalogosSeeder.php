@@ -10,6 +10,8 @@ use App\Models\EstadoPedidoMaterial;
 use App\Models\EstadoPedidoTipoHemoderivado;
 use App\Models\EstadoQuirofano;
 use App\Models\GrupoSanguineo;
+use App\Models\ObraSocial;
+use App\Models\Plan;
 use App\Models\Profilaxis;
 use App\Models\ProfilaxisRol;
 use App\Models\Rol;
@@ -51,6 +53,7 @@ class CatalogosSeeder extends Seeder
 
         $this->cargar(EstadoCirugia::class, 'nombreEstadoCirugia', [
             'Programada', 'Confirmada', 'En riesgo', 'Suspendida', 'Realizada',
+            'En espera de confirmación', 'En espera',
         ]);
 
         $this->cargar(EstadoQuirofano::class, 'nombreEstadoQuirofano', [
@@ -59,6 +62,7 @@ class CatalogosSeeder extends Seeder
 
         $this->cargar(EstadoAutCirugia::class, 'nombreEstadoAutCirugia', [
             'Pendiente de envío', 'Enviada', 'En auditoría médica', 'Aprobada', 'Rechazada',
+            'Presupuesto enviado', 'Pendiente de documentación',
         ]);
 
         $this->cargar(EstadoPedidoMaterial::class, 'nombreEstadoPedidoMaterial', [
@@ -140,6 +144,18 @@ class CatalogosSeeder extends Seeder
                 ['descripcionTipoCirugia' => $descripcion],
             );
         }
+
+        // Opcion "Particular": sin obra social, no requiere autorizacion. Tiene que
+        // existir siempre (no solo cuando corre la demo) para el alta de cirugias.
+        $sinCobertura = ObraSocial::firstOrCreate(
+            ['nombreObraSocial' => 'Sin obra social'],
+            ['diasVigenciaOrden' => 0],
+        );
+
+        Plan::firstOrCreate(
+            ['nombrePlan' => 'Particular', 'idobrasocial' => $sinCobertura->idObraSocial],
+            ['es_sin_cobertura' => true, 'habilitado_autorizaciones' => false],
+        );
     }
 
     /**

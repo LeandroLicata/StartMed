@@ -18,6 +18,7 @@ class AutoCirugiaEstado extends Model
         'idEstadoAutCirugia',
         'fechaInicioAutoCirugiaEstado',
         'fechaFinAutoCirugiaEstado',
+        'observacionesAutoCirugiaEstado',
     ];
 
     protected function casts(): array

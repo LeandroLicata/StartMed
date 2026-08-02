@@ -12,6 +12,12 @@
             'roles' => ['Gestor de quirófano', 'Dirección médica'],
         ],
         [
+            'etiqueta' => 'Cirugías',
+            'icono' => 'event',
+            'ruta' => 'cirugias.crear',
+            'roles' => ['Gestor de quirófano'],
+        ],
+        [
             'etiqueta' => 'Mis cirugías',
             'icono' => 'personal_injury',
             'ruta' => 'cirujano',

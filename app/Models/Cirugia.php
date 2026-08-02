@@ -20,6 +20,7 @@ class Cirugia extends Model
         'idPersonalCirujano',
         'idPersonalAnestesista',
         'fechaHoraCirugia',
+        'fechaHoraFinCirugia',
         'descripcionCirugia',
         'observacionesPaciente',
         'requiereImplante',
@@ -29,6 +30,7 @@ class Cirugia extends Model
     {
         return [
             'fechaHoraCirugia' => 'datetime',
+            'fechaHoraFinCirugia' => 'datetime',
             'requiereImplante' => 'boolean',
         ];
     }
