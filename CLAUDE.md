@@ -43,12 +43,12 @@ is not running). Delete it or restart `npm run dev`. Verifying a page by curl af
 All demo users except `admin` use password `demo1234`; each lands on the panel its
 role allows.
 
-| user | role |
-|---|---|
+| user                  | role                            |
+| --------------------- | ------------------------------- |
 | `admin` / `admin1234` | Administrador (sees everything) |
-| `gonzalez` | Gestor de quirófano |
-| `perez`, `lopez` | Cirujano |
-| `ramos` | Anestesista |
+| `gonzalez`            | Gestor de quirófano             |
+| `perez`, `lopez`      | Cirujano                        |
+| `ramos`               | Anestesista                     |
 
 ## Architecture
 
@@ -88,7 +88,7 @@ survives** (the DB session driver needs it); the `users` table was removed on pu
 65 models in `app/Models/`, one per domain table, ~153 relations. **Relation names
 derive from the FK column, not the target table**, so multiple FKs to the same table
 don't collide — e.g. in `Cirugia`: `paciente()` (idPersonaPaciente→Persona),
-`cirujano()` / `anestesista()` (idPersonal*→Personal). When adding relations, follow
+`cirujano()` / `anestesista()` (idPersonal\*→Personal). When adding relations, follow
 this column-based naming.
 
 `tests/Feature/ModelosTest.php` reflects over all 65 models and their relations,
@@ -168,14 +168,14 @@ instead of a bare 403.
 Server-rendered Blade — there is no React and no JSON API. The only app JavaScript is
 the mobile sidebar toggle in `resources/js/app.js`.
 
-| route | role | view |
-|---|---|---|
-| `/dashboard` | Gestor de quirófano, Dirección médica | `dashboard` |
-| `/cirujano` | Cirujano | `paneles/cirujano` |
-| `/anestesista` | Anestesista | `paneles/anestesista` |
-| `/direccion` | Dirección médica | `paneles/direccion` |
-| `/cirugias/{cirugia}` | any authenticated | `cirugias/show` |
-| `/cirugias/{cirugia}/portal-paciente` | any authenticated | `cirugias/portal-paciente` |
+| route                                 | role                                  | view                       |
+| ------------------------------------- | ------------------------------------- | -------------------------- |
+| `/dashboard`                          | Gestor de quirófano, Dirección médica | `dashboard`                |
+| `/cirujano`                           | Cirujano                              | `paneles/cirujano`         |
+| `/anestesista`                        | Anestesista                           | `paneles/anestesista`      |
+| `/direccion`                          | Dirección médica                      | `paneles/direccion`        |
+| `/cirugias/{cirugia}`                 | any authenticated                     | `cirugias/show`            |
+| `/cirugias/{cirugia}/portal-paciente` | any authenticated                     | `cirugias/portal-paciente` |
 
 Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
 `layouts/guest` (login). Views use `@extends` / `@section('contenido')`.
@@ -204,6 +204,6 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
 - **Patients cannot authenticate.** `Usuario` hangs off `Personal`, and a patient is a
   `Persona` with no staff record. `cirugias/portal-paciente` is a preview the staff
   opens; a real patient login needs a schema decision first.
-- **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
-  *why*, so the Dirección panel cannot break suspensions down by cause.
+- **No suspension reason.** `CirugiaEstado` records _that_ a surgery was suspended, not
+  _why_, so the Dirección panel cannot break suspensions down by cause.
 - **No surgery duration** on `Cirugia`, so the OR agenda shows start times only.
