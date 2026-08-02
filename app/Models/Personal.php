@@ -75,4 +75,31 @@ class Personal extends Model
     {
         return $this->roles()->wherePivotNull('fechaHoraBajaAsignacionRolPersonal');
     }
+
+    /**
+     * Deja vigentes exactamente los roles indicados.
+     *
+     * No usa sync(): RolPersonal es historial, no una pivote comun. Quitar un
+     * rol es cerrar su asignacion con una fecha de baja, nunca borrar la fila,
+     * asi queda registrado quien tuvo que rol y hasta cuando.
+     *
+     * @param  list<int>  $idsRol
+     */
+    public function sincronizarRoles(array $idsRol): void
+    {
+        $vigentes = $this->rolesVigentes()->pluck('Rol.idRol');
+
+        RolPersonal::query()
+            ->where('idPersonal', $this->idPersonal)
+            ->whereNotIn('idRol', $idsRol)
+            ->whereNull('fechaHoraBajaAsignacionRolPersonal')
+            ->update(['fechaHoraBajaAsignacionRolPersonal' => now()]);
+
+        $this->roles()->attach(
+            collect($idsRol)->diff($vigentes)->all(),
+            ['fechaHoraAsignacionRolPersonal' => now()],
+        );
+
+        $this->unsetRelation('roles')->unsetRelation('rolesVigentes');
+    }
 }
