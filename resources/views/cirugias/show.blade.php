@@ -6,10 +6,10 @@
 @section('contenido')
 
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <x-boton variante="fantasma" forma="grupo" icono="arrow_back" :href="url()->previous()" class="px-3">
+        <x-boton variante="fantasma" forma="grupo" icono="arrow_back" tipo="button"
+                onclick="history.back()" class="px-3">
             Volver
         </x-boton>
-
         <div class="flex flex-wrap items-center gap-2">
             @if ($caso->quirofano)
                 <x-estado tono="info" icono="meeting_room">{{ $caso->quirofano->nombreQuirofano }}</x-estado>
