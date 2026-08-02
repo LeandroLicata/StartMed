@@ -46,7 +46,9 @@
 
         @php
             $habilitada = (bool) $seccion['ruta'];
-            $activa = $habilitada && request()->routeIs($seccion['ruta']);
+            // El asterisco deja activa la sección en sus subrutas, p. ej. el
+            // formulario de evaluación anestésica sigue resaltando "Evaluaciones".
+            $activa = $habilitada && request()->routeIs($seccion['ruta'], $seccion['ruta'].'.*');
         @endphp
 
         @if ($habilitada)

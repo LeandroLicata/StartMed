@@ -41,9 +41,21 @@ Route::middleware('auth')->group(function () {
         ->middleware('rol:Cirujano')
         ->name('cirujano');
 
-    Route::get('/anestesista', AnestesistaController::class)
+    Route::get('/anestesista', [AnestesistaController::class, 'index'])
         ->middleware('rol:Anestesista')
         ->name('anestesista');
+
+    /*
+     * CRUD de la evaluación pre-anestésica. La cirugía se resuelve por ruta y
+     * el controlador valida que sea del anestesista que entra.
+     */
+    Route::middleware('rol:Anestesista')->prefix('anestesista')->name('anestesista.')->group(function () {
+        Route::get('/{cirugia}/evaluar', [AnestesistaController::class, 'evaluar'])->name('evaluar');
+        Route::post('/{cirugia}/evaluacion', [AnestesistaController::class, 'store'])->name('store');
+        Route::get('/{cirugia}/evaluacion/editar', [AnestesistaController::class, 'editar'])->name('editar');
+        Route::put('/{cirugia}/evaluacion', [AnestesistaController::class, 'update'])->name('update');
+        Route::delete('/{cirugia}/evaluacion', [AnestesistaController::class, 'destroy'])->name('destroy');
+    });
 
     Route::get('/direccion', DireccionController::class)
         ->middleware('rol:Dirección médica')
