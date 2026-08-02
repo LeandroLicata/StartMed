@@ -82,6 +82,9 @@ class Usuario extends Authenticatable
     public function rutaInicial(): ?string
     {
         return match (true) {
+            // Va primero: tieneRol() da true en cualquier consulta para un
+            // administrador, asi que si no, aterrizaria en el tablero de gestion.
+            $this->tieneRol('Administrador') => 'admin.inicio',
             $this->tieneRol('Gestor de quirófano', 'Dirección médica') => 'dashboard',
             $this->tieneRol('Cirujano') => 'cirujano',
             $this->tieneRol('Anestesista') => 'anestesista',
