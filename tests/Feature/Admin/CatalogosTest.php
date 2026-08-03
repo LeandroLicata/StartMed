@@ -125,6 +125,32 @@ class CatalogosTest extends TestCase
             ->assertSee('Usuarios activos');
     }
 
+    /**
+     * El índice es la única puerta a la sección, así que un módulo que no
+     * figure acá queda inalcanzable desde la interfaz.
+     */
+    public function test_el_indice_lleva_a_todos_los_modulos(): void
+    {
+        $respuesta = $this->actingAs($this->admin())
+            ->get(route('admin.inicio'))
+            ->assertOk();
+
+        foreach ([
+            'admin.usuarios.index',
+            'admin.consentimientos.index',
+            'admin.cuestionario.index',
+            'admin.precios.index',
+            'admin.auditoria',
+        ] as $ruta) {
+            $respuesta->assertSee('href="'.route($ruta).'"', false);
+        }
+
+        // Y a cada uno de los 26 catálogos.
+        foreach (array_keys(Catalogos::todos()) as $slug) {
+            $respuesta->assertSee('href="'.route('admin.catalogos.index', $slug).'"', false);
+        }
+    }
+
     public function test_se_puede_crear_un_catalogo_simple(): void
     {
         $this->actingAs($this->admin())
