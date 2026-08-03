@@ -312,6 +312,10 @@ class ResumenCirugia
             $pendientes->push('Materiales: '.mb_strtolower($this->materiales()));
         }
 
+        if (! $this->consentimientoFirmado()) {
+        $pendientes->push('Consentimiento sin firmar');
+        }
+
         return $pendientes;
     }
 
