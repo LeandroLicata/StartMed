@@ -43,18 +43,36 @@ class DashboardTest extends TestCase
         return new ResumenCirugia($cirugia);
     }
 
-    public function test_el_tablero_muestra_las_cirugias_proximas(): void
+    public function test_el_tablero_muestra_agenda_y_cirugias_de_la_semana(): void
     {
         $usuario = $this->conDatosDemo();
 
+        // Las cirugias de hoy (Garcia, Lopez, Fernandez, Rodriguez) siempre
+        // caen dentro de "esta semana", sea cual sea el dia en que corra el
+        // test. Ramirez/Vidal (hoy+2/+4 dias) no se aseguran aca porque
+        // pueden caer en la semana que viene segun el dia.
         $this->actingAs($usuario)
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('Ramírez, Luis')
-            ->assertSee('Prótesis total de rodilla')
+            ->assertSee('García, María')
+            ->assertSee('Colecistectomía laparoscópica')
             ->assertSee('Agenda de hoy')
-            ->assertSee('Cirugías de hoy')
-            ->assertSee('Estado de los pacientes');
+            ->assertSee('Cirugías de la semana');
+    }
+
+    public function test_cirugias_de_la_semana_se_puede_filtrar_por_rango_de_fechas(): void
+    {
+        $usuario = $this->conDatosDemo();
+        $ramirez = Cirugia::whereHas('paciente', fn ($q) => $q->where('apellidos', 'Ramírez'))->firstOrFail();
+        $fecha = $ramirez->fechaHoraCirugia->toDateString();
+
+        // Fuera del rango por defecto (la semana actual), Ramirez puede no
+        // aparecer; filtrando explicitamente por su fecha, si.
+        $this->actingAs($usuario)
+            ->get("/dashboard?desde={$fecha}&hasta={$fecha}")
+            ->assertOk()
+            ->assertSee('Ramírez, Luis')
+            ->assertSee('Limpiar filtros');
     }
 
     public function test_una_cirugia_sin_pendientes_queda_lista(): void
@@ -157,6 +175,6 @@ class DashboardTest extends TestCase
         $this->actingAs(Usuario::where('nombreUsuario', 'admin')->firstOrFail())
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('No hay cirugías programadas');
+            ->assertSee('Ninguna cirugía coincide con la búsqueda');
     }
 }

@@ -71,6 +71,10 @@ class ResumenCirugia
 
     public readonly ?Plan $plan;
 
+    public int $overlapCol = 0;
+
+    public int $overlapTotal = 1;
+
     public function __construct(public readonly Cirugia $cirugia)
     {
         $this->paciente = $cirugia->paciente;
@@ -85,6 +89,32 @@ class ResumenCirugia
     public function cuando(): ?Carbon
     {
         return $this->cirugia->fechaHoraCirugia;
+    }
+
+    public function fin(): ?Carbon
+    {
+        return $this->cirugia->fechaHoraFinCirugia;
+    }
+
+    public function minutosDesdeMedianoche(): int
+    {
+        if (! $this->cuando()) {
+            return 0;
+        }
+
+        return ($this->cuando()->hour * 60) + $this->cuando()->minute;
+    }
+
+    public function duracionEnMinutos(): int
+    {
+        if (! $this->cuando()) {
+            return 120; // Default 2 hours if no start
+        }
+        if (! $this->fin()) {
+            return 120; // Default 2 hours
+        }
+
+        return $this->cuando()->diffInMinutes($this->fin());
     }
 
     public function esDeHoy(): bool

@@ -14,7 +14,13 @@
         [
             'etiqueta' => 'Cirugías',
             'icono' => 'event',
-            'ruta' => 'cirugias.crear',
+            'ruta' => 'cirugias.index',
+            'roles' => ['Gestor de quirófano'],
+        ],
+        [
+            'etiqueta' => 'Agenda',
+            'icono' => 'schedule',
+            'ruta' => 'agenda',
             'roles' => ['Gestor de quirófano'],
         ],
         [

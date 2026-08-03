@@ -32,8 +32,100 @@
             >
                 Ver como el paciente
             </x-boton>
+            <x-boton
+                variante="contorno"
+                forma="grupo"
+                icono="schedule"
+                tipo="button"
+                onclick="document.getElementById('modal-reprogramar').showModal()"
+                class="px-3 py-1.5 text-xs"
+            >
+                Reprogramar
+            </x-boton>
         </div>
     </div>
+
+    {{-- Modal Reprogramar --}}
+    <dialog id="modal-reprogramar" class="m-auto w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-hu-azul">Reprogramar Cirugía</h2>
+            <button type="button" onclick="this.closest('dialog').close()" class="text-hu-gris-medio hover:text-hu-azul">
+                <x-icono nombre="close" class="text-2xl" />
+            </button>
+        </div>
+
+        @php
+            $opcionesQuirofanoReprogramar = $quirofanos->mapWithKeys(
+                fn ($q) => [$q->idQuirofano => $q->nombreQuirofano],
+            );
+
+            $opcionesCoberturaReprogramar = collect();
+            if ($caso->plan) {
+                $opcionesCoberturaReprogramar->put(
+                    'misma',
+                    'Mantener la actual ('.$caso->plan->obrasocial?->nombreObraSocial.' - '.$caso->plan->nombrePlan.')',
+                );
+            }
+            $opcionesCoberturaReprogramar->put('particular', 'Particular (Sin cobertura)');
+            $opcionesCoberturaReprogramar->put('existente', 'Obra social ya registrada del paciente');
+            $opcionesCoberturaReprogramar->put('nueva', 'Nueva obra social');
+
+            $opcionesPlanExistenteReprogramar = $coberturas->mapWithKeys(
+                fn ($cob) => [$cob->idPlanObraSocial => $cob->plan->obrasocial?->nombreObraSocial.' - '.$cob->plan->nombrePlan],
+            );
+
+            $opcionesPlanNuevoReprogramar = [];
+            foreach ($obrasSociales as $os) {
+                foreach ($os->planes as $plan) {
+                    $opcionesPlanNuevoReprogramar[$plan->idPlan] = $os->nombreObraSocial.' · '.$plan->nombrePlan;
+                }
+            }
+        @endphp
+
+        <form method="POST" action="{{ route('cirugias.reprogramar', $caso->cirugia) }}" class="space-y-4">
+            @csrf
+
+            <div class="grid grid-cols-2 gap-4">
+                <x-input tipo="date" nombre="fecha" etiqueta="Fecha" requerido :valor="old('fecha')" />
+                <x-select
+                    nombre="idQuirofano"
+                    etiqueta="Quirófano"
+                    :opciones="$opcionesQuirofanoReprogramar"
+                    requerido
+                />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <x-input tipo="time" nombre="hora_inicio" etiqueta="Hora Inicio" requerido :valor="old('hora_inicio')" />
+                <x-input tipo="time" nombre="hora_fin" etiqueta="Hora Fin" :valor="old('hora_fin')" />
+            </div>
+
+            <x-select
+                nombre="cobertura"
+                etiqueta="Cobertura"
+                :opciones="$opcionesCoberturaReprogramar"
+                requerido
+                onchange="
+                    document.getElementById('div-existente').style.display = this.value === 'existente' ? 'block' : 'none';
+                    document.getElementById('div-nueva').style.display = this.value === 'nueva' ? 'block' : 'none';
+                "
+            />
+
+            <div id="div-existente" style="display: none;">
+                <x-select nombre="idPlanObraSocial" etiqueta="Plan existente" :opciones="$opcionesPlanExistenteReprogramar" />
+            </div>
+
+            <div id="div-nueva" style="display: none;" class="space-y-4">
+                <x-select nombre="idPlan" etiqueta="Obra Social y Plan" :opciones="$opcionesPlanNuevoReprogramar" />
+                <x-input nombre="nroBeneficiario" etiqueta="Nº de Afiliado" />
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <x-boton tipo="button" variante="fantasma" onclick="this.closest('dialog').close()">Cancelar</x-boton>
+                <x-boton tipo="submit" icono="save">Confirmar Reprogramación</x-boton>
+            </div>
+        </form>
+    </dialog>
 
     @if ($caso->alertaProfilaxis())
         <x-alerta tipo="error" titulo="Alerta clínica" class="mb-6">

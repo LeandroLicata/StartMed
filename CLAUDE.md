@@ -206,4 +206,11 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   opens; a real patient login needs a schema decision first.
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.
-- **No surgery duration** on `Cirugia`, so the OR agenda shows start times only.
+- **Surgery duration** (`Cirugia.fechaHoraFinCirugia`, nullable) is used for
+  quirófano/cirujano/anestesista overlap checks on the create-surgery form, but the OR
+  agenda/calendar views still only display start times.
+- **Preparación del paciente (ayuno, etc.) is not loaded from the create-surgery form.**
+  The catalogs (`TipoPreparacion`/`TipoIndicacion`) exist and `ResumenCirugia::preparacion()`
+  already knows how to read them (see `cirugias/portal-paciente.blade.php`), but loading
+  them is the gestor's/cirujano's job on a separate management screen that doesn't exist
+  yet — it was deliberately left out of the create form (too many steps for one alta).
