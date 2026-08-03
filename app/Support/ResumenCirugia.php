@@ -49,6 +49,10 @@ class ResumenCirugia
         'evaluacionAnestesicas.evaluacionAnestesicaEstados.estadoEvaluacionAnestesica',
         'evaluacionAnestesicas.evaluacionTipoAsas.tipoAsa',
         'evaluacionAnestesicas.evaluacionTipoAnestesias.tipoAnestesia',
+        // pendientes()/estaLista() la necesitan, asi que va en la base y no en
+        // RELACIONES_EXPEDIENTE (si no, cada cirugia del tablero dispara una
+        // consulta aparte al leer consentimientoFirmado()).
+        'consentimientoPacientes.configConsentimiento',
     ];
 
     /** Relaciones adicionales que solo hacen falta en el expediente completo. */
@@ -61,7 +65,6 @@ class ResumenCirugia
         'hisopadoSarms.hisopadoSarmEstados.estadoHisopadoSarm',
         'hisopadoSarms.profilaxisAtbHisopadoSarms.profilaxisAtbHisopadoSarmProfilaxis.profilaxis',
         'hisopadoSarms.profilaxisAtbHisopadoSarms.profilaxisAtbHisopadoSarmProfilaxis.profilaxisRol',
-        'consentimientoPacientes.configConsentimiento',
         'preparacionPacientes.preparacionPacienteTipoPreparaciones.tipoPreparacion',
         'preparacionPacientes.preparacionPacienteTipoPreparaciones.preparacionPacienteTipoPreparacionTipoIndicaciones.tipoIndicacion',
         'examenCirugiaPreAnestesicas.examenPreAnestesicoConfiges.examenPreAnestesicoConfigPreguntas.configTipoExamenPreAnestesicoPregunta',
@@ -313,7 +316,7 @@ class ResumenCirugia
         }
 
         if (! $this->consentimientoFirmado()) {
-        $pendientes->push('Consentimiento sin firmar');
+            $pendientes->push('Consentimiento sin firmar');
         }
 
         return $pendientes;
