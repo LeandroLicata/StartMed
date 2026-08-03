@@ -39,7 +39,7 @@ class CatalogosTest extends TestCase
      */
     public function test_el_mapa_coincide_con_el_esquema(): void
     {
-        $this->assertCount(26, Catalogos::todos());
+        $this->assertCount(27, Catalogos::todos());
 
         foreach (Catalogos::todos() as $slug => $config) {
             $modelo = new $config['modelo'];
@@ -79,7 +79,7 @@ class CatalogosTest extends TestCase
 
     /**
      * El formulario es lo más sensible al mapa: dibuja un componente distinto
-     * por tipo de campo. Se renderizan los 26 para que un tipo mal declarado
+     * por tipo de campo. Se renderizan todos para que un tipo mal declarado
      * falle acá.
      */
     public function test_todos_los_catalogos_tienen_formulario_de_alta(): void
@@ -145,7 +145,7 @@ class CatalogosTest extends TestCase
             $respuesta->assertSee('href="'.route($ruta).'"', false);
         }
 
-        // Y a cada uno de los 26 catálogos.
+        // Y a cada uno de los catálogos del mapa.
         foreach (array_keys(Catalogos::todos()) as $slug) {
             $respuesta->assertSee('href="'.route('admin.catalogos.index', $slug).'"', false);
         }

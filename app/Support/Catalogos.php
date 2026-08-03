@@ -6,6 +6,7 @@ use App\Models\Establecimiento;
 use App\Models\EstadoAutCirugia;
 use App\Models\EstadoCirugia;
 use App\Models\EstadoEvaluacionAnestesica;
+use App\Models\EstadoHisopadoSarm;
 use App\Models\EstadoPedidoHemoderivado;
 use App\Models\EstadoPedidoMaterial;
 use App\Models\EstadoPedidoTipoHemoderivado;
@@ -124,12 +125,28 @@ final class Catalogos
                 ],
             ],
             'tipo-estudio' => self::simple(TipoEstudio::class, 'Tipo de estudio', 'Tipos de estudio', 'Cirugías', 180),
+            'estado-hisopado' => [
+                ...self::simple(EstadoHisopadoSarm::class, 'Estado de hisopado SARM', 'Estados de hisopado SARM', 'Cirugías', 120),
+                // Los tres los busca por nombre el alta de cirugía, y de su
+                // resultado depende el protocolo de profilaxis antibiótica.
+                'protegidos' => ['Pendiente', 'Negativo', 'Positivo'],
+                'motivoProteccion' => 'El alta de cirugía crea el hisopado buscando «Pendiente» por su
+                                       nombre, y el expediente distingue «Negativo» de «Positivo» para
+                                       decidir la profilaxis antibiótica.',
+            ],
             'estado-cirugia' => [
                 ...self::simple(EstadoCirugia::class, 'Estado de cirugía', 'Estados de cirugía', 'Cirugías', 120),
-                'protegidos' => ['Realizada', 'Suspendida', 'En riesgo'],
-                'motivoProteccion' => 'Los paneles del cirujano y de Dirección cuentan las cirugías
-                                       buscando estos estados por su nombre. Si se renombran, los
-                                       indicadores y la tasa de suspensión quedan en cero sin avisar.',
+                'protegidos' => [
+                    // Indicadores de los paneles.
+                    'Realizada', 'Suspendida', 'En riesgo',
+                    // Alta y circuito de reprogramacion.
+                    'En espera de confirmación', 'En espera', 'A reprogramar', 'Reprogramada',
+                ],
+                'motivoProteccion' => 'El sistema busca estos estados por su nombre exacto: los
+                                       paneles para contar cirugías, y el alta y el circuito de
+                                       reprogramación para moverlas de estado. Si se renombran, los
+                                       indicadores quedan en cero y la reprogramación deja de
+                                       encontrar cirugías, todo sin dar ningún error.',
             ],
 
             // --- Quirófanos ---

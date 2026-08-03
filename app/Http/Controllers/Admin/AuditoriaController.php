@@ -49,7 +49,7 @@ class AuditoriaController extends Controller
                 array_map(ucfirst(...), $acciones),
             ),
             // Solo las tablas que ya tienen movimientos: un desplegable con las
-            // 66 del esquema no ayudaria a nadie. Y con el nombre que usa la
+            // del esquema no ayudaria a nadie. Y con el nombre que usa la
             // gente, no el de la tabla de la base.
             'tablas' => Auditoria::query()
                 ->distinct()

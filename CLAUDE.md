@@ -183,18 +183,21 @@ Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
 
 ### Administración — the only write side of the app
 
-Everything outside `/admin` is read-only. `/admin` is where the master data the other
-sections consume gets loaded, and where users are created.
+`/admin` is where the master data the other sections consume gets loaded, and where
+users are created. It is no longer the *only* place that writes — creating and
+rescheduling surgeries writes too (`CirugiaCreacionController`,
+`ReprogramarCirugiaService`) — but those paths do **not** go through `Auditor`, so the
+audit trail currently covers administration only.
 
 **One door, on purpose.** The sidebar carries a single `Administración` item (marked
 active across `admin.*` via the `activaEn` key in `partials/nav.blade.php`); the `/admin`
-index is the hub that groups all 26 catalogs. Resist re-adding per-catalog shortcuts to
+index is the hub that groups every catalog. Resist re-adding per-catalog shortcuts to
 the sidebar: they duplicate that index, mix configuration in with the operational
 panels, and a label like "Materiales" promises a module while delivering one table out
 of the four in its group.
 
 **Catalogs are driven by a map, not by 26 controllers.** `App\Support\Catalogos`
-declares the 26 master tables (slug → model, labels, group, soft-delete column, fields);
+declares the 27 master tables (slug → model, labels, group, soft-delete column, fields);
 `Admin\CatalogoController` + `CatalogoRequest` + two Blade views serve all of them.
 **To add a catalog, add an entry to that map — do not write a controller.** Most tables
 fit `Catalogos::simple()`, which derives `nombre<X>` / `fechaBaja<X>` from the model's
@@ -203,15 +206,17 @@ uses `fechaEstablecimiento`. Field types come from `Catalogos::TIPOS`.
 
 `CatalogosTest::test_el_mapa_coincide_con_el_esquema` is to the map what `ModelosTest`
 is to the models: it checks every declared column exists, is fillable, and uses a known
-type. It also renders the index and the create form of all 26.
+type. It also renders the index and the create form of every one.
 
 **Deleting is always logical** — write `now()` into the `fechaBaja*` column, offer
 reactivation, never `DELETE`.
 
 **Some catalog rows are code, not data.** The app matches catalog names as literal
-strings — `Usuario::tieneRol()` looks for `'Administrador'`, `ResumenCirugia` and the
-panels look for `'Realizada'`, `'Suspendida'`, `'Aprobada'`, `'Completada'`, and the six
-material states *in precedence order*. Renaming one of those rows from the ABM breaks the
+strings — `Usuario::tieneRol()` looks for `'Administrador'`; the panels look for
+`'Realizada'`, `'Suspendida'`, `'Aprobada'`, `'Completada'` and the six material states
+*in precedence order*; the create-surgery and rescheduling flows look for
+`'En espera de confirmación'`, `'En espera'`, `'A reprogramar'`, `'Reprogramada'` and the
+three `EstadoHisopadoSarm` values. Renaming one of those rows from the ABM breaks the
 app **without raising anything**: indicators silently go to zero. So each catalog declares
 its load-bearing rows in the map, and `CatalogoController::protegerFilaDelSistema()`
 blocks both `update` and `destroy` for them (the listing marks them "Del sistema" and
