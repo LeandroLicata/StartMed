@@ -1,28 +1,40 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
-@section('titulo', 'Mis cirugías')
-@section('subtitulo', $personal->persona?->nombre_completo.' · '.($personal->matriculaProvincial ?? 'sin matrícula'))
-
+@section('titulo', 'Mis cirugÃ­as')
+@section('subtitulo', $personal->persona?->nombre_completo.' Â· '.($personal->matriculaProvincial ?? 'sin matricula'))
 @section('contenido')
+
+    <div class="mb-4 flex justify-end">
+        <x-boton
+            variante="contorno"
+            forma="grupo"
+            icono="event"
+            :href="route('cirujano.agenda')"
+            class="px-4 py-2 text-sm"
+        >
+            Ver agenda
+        </x-boton>
+    </div>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-metrica
             :valor="$proximas->count()"
-            etiqueta="Cirugías programadas"
+            etiqueta="Cirugias programadas"
             icono="event"
             detalle="De hoy en adelante"
         />
 
         <x-metrica
-            :valor="$indicadores['realizadas']"
-            etiqueta="Realizadas en {{ $indicadores['mes'] }}"
+            :valor="$indicadores['realizadasCompletas'].'/'.$indicadores['realizadas']"
+            etiqueta="Realizadas por completo en {{ $indicadores['mes'] }}"
             icono="check_circle"
             tono="exito"
+            detalle="Con checklist 100% cerrado"
         />
 
         <x-metrica
             :valor="$indicadores['tasaSuspension'].'%'"
-            etiqueta="Suspensión propia"
+            etiqueta="Suspension propia"
             icono="monitoring"
             :tono="$indicadores['tasaSuspension'] <= 5 ? 'exito' : 'aviso'"
             :detalle="$indicadores['suspendidas'].' suspendidas este mes'"
@@ -30,14 +42,47 @@
 
         <x-metrica
             :valor="$conImplante"
-            etiqueta="Próximas con implante"
+            etiqueta="Proximas con implante"
             icono="inventory_2"
             :tono="$conImplante > 0 ? 'aviso' : 'neutro'"
-            detalle="Requieren autorización de materiales"
+            detalle="Requieren autorizacion de materiales"
         />
     </div>
 
-    <x-tarjeta titulo="Mis próximas cirugías" icono="event" class="mt-6">
+    <x-tarjeta titulo="Pacientes de hoy" icono="today" class="mt-6">
+        @forelse ($hoy as $caso)
+            <a
+                href="{{ route('cirugias.show', $caso->cirugia) }}"
+                class="-mx-5 flex flex-wrap items-center gap-4 border-b border-hu-gris-suave/60 px-5 py-3.5
+                       transition-colors last:border-0 hover:bg-hu-azul-tenue/50"
+            >
+                <div class="w-16 shrink-0">
+                    <p class="text-sm font-black text-hu-azul">{{ $caso->cuando()?->format('H:i') }}</p>
+                    <p class="text-xs text-hu-gris-medio">hs</p>
+                </div>
+
+                <div class="min-w-0 flex-1">
+                    <p class="font-semibold text-hu-azul">{{ $caso->nombrePaciente() }}</p>
+                    <p class="truncate text-sm text-hu-gris-medio">
+                        {{ $caso->procedimiento() }}
+                        @if ($caso->quirofano)
+                            Â· {{ $caso->quirofano->nombreQuirofano }}
+                        @endif
+                    </p>
+                </div>
+
+                <x-estado :tono="$caso->semaforo()" :icono="$caso->estaLista() ? 'check_circle' : 'warning'">
+                    {{ $caso->estaLista() ? 'Listo' : 'Pendiente' }}
+                </x-estado>
+            </a>
+        @empty
+            <p class="py-10 text-center text-sm text-hu-gris-medio">
+                No tenes cirugias programadas para hoy.
+            </p>
+        @endforelse
+    </x-tarjeta>
+
+    <x-tarjeta titulo="Mis proximas cirugias" icono="event" class="mt-6">
         @forelse ($proximas as $caso)
             <a
                 href="{{ route('cirugias.show', $caso->cirugia) }}"
@@ -56,7 +101,7 @@
                     <p class="truncate text-sm text-hu-gris-medio">
                         {{ $caso->procedimiento() }}
                         @if ($caso->quirofano)
-                            · {{ $caso->quirofano->nombreQuirofano }}
+                            Â· {{ $caso->quirofano->nombreQuirofano }}
                         @endif
                     </p>
                 </div>
@@ -77,7 +122,7 @@
             </a>
         @empty
             <p class="py-10 text-center text-sm text-hu-gris-medio">
-                No tenés cirugías programadas.
+                No tenes cirugias programadas.
             </p>
         @endforelse
     </x-tarjeta>
@@ -85,14 +130,14 @@
     @php($conPendientes = $proximas->reject(fn ($c) => $c->estaLista()))
 
     @if ($conPendientes->isNotEmpty())
-        <x-tarjeta titulo="Qué falta resolver" icono="warning" class="mt-6">
+        <x-tarjeta titulo="Que falta resolver" icono="warning" class="mt-6">
             <ul class="divide-y divide-hu-gris-suave/60">
                 @foreach ($conPendientes as $caso)
                     <li class="py-3 first:pt-0 last:pb-0">
                         <p class="font-semibold text-hu-azul">
                             {{ $caso->nombrePaciente() }}
                             <span class="font-normal text-hu-gris-medio">
-                                · {{ $caso->cuando()?->translatedFormat('D j/m') }}
+                                Â· {{ $caso->cuando()?->translatedFormat('D j/m') }}
                             </span>
                         </p>
                         <ul class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
@@ -111,7 +156,7 @@
 
     <x-tarjeta titulo="Procedimientos habilitados" icono="assignment" class="mt-6">
         <p class="mb-4 text-sm text-hu-gris-medio">
-            Catálogo de tipos de cirugía del sistema. Cada uno tiene su plantilla de
+            Catalogo de tipos de cirugia del sistema. Cada uno tiene su plantilla de
             consentimiento informado asociada.
         </p>
 

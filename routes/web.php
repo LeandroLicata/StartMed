@@ -42,6 +42,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('rol:Cirujano')
         ->name('cirujano');
 
+    Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.agenda');
+
     Route::get('/anestesista', AnestesistaController::class)
         ->middleware('rol:Anestesista')
         ->name('anestesista');
