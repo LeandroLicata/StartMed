@@ -185,6 +185,37 @@ class CuestionarioTest extends TestCase
             ->assertSee('Sin opciones para elegir');
     }
 
+    /**
+     * Esta pantalla repite el mismo campo en un formulario por pregunta. Si el
+     * id saliera del name —como hacía <x-input> antes— quedarían duplicados y
+     * cada label enfocaría el primero, no el suyo.
+     */
+    public function test_los_formularios_repetidos_no_duplican_ids(): void
+    {
+        $version = $this->versionEditable();
+        $this->agregarPregunta($version, '¿Fumás?', conOpciones: true);
+        $this->agregarPregunta($version, '¿Tomás medicación habitual?', conOpciones: true);
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('admin.cuestionario.show', $version))
+            ->assertOk()
+            ->getContent();
+
+        preg_match_all('/\sid="([^"]+)"/', $html, $encontrados);
+        $repetidos = array_keys(array_filter(
+            array_count_values($encontrados[1]),
+            fn (int $veces) => $veces > 1,
+        ));
+
+        $this->assertSame([], $repetidos, 'hay id repetidos en la página');
+
+        // Y cada label sigue apuntando a un campo que existe.
+        preg_match_all('/<label[^>]+for="([^"]+)"/', $html, $labels);
+        foreach ($labels[1] as $destino) {
+            $this->assertContains($destino, $encontrados[1], "el label apunta a #{$destino}, que no existe");
+        }
+    }
+
     // --- El congelamiento, que es el punto de todo esto ---
 
     /**
