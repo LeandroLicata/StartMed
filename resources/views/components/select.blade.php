@@ -5,17 +5,23 @@
     'valor' => null,
     'ayuda' => null,
     'requerido' => false,
+    // Texto de la opcion vacia. Pasar false la saca del todo, para los casos
+    // en que la propia lista ya trae un valor por defecto (ver x-filtro-baja).
     'vacio' => 'Elegí una opción',
+    // Alias de `vacio`: las pantallas de cirugias lo llaman placeholder. Se
+    // mantiene para no tener que tocarlas.
+    'placeholder' => null,
     // Mismo criterio que en input.blade.php: hace falta solo cuando una
     // pagina repite el mismo campo en varios formularios.
     'id' => null,
 ])
 
 @php
-    // Mismo criterio que <x-input>: old() gana sobre el valor guardado.
+    // Mismo criterio que en input.blade.php: old() gana sobre el valor guardado.
     $valorActual = old($nombre, $valor);
     $hayError = $errors->has($nombre);
     $idCampo = $id ?? $nombre;
+    $textoVacio = $placeholder ?? $vacio;
 @endphp
 
 <div class="space-y-1.5">
@@ -40,8 +46,10 @@
             'border-red-600' => $hayError,
         ]) }}
     >
-        @if ($vacio)
-            <option value="">{{ $vacio }}</option>
+        @if ($textoVacio)
+            {{-- Comparado contra null y '' y no con un truthy: un valor "0" es
+                 una opcion legitima y no deberia caer en la vacia. --}}
+            <option value="" @selected($valorActual === null || $valorActual === '')>{{ $textoVacio }}</option>
         @endif
 
         @foreach ($opciones as $clave => $texto)

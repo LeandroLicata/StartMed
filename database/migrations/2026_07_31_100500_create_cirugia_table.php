@@ -22,6 +22,7 @@ return new class extends Migration
             $table->unsignedBigInteger('idPersonalCirujano')->nullable();
             $table->unsignedBigInteger('idPersonalAnestesista')->nullable();
             $table->dateTime('fechaHoraCirugia')->nullable();
+            $table->dateTime('fechaHoraFinCirugia')->nullable();
             $table->string('descripcionCirugia', 255)->nullable();
             $table->string('observacionesPaciente', 255)->nullable();
             $table->boolean('requiereImplante')->default(false);

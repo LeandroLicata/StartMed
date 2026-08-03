@@ -65,15 +65,26 @@ class PanelesTest extends TestCase
     public function test_el_expediente_muestra_materiales_hemoderivados_y_consentimiento(): void
     {
         $ramirez = Cirugia::whereHas('paciente', fn ($q) => $q->where('apellidos', 'Ramírez'))->firstOrFail();
+        $gestor = $this->usuario('gonzalez');
 
-        $this->actingAs($this->usuario('gonzalez'))
+        // Resumen (tab por defecto): checklist y consentimiento.
+        $this->actingAs($gestor)
             ->get("/cirugias/{$ramirez->idCirugia}")
             ->assertOk()
             ->assertSee('Prótesis total de rodilla')
-            ->assertSee('USD 7.100,00')
-            ->assertSee('Glóbulos rojos desplasmatizados')
             ->assertSee('NO administrar ampicilina', false)
             ->assertSee('Consentimiento informado');
+
+        // Cada modulo vive en su propia solapa.
+        $this->actingAs($gestor)
+            ->get("/cirugias/{$ramirez->idCirugia}?tab=materiales")
+            ->assertOk()
+            ->assertSee('USD 7.100,00');
+
+        $this->actingAs($gestor)
+            ->get("/cirugias/{$ramirez->idCirugia}?tab=hemoderivados")
+            ->assertOk()
+            ->assertSee('Glóbulos rojos desplasmatizados');
     }
 
     public function test_el_portal_del_paciente_calcula_las_horas_de_ayuno(): void

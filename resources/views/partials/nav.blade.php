@@ -20,6 +20,18 @@
             'roles' => ['Gestor de quirófano', 'Dirección médica'],
         ],
         [
+            'etiqueta' => 'Cirugías',
+            'icono' => 'event',
+            'ruta' => 'cirugias.index',
+            'roles' => ['Gestor de quirófano'],
+        ],
+        [
+            'etiqueta' => 'Agenda',
+            'icono' => 'schedule',
+            'ruta' => 'agenda',
+            'roles' => ['Gestor de quirófano'],
+        ],
+        [
             'etiqueta' => 'Mis cirugías',
             'icono' => 'personal_injury',
             'ruta' => 'cirujano',

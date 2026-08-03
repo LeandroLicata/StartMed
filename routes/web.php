@@ -7,9 +7,11 @@ use App\Http\Controllers\Admin\ConsentimientoController;
 use App\Http\Controllers\Admin\CuestionarioController;
 use App\Http\Controllers\Admin\PrecioController;
 use App\Http\Controllers\Admin\UsuarioController;
+use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\AnestesistaController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CirugiaController;
+use App\Http\Controllers\CirugiaCreacionController;
 use App\Http\Controllers\CirujanoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
@@ -48,6 +50,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('rol:Cirujano')
         ->name('cirujano');
 
+    Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.agenda');
+
     Route::get('/anestesista', AnestesistaController::class)
         ->middleware('rol:Anestesista')
         ->name('anestesista');
@@ -55,6 +61,30 @@ Route::middleware('auth')->group(function () {
     Route::get('/direccion', DireccionController::class)
         ->middleware('rol:Dirección médica')
         ->name('direccion');
+
+    // Alta de una cirugia nueva: buscar/dar de alta al paciente por DNI y
+    // completar quirofano, equipo y cobertura. Exclusivo del gestor. Va antes
+    // de '/cirugias/{cirugia}' para que 'nueva' no se interprete como un id.
+    Route::middleware('rol:Gestor de quirófano')->group(function () {
+        Route::get('/cirugias', [CirugiaController::class, 'index'])->name('cirugias.index');
+
+        Route::get('/cirugias/nueva', [CirugiaCreacionController::class, 'buscar'])
+            ->name('cirugias.crear');
+        Route::post('/cirugias/nueva/paciente', [CirugiaCreacionController::class, 'crearPaciente'])
+            ->name('cirugias.crear.paciente');
+        Route::post('/cirugias/nueva/comprobar', [CirugiaCreacionController::class, 'comprobar'])
+            ->name('cirugias.crear.comprobar');
+        Route::post('/cirugias', [CirugiaCreacionController::class, 'store'])
+            ->name('cirugias.store');
+
+        Route::post('/cirugias/{cirugia}/reprogramar', [CirugiaController::class, 'reprogramar'])
+            ->name('cirugias.reprogramar');
+
+        Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda');
+        Route::get('/agenda/{fecha}', [AgendaController::class, 'dia'])
+            ->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+            ->name('agenda.dia');
+    });
 
     Route::get('/cirugias/{cirugia}', [CirugiaController::class, 'show'])
         ->name('cirugias.show');

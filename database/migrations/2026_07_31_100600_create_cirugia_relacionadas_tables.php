@@ -85,6 +85,7 @@ return new class extends Migration
             $table->unsignedBigInteger('idEstadoAutCirugia');
             $table->dateTime('fechaInicioAutoCirugiaEstado')->nullable();
             $table->dateTime('fechaFinAutoCirugiaEstado')->nullable();
+            $table->string('observacionesAutoCirugiaEstado', 255)->nullable();
 
             $table->foreign('idAutCirugia', 'fk_autocirugiaestado_autcirugia')
                 ->references('idAutCirugia')->on('AutCirugia');

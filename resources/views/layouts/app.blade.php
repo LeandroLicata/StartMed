@@ -14,7 +14,7 @@
     --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,arrow_back,assignment,badge,bloodtype,cancel,check_circle,chevron_right,close,delete,description,draw,edit,error,event,groups,home,info,inventory_2,key,lock,logout,manage_accounts,meeting_room,menu,monitoring,no_food,pending,person,personal_injury,restore,schedule,science,settings,shield,stethoscope,vaccines,warning&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,arrow_back,arrow_forward,assignment,badge,bloodtype,cancel,check_circle,chevron_right,close,delete,description,draw,edit,error,event,groups,home,info,inventory_2,key,lock,logout,manage_accounts,meeting_room,menu,monitoring,no_food,pending,person,personal_injury,restore,save,schedule,science,settings,shield,stethoscope,today,vaccines,warning&display=block">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

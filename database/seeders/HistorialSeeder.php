@@ -9,6 +9,8 @@ use App\Models\EstadoCirugia;
 use App\Models\GrupoSanguineo;
 use App\Models\Persona;
 use App\Models\Personal;
+use App\Models\Plan;
+use App\Models\PlanObraSocial;
 use App\Models\Quirofano;
 use App\Models\TipoCirugia;
 use App\Models\TipoDocumento;
@@ -56,6 +58,7 @@ class HistorialSeeder extends Seeder
 
         $dni = TipoDocumento::where('nombreTipoDocumento', 'DNI')->value('idTipoDocumento');
         $gruposSanguineos = GrupoSanguineo::pluck('idGrupoSanguineo')->all();
+        $planes = Plan::pluck('idPlan')->all();
 
         $documento = 50_000_000;
 
@@ -76,10 +79,19 @@ class HistorialSeeder extends Seeder
                     'tipo_documento_id' => $dni,
                     'grupo_sanguineo_id' => $gruposSanguineos[array_rand($gruposSanguineos)],
                     'documento' => (string) $documento++,
-                    'apellidos' => 'Paciente histórico',
-                    'nombres' => 'Nº '.($documento - 50_000_000),
+                    'apellidos' => fake('es_AR')->lastName(),
+                    'nombres' => fake('es_AR')->firstName(),
                     'fecha_nacimiento' => Carbon::today()->subYears(random_int(20, 80)),
                 ]);
+
+                if ($planes !== []) {
+                    PlanObraSocial::create([
+                        'idPersona' => $paciente->idPersona,
+                        'idPlan' => $planes[array_rand($planes)],
+                        'nroBeneficiaroPlanObraSocial' => (string) random_int(10000000, 99999999),
+                        'fechaInicioPlanObraSocial' => $cuando->copy()->subMonths(random_int(6, 48)),
+                    ]);
+                }
 
                 $cirugia = Cirugia::create([
                     'idPersonaPaciente' => $paciente->idPersona,

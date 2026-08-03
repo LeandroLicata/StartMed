@@ -13,8 +13,8 @@
         cómo se lo autentica.
     </x-alerta>
 
-    <x-boton variante="fantasma" forma="grupo" icono="arrow_back"
-             :href="route('cirugias.show', $caso->cirugia)" class="mb-4 px-3">
+    <x-boton variante="fantasma" forma="grupo" icono="arrow_back" tipo="button"
+            onclick="history.back()" class="mb-4 px-3">
         Volver al expediente
     </x-boton>
 

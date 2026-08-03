@@ -397,11 +397,17 @@ class CatalogosTest extends TestCase
             ->assertOk()
             ->assertSee('Del sistema');
 
-        // 3 protegidas (Realizada, Suspendida, En riesgo) de 5 estados sembrados:
-        // solo las 2 libres ofrecen el botón. Se cuenta el atributo del
-        // formulario, que aparece una vez por botón — el texto «Dar de baja»
-        // se repite dentro de cada uno.
-        $this->assertSame(2, substr_count($respuesta->getContent(), 'data-confirmar-accion="Dar de baja"'));
+        // El botón lo ofrecen todas menos las protegidas. Se calcula en vez de
+        // fijarse un número: el catálogo de estados crece con el proyecto.
+        $config = Catalogos::buscar('estado-cirugia');
+        $libres = $config['modelo']::count() - count($config['protegidos']);
+
+        // Se cuenta el atributo del formulario, que aparece una vez por botón;
+        // el texto «Dar de baja» se repite dentro de cada uno.
+        $this->assertSame(
+            $libres,
+            substr_count($respuesta->getContent(), 'data-confirmar-accion="Dar de baja"'),
+        );
     }
 
     public function test_el_formulario_explica_por_que_la_fila_esta_protegida(): void

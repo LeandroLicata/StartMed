@@ -341,11 +341,27 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   opens; a real patient login needs a schema decision first.
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.
-- **No surgery duration** on `Cirugia`, so the OR agenda shows start times only.
-- **Not every master table has a screen.** The `/admin` catalog map deliberately leaves
-  out `ConfigConsentimiento` and `ConfigTipoExamenPreAnestesico*` (templates with a
-  validity range and a nested question→answer tree) and `MaterialProveedor` /
-  `MaterialProveedorTipoMedida` (pricing per supplier, also date-ranged). They need
-  their own screens, not the generic ABM.
+- **Surgery duration** (`Cirugia.fechaHoraFinCirugia`, nullable) is used for
+  quirófano/cirujano/anestesista overlap checks on the create-surgery form, but the OR
+  agenda/calendar views still only display start times.
+- **Preparación del paciente (ayuno, etc.) is not loaded from the create-surgery form.**
+  The catalogs (`TipoPreparacion`/`TipoIndicacion`) exist and `ResumenCirugia::preparacion()`
+  already knows how to read them (see `cirugias/portal-paciente.blade.php`), but loading
+  them is the gestor's/cirujano's job on a separate management screen that doesn't exist
+  yet — it was deliberately left out of the create form (too many steps for one alta).
+- **Hisopado SAMR: only the request exists, not the result.** `HisopadoSarm` is its own
+  module (not a `TipoEstudio` row anymore) with a date-range history in
+  `HisopadoSarmEstado` (`Pendiente`/`Negativo`/`Positivo`), and `ProfilaxisAtbHisopadoSarm`
+  hangs off it (not off `Cirugia` — the antibiotic protocol depends on the swab result).
+  Today the gestor can only request it from the create-surgery form (a checkbox, same
+  "header only" pattern as hemoderivados); there's no screen yet to load the result,
+  the lab (`Establecimiento`), or the resulting profilaxis — that's the gestor's/
+  cirujano's job later, undecided which panel it belongs in.
+- **Four master tables sit outside the generic catalog ABM, each with its own screen.**
+  `ConfigConsentimiento` (`/admin/consentimientos`), `ConfigTipoExamenPreAnestesico*`
+  (`/admin/cuestionario`) and `MaterialProveedor` / `MaterialProveedorTipoMedida`
+  (`/admin/precios`) are date-ranged or nested, so the map would have flattened them.
+  `PlanObraSocial` is the one still without a screen — it is a patient's coverage, so it
+  belongs to a Pacientes section that does not exist yet.
 - **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
   disabled; a `Persona` who is not staff has no screen of its own.
