@@ -137,11 +137,11 @@
     <nav class="mb-6 flex flex-wrap gap-1 border-b border-hu-gris-suave/70" aria-label="Secciones de la cirugía">
         @foreach ([
             'resumen' => ['Resumen', 'check_circle'],
+            'estudios' => ['Estudios prequirúrgicos', 'science'],
             'materiales' => ['Materiales y presupuesto', 'inventory_2'],
             'hemoderivados' => ['Hemoderivados', 'bloodtype'],
             'profilaxis' => ['Profilaxis ATB / SAMR', 'vaccines'],
             'autorizacion' => ['Autorización financiador', 'shield'],
-            'mensajes' => ['Mensajes automáticos', 'description'],
         ] as $tab => [$etiqueta, $icono])
             @php
                 $activa = $tabActivo === $tab;
@@ -283,6 +283,37 @@
         @endif
     @endif
 
+    {{-- Estudios prequirúrgicos --}}
+    @if ($tabActivo === 'estudios')
+        <x-tarjeta titulo="Estudios prequirúrgicos" icono="science">
+            @forelse ($caso->cirugia->cirugiaTipoEstudios as $estudio)
+                <div class="flex items-center justify-between gap-3 border-b border-hu-gris-suave/60 py-2.5 last:border-0">
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-hu-azul">
+                            {{ $estudio->tipoEstudio?->nombreTipoEstudio }}
+                        </p>
+                        <p class="text-xs text-hu-gris-medio">
+                            @if ($estudio->fechaSubidaCirugiaTipoEstudio)
+                                Subido el {{ $estudio->fechaSubidaCirugiaTipoEstudio->translatedFormat('j/m') }}
+                                @if ($estudio->resultadoCirugiaTipoEstudio)
+                                    · {{ $estudio->resultadoCirugiaTipoEstudio }}
+                                @endif
+                            @else
+                                Vence el {{ $estudio->fechaEsperadaResultadoCirugiaTipoEstudio?->translatedFormat('j/m') ?? 's/d' }}
+                            @endif
+                        </p>
+                    </div>
+
+                    <x-estado :tono="$estudio->fechaSubidaCirugiaTipoEstudio ? 'exito' : 'aviso'">
+                        {{ $estudio->fechaSubidaCirugiaTipoEstudio ? 'Subido' : 'Pendiente' }}
+                    </x-estado>
+                </div>
+            @empty
+                <p class="py-6 text-center text-sm text-hu-gris-medio">Sin estudios indicados.</p>
+            @endforelse
+        </x-tarjeta>
+    @endif
+
     {{-- Materiales y presupuesto --}}
     @if ($tabActivo === 'materiales')
         @if ($caso->requiereMateriales())
@@ -376,33 +407,47 @@
 
     {{-- Profilaxis ATB / SAMR --}}
     @if ($tabActivo === 'profilaxis')
-        <div class="grid gap-5 lg:grid-cols-2">
-            <x-tarjeta titulo="Estudios prequirúrgicos" icono="science">
-                @forelse ($caso->cirugia->cirugiaTipoEstudios as $estudio)
-                    <div class="flex items-center justify-between gap-3 border-b border-hu-gris-suave/60 py-2.5 last:border-0">
-                        <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold text-hu-azul">
-                                {{ $estudio->tipoEstudio?->nombreTipoEstudio }}
-                            </p>
-                            <p class="text-xs text-hu-gris-medio">
-                                @if ($estudio->fechaSubidaCirugiaTipoEstudio)
-                                    Subido el {{ $estudio->fechaSubidaCirugiaTipoEstudio->translatedFormat('j/m') }}
-                                    @if ($estudio->resultadoCirugiaTipoEstudio)
-                                        · {{ $estudio->resultadoCirugiaTipoEstudio }}
-                                    @endif
-                                @else
-                                    Vence el {{ $estudio->fechaEsperadaResultadoCirugiaTipoEstudio?->translatedFormat('j/m') ?? 's/d' }}
-                                @endif
-                            </p>
-                        </div>
+        @php
+            $hisopado = $caso->hisopadoSarm();
+            $tonoHisopado = match ($hisopado['estado'] ?? null) {
+                'Negativo' => 'exito',
+                'Positivo' => 'error',
+                default => 'aviso',
+            };
+        @endphp
 
-                        <x-estado :tono="$estudio->fechaSubidaCirugiaTipoEstudio ? 'exito' : 'aviso'">
-                            {{ $estudio->fechaSubidaCirugiaTipoEstudio ? 'Subido' : 'Pendiente' }}
-                        </x-estado>
-                    </div>
-                @empty
-                    <p class="py-6 text-center text-sm text-hu-gris-medio">Sin estudios indicados.</p>
-                @endforelse
+        <div class="grid gap-5 lg:grid-cols-2">
+            <x-tarjeta titulo="Hisopado SAMR" icono="science">
+                @if ($hisopado)
+                    <dl class="divide-y divide-hu-gris-suave/60 text-sm">
+                        <div class="flex items-center justify-between gap-3 py-2.5 first:pt-0">
+                            <dt class="text-hu-gris-medio">Estado</dt>
+                            <dd><x-estado :tono="$tonoHisopado">{{ $hisopado['estado'] }}</x-estado></dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 py-2.5">
+                            <dt class="text-hu-gris-medio">Solicitado</dt>
+                            <dd class="font-semibold text-hu-azul">
+                                {{ $hisopado['fechaSolicitacion']?->translatedFormat('j/m') ?? 's/d' }}
+                            </dd>
+                        </div>
+                        @if ($hisopado['fechaEstimada'])
+                            <div class="flex items-center justify-between gap-3 py-2.5">
+                                <dt class="text-hu-gris-medio">Resultado esperado</dt>
+                                <dd class="font-semibold text-hu-azul">
+                                    {{ $hisopado['fechaEstimada']->translatedFormat('j/m') }}
+                                </dd>
+                            </div>
+                        @endif
+                        @if ($hisopado['establecimiento'])
+                            <div class="flex items-center justify-between gap-3 py-2.5 last:pb-0">
+                                <dt class="text-hu-gris-medio">Laboratorio</dt>
+                                <dd class="font-semibold text-hu-azul">{{ $hisopado['establecimiento'] }}</dd>
+                            </div>
+                        @endif
+                    </dl>
+                @else
+                    <p class="py-6 text-center text-sm text-hu-gris-medio">Sin hisopado solicitado.</p>
+                @endif
             </x-tarjeta>
 
             <x-tarjeta titulo="Profilaxis antibiótica" icono="vaccines">
@@ -416,9 +461,9 @@
                                 {{ $item->profilaxisRol?->nombreProfilaxisRol }}
                             </x-estado>
                         </div>
-                        @if ($item->indicacionesProfilaxisAtbCirugiaProfilaxis)
+                        @if ($item->indicacionesProfilaxisAtbHisopadoSarmProfilaxis)
                             <p class="mt-0.5 text-xs text-hu-gris-medio">
-                                {{ $item->indicacionesProfilaxisAtbCirugiaProfilaxis }}
+                                {{ $item->indicacionesProfilaxisAtbHisopadoSarmProfilaxis }}
                             </p>
                         @endif
                     </div>
@@ -464,14 +509,6 @@
                 @endforelse
             </dl>
         </x-tarjeta>
-    @endif
-
-    {{-- Mensajes automáticos --}}
-    @if ($tabActivo === 'mensajes')
-        <x-alerta tipo="info" titulo="Todavía no hay mensajes automáticos">
-            Esta sección va a mostrar los mensajes que el sistema le envía al paciente y al
-            equipo a medida que avanza el trámite. Todavía no está configurada.
-        </x-alerta>
     @endif
 
 @endsection

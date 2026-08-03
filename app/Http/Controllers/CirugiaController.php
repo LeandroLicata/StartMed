@@ -19,7 +19,7 @@ class CirugiaController extends Controller
 {
     use FiltraCirugias;
 
-    private const TABS = ['resumen', 'materiales', 'hemoderivados', 'profilaxis', 'autorizacion', 'mensajes'];
+    private const TABS = ['resumen', 'estudios', 'materiales', 'hemoderivados', 'profilaxis', 'autorizacion'];
 
     private const POR_PAGINA = 20;
 
