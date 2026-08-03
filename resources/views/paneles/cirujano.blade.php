@@ -1,7 +1,7 @@
 ﻿@extends('layouts.app')
 
-@section('titulo', 'Mis cirugÃ­as')
-@section('subtitulo', $personal->persona?->nombre_completo.' Â· '.($personal->matriculaProvincial ?? 'sin matricula'))
+@section('titulo', 'Mis cirugias')
+@section('subtitulo', $personal->persona?->nombre_completo.' - '.($personal->matriculaProvincial ?? 'sin matricula'))
 @section('contenido')
 
     <div class="mb-4 flex justify-end">
@@ -66,7 +66,7 @@
                     <p class="truncate text-sm text-hu-gris-medio">
                         {{ $caso->procedimiento() }}
                         @if ($caso->quirofano)
-                            Â· {{ $caso->quirofano->nombreQuirofano }}
+                            - {{ $caso->quirofano->nombreQuirofano }}
                         @endif
                     </p>
                 </div>
@@ -101,7 +101,7 @@
                     <p class="truncate text-sm text-hu-gris-medio">
                         {{ $caso->procedimiento() }}
                         @if ($caso->quirofano)
-                            Â· {{ $caso->quirofano->nombreQuirofano }}
+                            - {{ $caso->quirofano->nombreQuirofano }}
                         @endif
                     </p>
                 </div>
@@ -137,7 +137,7 @@
                         <p class="font-semibold text-hu-azul">
                             {{ $caso->nombrePaciente() }}
                             <span class="font-normal text-hu-gris-medio">
-                                Â· {{ $caso->cuando()?->translatedFormat('D j/m') }}
+                                - {{ $caso->cuando()?->translatedFormat('D j/m') }}
                             </span>
                         </p>
                         <ul class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
@@ -181,3 +181,7 @@
     </x-tarjeta>
 
 @endsection
+
+
+
+
