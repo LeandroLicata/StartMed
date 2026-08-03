@@ -5,10 +5,11 @@ namespace App\Support;
 use App\Models\Cirugia;
 use App\Models\CirugiaPersonal;
 use App\Models\ConsentimientoPaciente;
+use App\Models\HisopadoSarm;
 use App\Models\PedidoTipoHemoderivado;
 use App\Models\Persona;
 use App\Models\Plan;
-use App\Models\ProfilaxisAtbCirugiaProfilaxis;
+use App\Models\ProfilaxisAtbHisopadoSarmProfilaxis;
 use App\Models\Quirofano;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -56,8 +57,10 @@ class ResumenCirugia
         'cirugiaPersonales.rol',
         'pedidoHemoderivados.pedidoTipoHemoderivados.tipoHemoderivado',
         'pedidoHemoderivados.pedidoTipoHemoderivados.establecimiento',
-        'profilaxisAtbCirugias.profilaxisAtbCirugiaProfilaxis.profilaxis',
-        'profilaxisAtbCirugias.profilaxisAtbCirugiaProfilaxis.profilaxisRol',
+        'hisopadoSarms.establecimiento',
+        'hisopadoSarms.hisopadoSarmEstados.estadoHisopadoSarm',
+        'hisopadoSarms.profilaxisAtbHisopadoSarms.profilaxisAtbHisopadoSarmProfilaxis.profilaxis',
+        'hisopadoSarms.profilaxisAtbHisopadoSarms.profilaxisAtbHisopadoSarmProfilaxis.profilaxisRol',
         'consentimientoPacientes.configConsentimiento',
         'preparacionPacientes.preparacionPacienteTipoPreparaciones.tipoPreparacion',
         'preparacionPacientes.preparacionPacienteTipoPreparaciones.preparacionPacienteTipoPreparacionTipoIndicaciones.tipoIndicacion',
@@ -351,13 +354,43 @@ class ResumenCirugia
 
     public function alertaProfilaxis(): ?string
     {
-        return $this->cirugia->profilaxisAtbCirugias->first()?->alertaProfilaxisAtbCirugia;
+        return $this->hisopadoSarmVigente()?->profilaxisAtbHisopadoSarms->first()?->alertaProfilaxisAtbHisopadoSarm;
     }
 
-    /** @return Collection<int, ProfilaxisAtbCirugiaProfilaxis> */
+    /** @return Collection<int, ProfilaxisAtbHisopadoSarmProfilaxis> */
     public function profilaxis(): Collection
     {
-        return $this->cirugia->profilaxisAtbCirugias->first()?->profilaxisAtbCirugiaProfilaxis ?? collect();
+        return $this->hisopadoSarmVigente()?->profilaxisAtbHisopadoSarms->first()?->profilaxisAtbHisopadoSarmProfilaxis ?? collect();
+    }
+
+    /**
+     * Estado y datos del hisopado SAMR pedido para esta cirugía, aplanados
+     * para mostrarlos. `null` si todavía no se pidió.
+     *
+     * @return ?array{estado: string, fechaSolicitacion: ?Carbon, fechaEstimada: ?Carbon, establecimiento: ?string, observaciones: ?string}
+     */
+    public function hisopadoSarm(): ?array
+    {
+        $hisopado = $this->hisopadoSarmVigente();
+
+        if (! $hisopado) {
+            return null;
+        }
+
+        return [
+            'estado' => $hisopado->hisopadoSarmEstados
+                ->firstWhere('fechaFinAsignacionHisopadoSarmEstado', null)
+                ?->estadoHisopadoSarm?->nombreEstadoHisopadoSarm ?? 'Sin estado',
+            'fechaSolicitacion' => $hisopado->fechaSolicitacionHisopadoSarm,
+            'fechaEstimada' => $hisopado->fechaEstimadaResultadosHisopadoSarm,
+            'establecimiento' => $hisopado->establecimiento?->nombreEstablecimiento,
+            'observaciones' => $hisopado->observacionesHisopadoSarm,
+        ];
+    }
+
+    private function hisopadoSarmVigente(): ?HisopadoSarm
+    {
+        return $this->cirugia->hisopadoSarms->first();
     }
 
     /** @return Collection<int, PedidoTipoHemoderivado> */

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\EstadoAutCirugia;
 use App\Models\EstadoCirugia;
 use App\Models\EstadoEvaluacionAnestesica;
+use App\Models\EstadoHisopadoSarm;
 use App\Models\EstadoPedidoHemoderivado;
 use App\Models\EstadoPedidoMaterial;
 use App\Models\EstadoPedidoTipoHemoderivado;
@@ -87,7 +88,11 @@ class CatalogosSeeder extends Seeder
 
         $this->cargar(TipoEstudio::class, 'nombreTipoEstudio', [
             'Hemograma', 'Coagulograma', 'Electrocardiograma', 'Radiografía de tórax',
-            'Riesgo quirúrgico cardiológico', 'Hisopado SAMR',
+            'Riesgo quirúrgico cardiológico',
+        ]);
+
+        $this->cargar(EstadoHisopadoSarm::class, 'nombreEstadoHisopadoSarm', [
+            'Pendiente', 'Negativo', 'Positivo',
         ]);
 
         $this->cargar(TipoMedida::class, 'nombreTipoMedida', [

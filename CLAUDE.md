@@ -214,3 +214,11 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   already knows how to read them (see `cirugias/portal-paciente.blade.php`), but loading
   them is the gestor's/cirujano's job on a separate management screen that doesn't exist
   yet — it was deliberately left out of the create form (too many steps for one alta).
+- **Hisopado SAMR: only the request exists, not the result.** `HisopadoSarm` is its own
+  module (not a `TipoEstudio` row anymore) with a date-range history in
+  `HisopadoSarmEstado` (`Pendiente`/`Negativo`/`Positivo`), and `ProfilaxisAtbHisopadoSarm`
+  hangs off it (not off `Cirugia` — the antibiotic protocol depends on the swab result).
+  Today the gestor can only request it from the create-surgery form (a checkbox, same
+  "header only" pattern as hemoderivados); there's no screen yet to load the result,
+  the lab (`Establecimiento`), or the resulting profilaxis — that's the gestor's/
+  cirujano's job later, undecided which panel it belongs in.

@@ -56,8 +56,10 @@ class ModelosTest extends TestCase
 
     public function test_hay_un_modelo_por_cada_tabla_del_dominio(): void
     {
-        // 65 del DBML. Las 7 de infraestructura de Laravel no llevan modelo.
-        $this->assertCount(65, $this->modelos());
+        // 68: 65 del DBML original + 5 de HisopadoSarm - 2 de ProfilaxisAtbCirugia
+        // (reemplazadas por ProfilaxisAtbHisopadoSarm). Las 7 de infraestructura de
+        // Laravel no llevan modelo.
+        $this->assertCount(68, $this->modelos());
     }
 
     public function test_cada_modelo_apunta_a_una_tabla_existente(): void

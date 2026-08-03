@@ -259,16 +259,28 @@ class ReprogramarCirugiaService
             }
         }
 
-        // Profilaxis
-        foreach ($original->profilaxisAtbCirugias as $prof) {
-            $nProf = $prof->replicate();
-            $nProf->idCirugia = $nueva->idCirugia;
-            $nProf->save();
+        // Hisopado SAMR (y su profilaxis, que cuelga de el)
+        foreach ($original->hisopadoSarms as $hisopado) {
+            $nHisopado = $hisopado->replicate();
+            $nHisopado->idCirugia = $nueva->idCirugia;
+            $nHisopado->save();
 
-            foreach ($prof->profilaxisAtbCirugiaProfilaxis as $p) {
-                $n = $p->replicate();
-                $n->idProfilaxisAtbCirugia = $nProf->idProfilaxisAtbCirugia;
+            foreach ($hisopado->hisopadoSarmEstados as $est) {
+                $n = $est->replicate();
+                $n->idHisopadoSarm = $nHisopado->idHisopadoSarm;
                 $n->save();
+            }
+
+            foreach ($hisopado->profilaxisAtbHisopadoSarms as $prof) {
+                $nProf = $prof->replicate();
+                $nProf->idHisopadoSarm = $nHisopado->idHisopadoSarm;
+                $nProf->save();
+
+                foreach ($prof->profilaxisAtbHisopadoSarmProfilaxis as $p) {
+                    $n = $p->replicate();
+                    $n->idProfilaxisAtbHisopadoSarm = $nProf->idProfilaxisAtbHisopadoSarm;
+                    $n->save();
+                }
             }
         }
     }

@@ -25,8 +25,8 @@ class Profilaxis extends Model
         ];
     }
 
-    public function profilaxisAtbCirugiaProfilaxis(): HasMany
+    public function profilaxisAtbHisopadoSarmProfilaxis(): HasMany
     {
-        return $this->hasMany(ProfilaxisAtbCirugiaProfilaxis::class, 'idProfilaxis', 'idProfilaxis');
+        return $this->hasMany(ProfilaxisAtbHisopadoSarmProfilaxis::class, 'idProfilaxis', 'idProfilaxis');
     }
 }

@@ -95,6 +95,11 @@ class Cirugia extends Model
         return $this->hasMany(ExamenCirugiaPreAnestesica::class, 'idCirugia', 'idCirugia');
     }
 
+    public function hisopadoSarms(): HasMany
+    {
+        return $this->hasMany(HisopadoSarm::class, 'idCirugia', 'idCirugia');
+    }
+
     public function pedidoHemoderivados(): HasMany
     {
         return $this->hasMany(PedidoHemoderivado::class, 'idCirugia', 'idCirugia');
@@ -108,10 +113,5 @@ class Cirugia extends Model
     public function preparacionPacientes(): HasMany
     {
         return $this->hasMany(PreparacionPaciente::class, 'idCirugia', 'idCirugia');
-    }
-
-    public function profilaxisAtbCirugias(): HasMany
-    {
-        return $this->hasMany(ProfilaxisAtbCirugia::class, 'idCirugia', 'idCirugia');
     }
 }
