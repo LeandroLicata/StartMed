@@ -2,11 +2,12 @@
 
 namespace App\Support;
 
+use App\Models\AutoCirugiaEstado;
 use App\Models\Cirugia;
 use App\Models\CirugiaPersonal;
 use App\Models\ConsentimientoPaciente;
 use App\Models\HisopadoSarm;
-use App\Models\PedidoTipoHemoderivado;
+use App\Models\PedidoHemoderivado;
 use App\Models\Persona;
 use App\Models\Plan;
 use App\Models\ProfilaxisAtbHisopadoSarmProfilaxis;
@@ -186,6 +187,22 @@ class ResumenCirugia
     public function nroAutorizacion(): ?string
     {
         return $this->cirugia->autCirugias->first()?->nroAprobacionAutCirugia;
+    }
+
+    /**
+     * @return Collection<int, AutoCirugiaEstado>
+     */
+    public function historialAutorizacion(): Collection
+    {
+        $autorizacion = $this->cirugia->autCirugias->first();
+        if (! $autorizacion) {
+            return collect();
+        }
+
+        return $autorizacion->autoCirugiaEstados()
+            ->with('estadoAutCirugia')
+            ->orderByDesc('fechaInicioAutoCirugiaEstado')
+            ->get();
     }
 
     // --- Estudios prequirurgicos --------------------------------------------
@@ -400,10 +417,13 @@ class ResumenCirugia
         return $this->cirugia->hisopadoSarms->first();
     }
 
-    /** @return Collection<int, PedidoTipoHemoderivado> */
-    public function hemoderivados(): Collection
+    /** @return Collection<int, PedidoHemoderivado> */
+    public function pedidosHemoderivados(): Collection
     {
-        return $this->cirugia->pedidoHemoderivados->first()?->pedidoTipoHemoderivados ?? collect();
+        return $this->cirugia->pedidoHemoderivados()
+            ->with(['pedidoTipoHemoderivados.tipoHemoderivado', 'pedidoTipoHemoderivados.establecimiento'])
+            ->orderByDesc('fechaPedidoHemoderivado')
+            ->get();
     }
 
     public function consentimiento(): ?ConsentimientoPaciente

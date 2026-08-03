@@ -86,6 +86,31 @@ Route::middleware('auth')->group(function () {
             ->name('agenda.dia');
     });
 
+    Route::middleware('rol:Gestor de quirófano,Cirujano')->group(function () {
+        Route::patch('/cirugias/{cirugia}/hisopado', [CirugiaController::class, 'actualizarHisopado'])
+            ->name('cirugias.hisopado.actualizar');
+
+        Route::patch('/cirugias/{cirugia}/hisopado/estado', [CirugiaController::class, 'actualizarEstadoHisopado'])
+            ->name('cirugias.hisopado.estado');
+
+        Route::patch('/cirugias/{cirugia}/autorizacion/estado', [CirugiaController::class, 'actualizarEstadoAutorizacion'])
+            ->name('cirugias.autorizacion.estado');
+    });
+
+    Route::middleware('rol:Gestor de quirófano,Cirujano,Anestesista')->group(function () {
+        Route::post('/cirugias/{cirugia}/estudios', [CirugiaController::class, 'agregarEstudio'])
+            ->name('cirugias.estudios.store');
+
+        Route::patch('/cirugias/{cirugia}/estudios/{estudio}', [CirugiaController::class, 'actualizarEstudio'])
+            ->name('cirugias.estudios.update');
+
+        Route::post('/cirugias/{cirugia}/hemoderivados', [CirugiaController::class, 'storePedidoHemoderivado'])
+            ->name('cirugias.hemoderivados.store');
+
+        Route::patch('/cirugias/{cirugia}/hemoderivados/{componente}/estado', [CirugiaController::class, 'actualizarEstadoComponenteHemoderivado'])
+            ->name('cirugias.hemoderivados.componente.estado');
+    });
+
     Route::get('/cirugias/{cirugia}', [CirugiaController::class, 'show'])
         ->name('cirugias.show');
 
