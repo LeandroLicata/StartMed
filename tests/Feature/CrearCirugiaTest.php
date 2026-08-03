@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AutCirugia;
 use App\Models\Cirugia;
+use App\Models\HisopadoSarm;
 use App\Models\ObraSocial;
 use App\Models\PedidoHemoderivado;
 use App\Models\Persona;
@@ -256,6 +257,34 @@ class CrearCirugiaTest extends TestCase
 
         $cirugia = Cirugia::where('idPersonaPaciente', $paciente->idPersona)->firstOrFail();
         $this->assertNull(PedidoHemoderivado::where('idCirugia', $cirugia->idCirugia)->first());
+    }
+
+    public function test_requiere_hisopado_samr_crea_la_solicitud_pendiente(): void
+    {
+        $gestor = $this->conDatosDemo();
+        $paciente = $this->pacienteNuevo();
+
+        $this->actingAs($gestor)
+            ->post('/cirugias', $this->datosMinimos($paciente, ['requiereHisopadoSarm' => '1']))
+            ->assertRedirect();
+
+        $cirugia = Cirugia::where('idPersonaPaciente', $paciente->idPersona)->firstOrFail();
+        $hisopado = HisopadoSarm::where('idCirugia', $cirugia->idCirugia)->first();
+
+        $this->assertNotNull($hisopado);
+        $estado = $hisopado->hisopadoSarmEstados()->whereNull('fechaFinAsignacionHisopadoSarmEstado')->first();
+        $this->assertSame('Pendiente', $estado->estadoHisopadoSarm->nombreEstadoHisopadoSarm);
+    }
+
+    public function test_sin_tildar_hisopado_samr_no_crea_solicitud(): void
+    {
+        $gestor = $this->conDatosDemo();
+        $paciente = $this->pacienteNuevo();
+
+        $this->actingAs($gestor)->post('/cirugias', $this->datosMinimos($paciente))->assertRedirect();
+
+        $cirugia = Cirugia::where('idPersonaPaciente', $paciente->idPersona)->firstOrFail();
+        $this->assertNull(HisopadoSarm::where('idCirugia', $cirugia->idCirugia)->first());
     }
 
     public function test_comprobar_disponibilidad_no_crea_ninguna_cirugia_y_conserva_lo_cargado(): void

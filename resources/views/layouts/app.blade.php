@@ -14,7 +14,7 @@
     --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,arrow_back,arrow_forward,assignment,badge,bloodtype,cancel,check_circle,close,description,draw,error,event,groups,home,info,inventory_2,logout,manage_accounts,meeting_room,menu,monitoring,no_food,pending,person,personal_injury,save,schedule,science,shield,stethoscope,today,vaccines,warning&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,arrow_back,arrow_forward,assignment,badge,bloodtype,cancel,check_circle,chevron_right,close,delete,description,draw,edit,error,event,groups,home,info,inventory_2,key,lock,logout,manage_accounts,meeting_room,menu,monitoring,no_food,pending,person,personal_injury,restore,save,schedule,science,settings,shield,stethoscope,today,upload_file,vaccines,visibility,warning&display=block">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -29,7 +29,8 @@
                transition-transform lg:static lg:translate-x-0"
     >
         <div class="flex items-center justify-between border-b border-white/10 px-5 py-5">
-            <a href="{{ route('dashboard') }}" class="block">
+            {{-- `inicio` resuelve el panel de cada rol; `dashboard` daba 403 a varios. --}}
+            <a href="{{ route('inicio') }}" class="block">
                 <img
                     src="{{ asset('img/logo-hu-blanco.svg') }}"
                     alt="Hospital Universitario"
@@ -126,6 +127,11 @@
 
     </div>
 </div>
+
+{{-- Uno solo para toda la pagina; lo usa cualquier form con data-confirmar. --}}
+<x-confirmar />
+
+@stack('scripts')
 
 </body>
 </html>

@@ -108,12 +108,14 @@
             </div>
         </x-tarjeta>
 
-        @if (session('disponibilidad'))
-            @php
-                $disp = session('disponibilidad');
-            @endphp
+        @php
+            $disp = session('disponibilidad');
+            $puedeCrear = $disp && collect($disp)->every(fn ($ok) => $ok);
+        @endphp
+
+        @if ($disp)
             <x-alerta
-                :tipo="collect($disp)->every(fn ($ok) => $ok) ? 'exito' : 'error'"
+                :tipo="$puedeCrear ? 'exito' : 'error'"
                 titulo="Resultado de la comprobación"
                 class="mb-6"
             >
@@ -268,6 +270,18 @@
                         Requiere hemoderivados
                         <span class="text-xs text-hu-gris-medio">(el detalle lo carga después el gestor o el cirujano)</span>
                     </label>
+
+                    <label class="flex items-center gap-2 text-sm text-hu-gris">
+                        <input
+                            type="checkbox"
+                            name="requiereHisopadoSarm"
+                            value="1"
+                            @checked(old('requiereHisopadoSarm'))
+                            class="rounded border-hu-gris-suave text-hu-azul focus:ring-hu-azul"
+                        >
+                        Requiere Hisopado SAMR
+                        <span class="text-xs text-hu-gris-medio">(el resultado y la profilaxis se cargan después)</span>
+                    </label>
                 </div>
             </x-tarjeta>
 
@@ -281,8 +295,14 @@
                 >
                     Comprobar disponibilidad
                 </x-boton>
-                <x-boton tipo="submit" icono="check_circle">Crear cirugía</x-boton>
+                <x-boton tipo="submit" icono="check_circle" :disabled="! $puedeCrear">Crear cirugía</x-boton>
             </div>
+
+            @if (! $puedeCrear)
+                <p class="mt-2 text-xs text-hu-gris-medio">
+                    Comprobá la disponibilidad de quirófano, cirujano y anestesista antes de crear la cirugía.
+                </p>
+            @endif
         </form>
     @endunless
 

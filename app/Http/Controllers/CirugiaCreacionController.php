@@ -10,6 +10,9 @@ use App\Models\CirugiaPersonal;
 use App\Models\CirugiaQuirofano;
 use App\Models\EstadoAutCirugia;
 use App\Models\EstadoCirugia;
+use App\Models\EstadoHisopadoSarm;
+use App\Models\HisopadoSarm;
+use App\Models\HisopadoSarmEstado;
 use App\Models\ObraSocial;
 use App\Models\PedidoHemoderivado;
 use App\Models\Persona;
@@ -140,6 +143,7 @@ class CirugiaCreacionController extends Controller
             'fechaHoraFinCirugia' => ['nullable', 'date', 'after:fechaHoraCirugia'],
             'requiereImplante' => ['nullable', 'boolean'],
             'requiereHemoderivados' => ['nullable', 'boolean'],
+            'requiereHisopadoSarm' => ['nullable', 'boolean'],
             'cobertura' => ['required', 'in:particular,existente,nueva'],
             'idPlanObraSocial' => ['required_if:cobertura,existente', 'nullable', 'exists:PlanObraSocial,idPlanObraSocial'],
             'idPlan' => ['required_if:cobertura,nueva', 'nullable', 'exists:Plan,idPlan'],
@@ -213,6 +217,22 @@ class CirugiaCreacionController extends Controller
                 PedidoHemoderivado::create([
                     'idCirugia' => $cirugia->idCirugia,
                     'fechaPedidoHemoderivado' => now(),
+                ]);
+            }
+
+            // Igual que hemoderivados: solo la solicitud. El resultado y la
+            // profilaxis derivada se cargan despues, sobre la cirugia ya creada.
+            if (! empty($datos['requiereHisopadoSarm'])) {
+                $hisopado = HisopadoSarm::create([
+                    'idCirugia' => $cirugia->idCirugia,
+                    'fechaSolicitacionHisopadoSarm' => now(),
+                ]);
+
+                HisopadoSarmEstado::create([
+                    'idHisopadoSarm' => $hisopado->idHisopadoSarm,
+                    'idEstadoHisopadoSarm' => EstadoHisopadoSarm::where('nombreEstadoHisopadoSarm', 'Pendiente')
+                        ->value('idEstadoHisopadoSarm'),
+                    'fechaInicioAsignacionHisopadoSarmEstado' => now(),
                 ]);
             }
 

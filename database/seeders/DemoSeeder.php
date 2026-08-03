@@ -12,12 +12,15 @@ use App\Models\CirugiaTipoEstudio;
 use App\Models\EstadoAutCirugia;
 use App\Models\EstadoCirugia;
 use App\Models\EstadoEvaluacionAnestesica;
+use App\Models\EstadoHisopadoSarm;
 use App\Models\EstadoPedidoMaterial;
 use App\Models\EvaluacionAnestesica;
 use App\Models\EvaluacionAnestesicaEstado;
 use App\Models\EvaluacionTipoAnestesia;
 use App\Models\EvaluacionTipoAsa;
 use App\Models\GrupoSanguineo;
+use App\Models\HisopadoSarm;
+use App\Models\HisopadoSarmEstado;
 use App\Models\Material;
 use App\Models\MaterialProveedor;
 use App\Models\ObraSocial;
@@ -30,8 +33,8 @@ use App\Models\Personal;
 use App\Models\Plan;
 use App\Models\PlanObraSocial;
 use App\Models\Profilaxis;
-use App\Models\ProfilaxisAtbCirugia;
-use App\Models\ProfilaxisAtbCirugiaProfilaxis;
+use App\Models\ProfilaxisAtbHisopadoSarm;
+use App\Models\ProfilaxisAtbHisopadoSarmProfilaxis;
 use App\Models\ProfilaxisRol;
 use App\Models\Proveedor;
 use App\Models\Quirofano;
@@ -125,7 +128,7 @@ class DemoSeeder extends Seeder
                 'estado' => 'En riesgo',
                 'implante' => true,
                 'autorizacion' => 'En auditoría médica',
-                'estudios' => [['Hemograma', -5], ['Hisopado SAMR', null], ['Radiografía de tórax', -5]],
+                'estudios' => [['Hemograma', -5], ['Radiografía de tórax', -5]],
                 'evaluacion' => ['ASA III', 'Regional / peridural', 'Completada'],
                 'profilaxis' => [['Vancomicina 1g IV', 'Alternativa por alergia'], ['Cefazolina 2g IV', 'Complementaria']],
                 'materiales' => [
@@ -477,32 +480,54 @@ class DemoSeeder extends Seeder
         );
     }
 
-    /** @param  list<array{0:string,1:string}>  $profilaxis */
+    /**
+     * Todas las cirugías piden Hisopado SAMR. Los casos que ya traían una
+     * profilaxis antibiótica cargada quedan con resultado "Positivo" (es lo
+     * que dispara esa profilaxis); el resto queda "Pendiente", sin resultado
+     * todavía.
+     *
+     * @param  list<array{0:string,1:string}>  $profilaxis
+     */
     private function profilaxis(Cirugia $cirugia, array $profilaxis, ?string $alerta): void
     {
+        $hisopado = HisopadoSarm::firstOrCreate(
+            ['idCirugia' => $cirugia->idCirugia],
+            ['fechaSolicitacionHisopadoSarm' => now()->subDays(6)],
+        );
+
+        $estadoNombre = $profilaxis === [] ? 'Pendiente' : 'Positivo';
+
+        HisopadoSarmEstado::firstOrCreate(
+            ['idHisopadoSarm' => $hisopado->idHisopadoSarm, 'fechaFinAsignacionHisopadoSarmEstado' => null],
+            [
+                'idEstadoHisopadoSarm' => EstadoHisopadoSarm::where('nombreEstadoHisopadoSarm', $estadoNombre)->value('idEstadoHisopadoSarm'),
+                'fechaInicioAsignacionHisopadoSarmEstado' => now()->subDays($profilaxis === [] ? 2 : 4),
+            ],
+        );
+
         if ($profilaxis === []) {
             return;
         }
 
-        $cabecera = ProfilaxisAtbCirugia::firstOrCreate(
-            ['idCirugia' => $cirugia->idCirugia],
+        $cabecera = ProfilaxisAtbHisopadoSarm::firstOrCreate(
+            ['idHisopadoSarm' => $hisopado->idHisopadoSarm],
             [
-                'alertaProfilaxisAtbCirugia' => $alerta && str_contains($alerta, 'penicilina')
+                'alertaProfilaxisAtbHisopadoSarm' => $alerta && str_contains($alerta, 'penicilina')
                     ? 'NO administrar ampicilina ni amoxicilina — alergia a penicilina documentada'
                     : null,
-                'motivoProfilaxisAtbCirugia' => 'Profilaxis prequirúrgica estándar',
+                'motivoProfilaxisAtbHisopadoSarm' => 'Profilaxis prequirúrgica estándar',
             ],
         );
 
         foreach ($profilaxis as [$droga, $rol]) {
-            ProfilaxisAtbCirugiaProfilaxis::firstOrCreate(
+            ProfilaxisAtbHisopadoSarmProfilaxis::firstOrCreate(
                 [
-                    'idProfilaxisAtbCirugia' => $cabecera->idProfilaxisAtbCirugia,
+                    'idProfilaxisAtbHisopadoSarm' => $cabecera->idProfilaxisAtbHisopadoSarm,
                     'idProfilaxis' => Profilaxis::where('nombreProfilaxis', $droga)->value('idProfilaxis'),
                 ],
                 [
                     'idProfilaxisRol' => ProfilaxisRol::where('nombreProfilaxisRol', $rol)->value('idProfilaxisRol'),
-                    'indicacionesProfilaxisAtbCirugiaProfilaxis' => 'Administrar 30-60 min antes de la incisión.',
+                    'indicacionesProfilaxisAtbHisopadoSarmProfilaxis' => 'Administrar 30-60 min antes de la incisión.',
                 ],
             );
         }

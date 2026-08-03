@@ -7,6 +7,7 @@ use App\Models\Usuario;
 use App\Support\ResumenCirugia;
 use Database\Seeders\CatalogosSeeder;
 use Database\Seeders\DemoSeeder;
+use Database\Seeders\ExpedienteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -19,6 +20,7 @@ class DashboardTest extends TestCase
     {
         $this->seed(CatalogosSeeder::class);
         $this->seed(DemoSeeder::class);
+        $this->seed(ExpedienteSeeder::class);
 
         return Usuario::where('nombreUsuario', 'gonzalez')->firstOrFail();
     }

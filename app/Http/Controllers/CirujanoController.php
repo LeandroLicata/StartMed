@@ -29,7 +29,7 @@ class CirujanoController extends Controller
             ->orderBy('fechaHoraCirugia')
             ->get()
             ->map(fn (Cirugia $c) => new ResumenCirugia($c));
-            $hoy = $proximas->filter(fn (ResumenCirugia $r) => $r->esDeHoy())->values();
+        $hoy = $proximas->filter(fn (ResumenCirugia $r) => $r->esDeHoy())->values();
 
         $desde = Carbon::today()->startOfMonth();
 
@@ -116,5 +116,4 @@ class CirujanoController extends Controller
             'mesSiguiente' => $mes->copy()->addMonth()->format('Y-m'),
         ]);
     }
-
 }
