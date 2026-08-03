@@ -4,17 +4,21 @@
     'valor' => null,
     'ayuda' => null,
     'requerido' => false,
+    // Mismo criterio que en input.blade.php: hace falta solo cuando una
+    // pagina repite el mismo campo en varios formularios.
+    'id' => null,
     'filas' => 3,
 ])
 
 @php
     $valorActual = old($nombre, $valor);
     $hayError = $errors->has($nombre);
+    $idCampo = $id ?? $nombre;
 @endphp
 
 <div class="space-y-1.5">
     @if ($etiqueta)
-        <label for="{{ $nombre }}" class="block text-sm font-semibold text-hu-azul">
+        <label for="{{ $idCampo }}" class="block text-sm font-semibold text-hu-azul">
             {{ $etiqueta }}
             @if ($requerido)
                 <span class="text-red-700" aria-hidden="true">*</span>
@@ -23,7 +27,7 @@
     @endif
 
     <textarea
-        id="{{ $nombre }}"
+        id="{{ $idCampo }}"
         name="{{ $nombre }}"
         rows="{{ $filas }}"
         @if ($requerido) required @endif

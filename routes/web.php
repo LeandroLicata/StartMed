@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CatalogoController;
 use App\Http\Controllers\Admin\ConsentimientoController;
 use App\Http\Controllers\Admin\CuestionarioController;
+use App\Http\Controllers\Admin\PrecioController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\AnestesistaController;
 use App\Http\Controllers\Auth\LoginController;
@@ -109,6 +110,19 @@ Route::middleware('auth')->group(function () {
         Route::delete('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'eliminarPregunta'])->name('cuestionario.preguntas.destroy');
         Route::post('cuestionario/{version}/preguntas/{pregunta}/respuestas', [CuestionarioController::class, 'agregarRespuesta'])->name('cuestionario.respuestas.store');
         Route::delete('cuestionario/{version}/preguntas/{pregunta}/respuestas/{respuesta}', [CuestionarioController::class, 'eliminarRespuesta'])->name('cuestionario.respuestas.destroy');
+
+        /*
+         * Precios por proveedor: MaterialProveedor es una relacion con
+         * atributos, no un catalogo, y las unidades cuelgan de ella.
+         */
+        Route::get('precios', [PrecioController::class, 'index'])->name('precios.index');
+        Route::get('precios/{material}', [PrecioController::class, 'show'])->name('precios.show');
+        Route::post('precios/{material}/proveedores', [PrecioController::class, 'agregarProveedor'])->name('precios.proveedores.store');
+        Route::put('precios/{material}/proveedores/{vinculo}', [PrecioController::class, 'actualizarProveedor'])->name('precios.proveedores.update');
+        Route::delete('precios/{material}/proveedores/{vinculo}', [PrecioController::class, 'quitarProveedor'])->name('precios.proveedores.destroy');
+        Route::post('precios/{material}/proveedores/{vinculo}/medidas', [PrecioController::class, 'agregarMedida'])->name('precios.medidas.store');
+        Route::put('precios/{material}/proveedores/{vinculo}/medidas/{medida}', [PrecioController::class, 'alternarMedida'])->name('precios.medidas.update');
+        Route::delete('precios/{material}/proveedores/{vinculo}/medidas/{medida}', [PrecioController::class, 'quitarMedida'])->name('precios.medidas.destroy');
 
         Route::get('usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::get('usuarios/nuevo', [UsuarioController::class, 'create'])->name('usuarios.create');

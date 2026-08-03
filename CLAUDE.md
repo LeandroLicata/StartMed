@@ -262,6 +262,17 @@ new one clones the whole tree so it can be tweaked. The three levels (version �
 → options) live on **one screen with many small forms**, which keeps the project's
 near-zero JavaScript.
 
+**Supplier pricing hangs off a material** (`Admin\PrecioController`, `/admin/precios`).
+`MaterialProveedor` is a relation with attributes, not a catalog, and the units it is
+sold in hang off it with their own validity range — hence its own screen. Three rules
+the schema dictates: `fechaActualizacionPrecio` is written by the controller whenever the
+price actually changes (nobody keeps it current by hand); removing a unit **closes**
+`fechaFinAsignacionMaterialTipoMedida` instead of deleting, and is different from
+`disponibleMaterialTipoMedida`, which is "we sell it that way but have no stock"; and
+unlinking a supplier **does delete** — that table has no baja column, and `PedidoMaterial`
+keeps its own `idMaterial` / `idProveedor` / `idTipoMedida` / subtotal, so no order
+history is lost.
+
 **Every write is audited.** No domain table has `created_at`, so there was no way to tell
 who created a user or deactivated a catalog. `App\Support\Auditor` writes one `Auditoria`
 row per admin action — who, when, which action, which record, and a JSON diff of the

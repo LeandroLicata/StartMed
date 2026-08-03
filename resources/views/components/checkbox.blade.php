@@ -3,15 +3,19 @@
     'etiqueta' => null,
     'valor' => false,
     'ayuda' => null,
+    // Mismo criterio que en input.blade.php: hace falta solo cuando una
+    // pagina repite el mismo campo en varios formularios.
+    'id' => null,
 ])
 
 @php
     $marcado = (bool) old($nombre, $valor);
     $hayError = $errors->has($nombre);
+    $idCampo = $id ?? $nombre;
 @endphp
 
 <div class="space-y-1.5">
-    <label for="{{ $nombre }}" class="flex items-start gap-2.5 text-sm text-hu-gris">
+    <label for="{{ $idCampo }}" class="flex items-start gap-2.5 text-sm text-hu-gris">
         {{--
             Un checkbox sin marcar no viaja en el POST. El hidden previo hace
             que igual llegue como 0 y la validacion booleana no se rompa.
@@ -19,7 +23,7 @@
         <input type="hidden" name="{{ $nombre }}" value="0">
 
         <input
-            id="{{ $nombre }}"
+            id="{{ $idCampo }}"
             name="{{ $nombre }}"
             type="checkbox"
             value="1"
