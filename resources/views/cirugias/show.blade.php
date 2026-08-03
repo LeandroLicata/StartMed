@@ -46,7 +46,7 @@
     </div>
 
     {{-- Modal Reprogramar --}}
-    <dialog id="modal-reprogramar" class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95">
+    <dialog id="modal-reprogramar" class="m-auto w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95">
         <div class="mb-4 flex items-center justify-between">
             <h2 class="text-lg font-bold text-hu-azul">Reprogramar Cirugía</h2>
             <button type="button" onclick="this.closest('dialog').close()" class="text-hu-gris-medio hover:text-hu-azul">
