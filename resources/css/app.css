@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/*
+ * Tokens del Manual de Marca del Hospital Universitario (UNCuyo).
+ *
+ *   Principal   #003764  (Pantone 2955 C)
+ *   Secundario  #C7A36E  (Pantone 465 M)
+ *   Texto       #59595B
+ *
+ * Los tonos -claro / -oscuro / -suave / -tenue no estan en el manual: se
+ * derivaron de los institucionales para estados (hover, activo) y fondos.
+ */
+@theme {
+    --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-hu-azul: #003764;
+    --color-hu-azul-claro: #004a85;
+    --color-hu-azul-oscuro: #00284a;
+    --color-hu-azul-suave: #d8e3ed;
+    --color-hu-azul-tenue: #eef3f8;
+
+    --color-hu-dorado: #c7a36e;
+    --color-hu-dorado-oscuro: #ab8850;
+    --color-hu-dorado-tenue: #f8f2e8;
+
+    --color-hu-gris: #59595b;
+    --color-hu-gris-medio: #8b8b8d;
+    --color-hu-gris-suave: #d7d7d8;
+    --color-hu-gris-tenue: #f4f4f5;
+}
+
+@layer base {
+    body {
+        @apply bg-hu-gris-tenue text-hu-gris antialiased;
+    }
+
+    /* Anillo de foco unificado, visible solo al navegar por teclado. */
+    :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+        @apply outline-2 outline-offset-2 outline-hu-azul-claro;
+    }
+}
+
+@layer components {
+    /* Titulos cortos en mayuscula, como pide el manual para jerarquizar. */
+    .titulo-corto {
+        @apply font-black uppercase tracking-wide;
+    }
+
+    /*
+     * Material Symbols. El eje FILL alterna trazo (0) y relleno (1): el manual
+     * pide relleno para la seccion en la que estas parado y trazo para el resto.
+     */
+    .material-symbols-rounded {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        font-size: inherit;
+        line-height: 1;
+        user-select: none;
+    }
+
+    .material-symbols-rounded.relleno {
+        font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+}
