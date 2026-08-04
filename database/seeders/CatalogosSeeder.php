@@ -49,7 +49,7 @@ class CatalogosSeeder extends Seeder
 
         $this->cargar(Rol::class, 'nombreRol', [
             'Administrador', 'Gestor de quirófano', 'Cirujano', 'Anestesista',
-            'Instrumentador', 'Enfermero', 'Dirección médica', 'Paciente',
+            'Instrumentador', 'Enfermero', 'Dirección médica',
         ]);
 
         $this->cargar(EstadoCirugia::class, 'nombreEstadoCirugia', [

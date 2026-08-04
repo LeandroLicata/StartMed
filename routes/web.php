@@ -16,7 +16,6 @@ use App\Http\Controllers\CirujanoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
 use App\Http\Controllers\PacienteController;
-use App\Http\Controllers\PacientePortalController;
 use App\Http\Controllers\PortalPacienteController;
 use Illuminate\Support\Facades\Route;
 
@@ -60,22 +59,25 @@ Route::middleware('auth')->group(function () {
         ->middleware('rol:Cirujano')
         ->name('cirujano.agenda');
 
-    Route::get('/anestesista', AnestesistaController::class)
+    Route::get('/anestesista', [AnestesistaController::class, 'index'])
         ->middleware('rol:Anestesista')
         ->name('anestesista');
+
+    /*
+     * CRUD de la evaluación pre-anestésica. La cirugía se resuelve por ruta y
+     * el controlador valida que sea del anestesista que entra.
+     */
+    Route::middleware('rol:Anestesista')->prefix('anestesista')->name('anestesista.')->group(function () {
+        Route::get('/{cirugia}/evaluar', [AnestesistaController::class, 'evaluar'])->name('evaluar');
+        Route::post('/{cirugia}/evaluacion', [AnestesistaController::class, 'store'])->name('store');
+        Route::get('/{cirugia}/evaluacion/editar', [AnestesistaController::class, 'editar'])->name('editar');
+        Route::put('/{cirugia}/evaluacion', [AnestesistaController::class, 'update'])->name('update');
+        Route::delete('/{cirugia}/evaluacion', [AnestesistaController::class, 'destroy'])->name('destroy');
+    });
 
     Route::get('/direccion', DireccionController::class)
         ->middleware('rol:Dirección médica')
         ->name('direccion');
-
-    Route::middleware('rol:Paciente')->prefix('mi-salud')->name('paciente.')->group(function () {
-        Route::get('/{seccion?}', PacientePortalController::class)
-            ->where('seccion', 'resumen|turnos|estudios|preanestesica|preparacion|consentimiento|contacto')
-            ->name('portal');
-        Route::post('/accion/{accion}', [PacientePortalController::class, 'accion'])
-            ->where('accion', 'confirmar|reprogramar|estudio|cuestionario|firmar|contacto')
-            ->name('accion');
-    });
 
     // Alta de una cirugia nueva: buscar/dar de alta al paciente por DNI y
     // completar quirofano, equipo y cobertura. Exclusivo del gestor. Va antes

@@ -112,7 +112,6 @@ Los crea el seeder. Cada uno aterriza en el panel que le corresponde a su rol.
 | `perez` | `demo1234` | Cirujano | `/cirujano` |
 | `lopez` | `demo1234` | Cirujano | `/cirujano` |
 | `ramos` | `demo1234` | Anestesista | `/anestesista` |
-| `mgarcia` | `paciente1234` | Paciente (demo) | `/mi-salud` |
 
 Un **403** al entrar a una sección no es un error: es el middleware `rol`
 haciendo su trabajo. Probá con `admin`, que ve todo.
@@ -478,10 +477,10 @@ Se entra por `nombreUsuario`, con `throttle:6,1`, y se rechaza a los usuarios co
 
 Tres cosas que **no** están hechas y conviene saber antes de asumir que se puede:
 
-**El portal del paciente usa datos de demostración.** La cuenta `mgarcia` permite
-recorrer el flujo completo, pero sus turnos, estudios, preparación y consentimiento
-todavía no leen ni escriben la historia clínica real. Las acciones se conservan
-solo durante la sesión para validar la experiencia sin afectar datos clínicos.
+**El paciente no puede autenticarse.** `Usuario` cuelga de `Personal`, y un
+paciente es una `Persona` sin legajo: el esquema no tiene por dónde. El portal
+del paciente existe como vista previa que abre el equipo desde el expediente.
+Habilitarlo de verdad requiere decidir el mecanismo (link firmado, login propio).
 
 **No hay reseteo de contraseña por email.** `config/auth.php` tiene
 `'passwords' => []` porque `Usuario` no tiene columna de email — el correo vive

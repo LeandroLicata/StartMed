@@ -226,8 +226,6 @@ class DemoSeeder extends Seeder
     /** @return array<string, Personal> */
     private function equipo(): array
     {
-        $this->crearPacienteDemo();
-
         $definiciones = [
             'perez' => ['Pérez', 'Daniel', '17223456', 'Cirujano', 'MP 4821', 'd.perez@hospital.uncuyo.edu.ar'],
             'lopez' => ['López', 'Silvia', '19887432', 'Cirujano', 'MP 5109', 's.lopez@hospital.uncuyo.edu.ar'],
@@ -266,22 +264,6 @@ class DemoSeeder extends Seeder
         }
 
         return $equipo;
-    }
-
-    private function crearPacienteDemo(): void
-    {
-        $persona = $this->persona('García', 'María', '28456789');
-        $personal = Personal::firstOrCreate(['idPersona' => $persona->idPersona]);
-        $rol = Rol::firstOrCreate(['nombreRol' => 'Paciente']);
-
-        $personal->roles()->syncWithoutDetaching([
-            $rol->idRol => ['fechaHoraAsignacionRolPersonal' => now()],
-        ]);
-
-        Usuario::firstOrCreate(
-            ['nombreUsuario' => 'mgarcia'],
-            ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => 'paciente1234'],
-        );
     }
 
     /** @return array<string, MaterialProveedor> */

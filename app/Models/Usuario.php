@@ -88,7 +88,6 @@ class Usuario extends Authenticatable
             $this->tieneRol('Gestor de quirófano', 'Dirección médica') => 'dashboard',
             $this->tieneRol('Cirujano') => 'cirujano',
             $this->tieneRol('Anestesista') => 'anestesista',
-            $this->tieneRol('Paciente') => 'paciente.portal',
             default => null,
         };
     }
