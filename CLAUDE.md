@@ -43,12 +43,12 @@ is not running). Delete it or restart `npm run dev`. Verifying a page by curl af
 All demo users except `admin` use password `demo1234`; each lands on the panel its
 role allows.
 
-| user | role |
-|---|---|
+| user                  | role                            |
+| --------------------- | ------------------------------- |
 | `admin` / `admin1234` | Administrador (sees everything) |
-| `gonzalez` | Gestor de quirófano |
-| `perez`, `lopez` | Cirujano |
-| `ramos` | Anestesista |
+| `gonzalez`            | Gestor de quirófano             |
+| `perez`, `lopez`      | Cirujano                        |
+| `ramos`               | Anestesista                     |
 
 ## Architecture
 
@@ -88,7 +88,7 @@ survives** (the DB session driver needs it); the `users` table was removed on pu
 65 models in `app/Models/`, one per domain table, ~153 relations. **Relation names
 derive from the FK column, not the target table**, so multiple FKs to the same table
 don't collide — e.g. in `Cirugia`: `paciente()` (idPersonaPaciente→Persona),
-`cirujano()` / `anestesista()` (idPersonal*→Personal). When adding relations, follow
+`cirujano()` / `anestesista()` (idPersonal\*→Personal). When adding relations, follow
 this column-based naming.
 
 `tests/Feature/ModelosTest.php` reflects over all 65 models and their relations,

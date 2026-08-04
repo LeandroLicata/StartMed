@@ -46,84 +46,91 @@
         </x-alerta>
     @endif
 
-    <x-tarjeta titulo="Cirugías asignadas" icono="stethoscope" class="mt-6">
-        <div class="-mx-5 overflow-x-auto">
-            <table class="w-full min-w-208 text-sm">
-                <thead>
-                    <tr class="border-b border-hu-gris-suave/70 text-left text-xs uppercase tracking-wide text-hu-gris-medio">
-                        <th class="px-5 pb-2 font-semibold">Paciente</th>
-                        <th class="px-3 pb-2 font-semibold">Procedimiento</th>
-                        <th class="px-3 pb-2 font-semibold">Fecha</th>
-                        <th class="px-3 pb-2 font-semibold">ASA</th>
-                        <th class="px-3 pb-2 font-semibold">Anestesia</th>
-                        <th class="px-3 pb-2 font-semibold">Cuestionario</th>
-                        <th class="px-5 pb-2 font-semibold">Evaluación</th>
-                    </tr>
-                </thead>
+    <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        @forelse ($evaluaciones as $caso)
+            <x-tarjeta>
+                <div class="flex h-full flex-col gap-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <a href="{{ route('cirugias.show', $caso->cirugia) }}"
+                               class="font-semibold text-hu-azul hover:underline">
+                                {{ $caso->nombrePaciente() }}
+                            </a>
+                            <p class="mt-0.5 truncate text-sm text-hu-gris-medio">
+                                {{ $caso->procedimiento() }}
+                            </p>
+                        </div>
+                        <x-icono nombre="stethoscope" class="text-2xl text-hu-dorado" relleno />
+                    </div>
 
-                <tbody class="divide-y divide-hu-gris-suave/60">
-                    @forelse ($evaluaciones as $caso)
-                        <tr class="hover:bg-hu-azul-tenue/40">
-                            <td class="px-5 py-3">
-                                <a href="{{ route('cirugias.show', $caso->cirugia) }}"
-                                   class="font-semibold text-hu-azul hover:underline">
-                                    {{ $caso->nombrePaciente() }}
-                                </a>
-                                @if ($caso->alertaProfilaxis())
-                                    <p class="mt-0.5 flex items-center gap-1 text-xs font-semibold text-red-700">
-                                        <x-icono nombre="warning" class="text-sm" relleno />
-                                        Alergia documentada
-                                    </p>
-                                @endif
-                            </td>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <x-estado tono="info" icono="schedule">
+                            {{ $caso->cuando()?->translatedFormat('D j/m').' · '.$caso->cuando()?->format('H:i') }}
+                        </x-estado>
 
-                            <td class="px-3 py-3">{{ $caso->procedimiento() }}</td>
+                        @if ($caso->asa())
+                            <x-estado :tono="in_array($caso->asa(), ['ASA III', 'ASA IV', 'ASA V'], true) ? 'aviso' : 'info'">
+                                {{ $caso->asa() }}
+                            </x-estado>
+                        @else
+                            <x-estado tono="neutro">Sin ASA</x-estado>
+                        @endif
 
-                            <td class="px-3 py-3 whitespace-nowrap">
-                                {{ $caso->cuando()?->translatedFormat('D j/m') }}
-                                <span class="text-hu-gris-medio">{{ $caso->cuando()?->format('H:i') }}</span>
-                            </td>
+                        <x-estado
+                            :tono="$caso->semaforo()"
+                            :icono="$caso->estaLista() ? 'check_circle' : 'warning'"
+                        >
+                            {{ $caso->estaLista() ? 'Lista' : 'Pendiente' }}
+                        </x-estado>
+                    </div>
 
-                            <td class="px-3 py-3">
-                                @if ($caso->asa())
-                                    <x-estado :tono="in_array($caso->asa(), ['ASA III', 'ASA IV', 'ASA V']) ? 'aviso' : 'info'">
-                                        {{ $caso->asa() }}
-                                    </x-estado>
-                                @else
-                                    <span class="text-hu-gris-medio">—</span>
-                                @endif
-                            </td>
+                    @if ($caso->alertaProfilaxis())
+                        <p class="flex items-center gap-1 text-xs font-semibold text-red-700">
+                            <x-icono nombre="warning" class="text-sm" relleno />
+                            Alergia documentada
+                        </p>
+                    @endif
 
-                            <td class="px-3 py-3 text-hu-gris">
-                                {{ $caso->tipoAnestesia() ?? '—' }}
-                            </td>
+                    @php
+                        $tieneEvaluacion = $caso->cirugia->evaluacionAnestesicas->isNotEmpty();
+                        $evaluacionEtiqueta = match (true) {
+                            ! $tieneEvaluacion => 'Iniciar evaluación',
+                            ! $caso->evaluacionCompleta() => 'Continuar evaluación',
+                            default => 'Editar evaluación',
+                        };
+                        $evaluacionIcono = ! $tieneEvaluacion ? 'add_circle' : 'edit_note';
+                        $evaluacionRuta = $tieneEvaluacion ? 'anestesista.editar' : 'anestesista.evaluar';
+                    @endphp
 
-                            <td class="px-3 py-3">
-                                <x-estado :tono="$caso->cuestionario()->isNotEmpty() ? 'exito' : 'neutro'">
-                                    {{ $caso->cuestionario()->isNotEmpty() ? 'Recibido' : 'Sin datos' }}
-                                </x-estado>
-                            </td>
+                    <div class="mt-auto grid grid-cols-2 gap-2 pt-1">
+                        <x-boton
+                            variante="contorno"
+                            forma="grupo"
+                            icono="folder_open"
+                            :href="route('cirugias.show', $caso->cirugia)"
+                            class="w-full"
+                        >
+                            Expediente
+                        </x-boton>
 
-                            <td class="px-5 py-3">
-                                <x-estado
-                                    :tono="$caso->evaluacionCompleta() ? 'exito' : 'aviso'"
-                                    :icono="$caso->evaluacionCompleta() ? 'check_circle' : 'pending'"
-                                >
-                                    {{ $caso->evaluacion() }}
-                                </x-estado>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="px-5 py-10 text-center text-hu-gris-medio">
-                                No tenés cirugías asignadas.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </x-tarjeta>
+                        <x-boton
+                            variante="primario"
+                            forma="grupo"
+                            :icono="$evaluacionIcono"
+                            :href="route($evaluacionRuta, $caso->cirugia)"
+                            class="w-full"
+                        >
+                            {{ $evaluacionEtiqueta }}
+                        </x-boton>
+                    </div>
+                </div>
+            </x-tarjeta>
+        @empty
+            <p class="col-span-full py-10 text-center text-sm text-hu-gris-medio">
+                No tenés cirugías asignadas.
+            </p>
+        @endforelse
+    </div>
 
     {{-- Cuestionario del primer caso pendiente, que es el que hay que resolver --}}
     @php($proximo = $pendientes->first(fn ($c) => $c->cuestionario()->isNotEmpty()))
