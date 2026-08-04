@@ -4,18 +4,24 @@
     'tipo' => 'text',
     'valor' => null,
     'ayuda' => null,
+    'placeholder' => null,
     'requerido' => false,
+    // Solo hace falta cuando una pagina repite el mismo campo en varios
+    // formularios: sin esto los id se duplicarian y el label apuntaria al
+    // primero. El name siempre sale de $nombre.
+    'id' => null,
 ])
 
 @php
     // old() conserva lo que el usuario habia tipeado cuando la validacion falla.
     $valorActual = old($nombre, $valor);
     $hayError = $errors->has($nombre);
+    $idCampo = $id ?? $nombre;
 @endphp
 
 <div class="space-y-1.5">
     @if ($etiqueta)
-        <label for="{{ $nombre }}" class="block text-sm font-semibold text-hu-azul">
+        <label for="{{ $idCampo }}" class="block text-sm font-semibold text-hu-azul">
             {{ $etiqueta }}
             @if ($requerido)
                 <span class="text-red-700" aria-hidden="true">*</span>
@@ -24,10 +30,11 @@
     @endif
 
     <input
-        id="{{ $nombre }}"
+        id="{{ $idCampo }}"
         name="{{ $nombre }}"
         type="{{ $tipo }}"
         value="{{ $valorActual }}"
+        @if ($placeholder) placeholder="{{ $placeholder }}" @endif
         @if ($requerido) required @endif
         @if ($hayError) aria-invalid="true" aria-describedby="{{ $nombre }}-error" @endif
         {{ $attributes->class([

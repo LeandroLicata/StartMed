@@ -3,6 +3,14 @@
      * Cada item declara los roles que lo ven. El administrador ve todo
      * (lo resuelve Usuario::tieneRol). Los que todavia no tienen pantalla
      * quedan atenuados y no navegan.
+     *
+     * El menu es lo que el usuario *hace*; la carga de datos maestros entra
+     * toda por Administracion, que es su propio indice. Por eso no hay atajos
+     * a catalogos sueltos aca: duplicarian lo que ya agrupa /admin.
+     *
+     * 'activaEn' permite marcar el item con un patron de rutas (admin.*)
+     * cuando la seccion abarca mas de una pantalla; por defecto es su ruta.
+     * 'separar' dibuja una linea encima, para cortar entre grupos de items.
      */
     $secciones = [
         [
@@ -10,6 +18,18 @@
             'icono' => 'home',
             'ruta' => 'dashboard',
             'roles' => ['Gestor de quirófano', 'Dirección médica'],
+        ],
+        [
+            'etiqueta' => 'Cirugías',
+            'icono' => 'event',
+            'ruta' => 'cirugias.index',
+            'roles' => ['Gestor de quirófano'],
+        ],
+        [
+            'etiqueta' => 'Agenda',
+            'icono' => 'schedule',
+            'ruta' => 'agenda',
+            'roles' => ['Gestor de quirófano'],
         ],
         [
             'etiqueta' => 'Mis cirugías',
@@ -29,12 +49,21 @@
             'ruta' => 'direccion',
             'roles' => ['Dirección médica'],
         ],
-        ['etiqueta' => 'Quirófanos', 'icono' => 'meeting_room', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Pacientes', 'icono' => 'groups', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Materiales', 'icono' => 'inventory_2', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Hemoderivados', 'icono' => 'bloodtype', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Obras sociales', 'icono' => 'shield', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Personal', 'icono' => 'badge', 'ruta' => null, 'roles' => []],
+        // Pacientes, disponible para Gestor, Cirujano y Anestesista
+        ['etiqueta' => 'Pacientes', 'icono' => 'groups', 'ruta' => 'pacientes.index', 'roles' => ['Gestor de quirófano', 'Cirujano', 'Anestesista']],
+
+        /*
+         * Unica puerta a los datos maestros: catalogos y usuarios. Queda
+         * marcada en cualquier pantalla de la seccion, no solo en su indice.
+         */
+        [
+            'etiqueta' => 'Administración',
+            'icono' => 'settings',
+            'ruta' => 'admin.inicio',
+            'activaEn' => 'admin.*',
+            'separar' => true,
+            'roles' => ['Administrador'],
+        ],
     ];
 
     $usuario = auth()->user();
@@ -48,8 +77,14 @@
             $habilitada = (bool) $seccion['ruta'];
             // El asterisco deja activa la sección en sus subrutas, p. ej. el
             // formulario de evaluación anestésica sigue resaltando "Evaluaciones".
-            $activa = $habilitada && request()->routeIs($seccion['ruta'], $seccion['ruta'].'.*');
+            $patronActivo = $seccion['activaEn'] ?? $seccion['ruta'];
+            $activa = $habilitada && request()->routeIs($patronActivo, $seccion['ruta'].'.*');
         @endphp
+
+        {{-- La linea se dibuja con el item, asi no queda suelta si el rol no lo ve. --}}
+        @if ($seccion['separar'] ?? false)
+            <hr class="my-3 border-white/10" aria-hidden="true">
+        @endif
 
         @if ($habilitada)
             <a

@@ -2,20 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FiltraCirugias;
 use App\Models\Cirugia;
 use App\Models\Quirofano;
 use App\Support\ResumenCirugia;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    use FiltraCirugias;
+
     /**
      * Tablero del gestor de quirofano: el estado de las cirugias proximas y
      * que le falta a cada una para poder realizarse.
      */
-    public function __invoke(): View
+    public function __invoke(Request $request): View
     {
         $hoy = Carbon::today();
 
@@ -27,17 +31,38 @@ class DashboardController extends Controller
             ->get()
             ->map(fn (Cirugia $cirugia) => new ResumenCirugia($cirugia));
 
-        $deHoy = $cirugias->filter(fn (ResumenCirugia $r) => $r->esDeHoy());
+        $cirugiasDeHoy = $cirugias->filter(fn (ResumenCirugia $r) => $r->esDeHoy())->values();
 
-        return view('dashboard', [
+        $inicioSemana = $hoy->copy()->startOfWeek();
+        $finSemana = $hoy->copy()->endOfWeek();
+
+        // "Desde"/"Hasta" quedan precargados con la semana actual (lunes a
+        // domingo) para que "Cirugias de la semana" arranque mostrando eso,
+        // pero el gestor los puede pisar para ampliar o acotar la busqueda.
+        $desde = $request->query('desde', $inicioSemana->toDateString());
+        $hasta = $request->query('hasta', $finSemana->toDateString());
+
+        $query = Cirugia::query()
+            ->with(ResumenCirugia::RELACIONES)
+            ->whereNotNull('fechaHoraCirugia')
+            ->where('fechaHoraCirugia', '>=', Carbon::parse($desde))
+            ->where('fechaHoraCirugia', '<=', Carbon::parse($hasta)->endOfDay());
+
+        return view('dashboard', array_merge([
             'hoy' => $hoy,
             'cirugias' => $cirugias,
-            'cirugiasDeHoy' => $deHoy,
-            'enRiesgo' => $cirugias->filter(fn (ResumenCirugia $r) => $r->enRiesgo())->values(),
+            'cirugiasDeHoy' => $cirugiasDeHoy,
+            'cirugiasFiltradas' => $this->aplicarFiltros($query, $request),
+            'enRiesgoCount' => $cirugias->filter(fn (ResumenCirugia $r) => $r->enRiesgo())->count(),
             'quirofanosActivos' => Quirofano::whereNull('fechaBajaQuirofano')->count(),
             'agenda' => $this->agenda($cirugias),
-            'indicadores' => $this->indicadores($cirugias, $deHoy),
-        ]);
+            'indicadores' => $this->indicadores($cirugias, $cirugiasDeHoy),
+            'filtros' => array_merge(
+                $request->only(['q', 'estado', 'idQuirofano', 'idObraSocial']),
+                ['desde' => $desde, 'hasta' => $hasta],
+            ),
+            'hayFiltrosActivos' => $request->hasAny(['q', 'estado', 'idQuirofano', 'idObraSocial', 'desde', 'hasta']),
+        ], $this->catalogosFiltro()));
     }
 
     /**

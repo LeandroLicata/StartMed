@@ -23,6 +23,10 @@ class LoginController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        // No depender de la collation de MySQL para el case-insensitive: se
+        // normaliza el usuario en el login y al crearlo (ver DemoSeeder).
+        $credenciales['nombreUsuario'] = mb_strtolower(trim($credenciales['nombreUsuario']));
+
         // El EloquentUserProvider ignora la clave `password` al buscar el
         // registro y la compara contra Usuario::getAuthPassword().
         if (! Auth::attempt($credenciales)) {

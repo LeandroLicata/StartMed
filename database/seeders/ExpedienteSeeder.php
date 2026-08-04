@@ -20,6 +20,7 @@ use App\Models\PreparacionPacienteTipoPreparacionTipoIndicacion;
 use App\Models\TipoCirugia;
 use App\Models\TipoIndicacion;
 use App\Models\TipoPreparacion;
+use App\Support\Consentimiento;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -51,7 +52,7 @@ class ExpedienteSeeder extends Seeder
 
         $config = $this->cuestionario();
 
-        foreach (Cirugia::with('paciente', 'tipoCirugia')->get() as $cirugia) {
+        foreach (Cirugia::with('paciente', 'tipoCirugia', 'cirugiaEstados.estadoCirugia')->get() as $cirugia) {
             $this->preparacion($cirugia);
             $this->consentimiento($cirugia);
             $this->examen($cirugia, $config);
@@ -164,14 +165,14 @@ class ExpedienteSeeder extends Seeder
             return;
         }
 
-        $paciente = $cirugia->paciente;
+        $texto = Consentimiento::paraCirugia($plantilla->textoConfigConsentimiento, $cirugia);
 
-        $texto = strtr($plantilla->textoConfigConsentimiento, [
-            '{{paciente}}' => $paciente?->nombre_completo ?? '',
-            '{{dni}}' => $paciente?->documento ?? '',
-            '{{procedimiento}}' => $cirugia->tipoCirugia->nombreTipoCirugia,
-            '{{cirujano}}' => $cirugia->cirujano?->persona?->nombre_completo ?? '',
-        ]);
+        // Confirmada/Realizada implica que ya se completó el circuito
+        // administrativo, consentimiento incluido; el resto queda sin firmar.
+        $estadoVigente = $cirugia->cirugiaEstados
+            ->firstWhere('fechaDesasignacionCirugiaEstado', null)
+            ?->estadoCirugia?->nombreEstadoCirugia;
+        $firmado = in_array($estadoVigente, ['Confirmada', 'Realizada'], true);
 
         ConsentimientoPaciente::firstOrCreate(
             ['idCirugia' => $cirugia->idCirugia],
@@ -180,6 +181,7 @@ class ExpedienteSeeder extends Seeder
                 'textoRenderizadoConsentimiento' => $texto,
                 // El hash se calcula sobre el texto, antes de firmar.
                 'hashConsentimiento' => hash('sha256', $texto),
+                'fechaFirmaConsentimiento' => $firmado ? now()->subDays(2) : null,
             ],
         );
     }
