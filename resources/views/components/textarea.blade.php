@@ -7,12 +7,15 @@
     // Mismo criterio que en input.blade.php: hace falta solo cuando una
     // pagina repite el mismo campo en varios formularios.
     'id' => null,
+    // Idem input.blade.php: solo el formulario que se envio repuebla con old()
+    // y muestra el error.
+    'enviado' => true,
     'filas' => 3,
 ])
 
 @php
-    $valorActual = old($nombre, $valor);
-    $hayError = $errors->has($nombre);
+    $valorActual = $enviado ? old($nombre, $valor) : $valor;
+    $hayError = $enviado && $errors->has($nombre);
     $idCampo = $id ?? $nombre;
 @endphp
 
@@ -44,10 +47,11 @@
         <p class="text-xs text-hu-gris-medio">{{ $ayuda }}</p>
     @endif
 
-    @error($nombre)
+    {{-- Mismo motivo que en input.blade.php: @error mira el bag global. --}}
+    @if ($hayError)
         <p id="{{ $nombre }}-error" class="flex items-center gap-1 text-xs font-semibold text-red-700">
             <x-icono nombre="error" class="text-sm" relleno />
-            {{ $message }}
+            {{ $errors->first($nombre) }}
         </p>
-    @enderror
+    @endif
 </div>

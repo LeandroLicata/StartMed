@@ -32,8 +32,8 @@
                     @forelse ($materiales as $material)
                         @php
                             $cuantos = $material->material_proveedores_count;
-                            $min = $material->material_proveedores_min_precio_externo_material_proveedor;
-                            $max = $material->material_proveedores_max_precio_externo_material_proveedor;
+                            $min = $material->precioMinimo;
+                            $max = $material->precioMaximo;
                         @endphp
 
                         <tr class="align-middle hover:bg-hu-azul-tenue/40">
@@ -51,7 +51,10 @@
                             </td>
 
                             <td class="px-3 py-3 text-right tabular-nums whitespace-nowrap">
-                                @if ($min === null)
+                                @if ($min === null && $cuantos > 0)
+                                    {{-- Hay proveedor pero ninguna unidad con precio: no se puede pedir. --}}
+                                    <x-estado tono="aviso" icono="warning">Sin precio</x-estado>
+                                @elseif ($min === null)
                                     <span class="text-hu-gris-medio">—</span>
                                 @elseif ($min == $max)
                                     USD {{ number_format((float) $min, 2, ',', '.') }}

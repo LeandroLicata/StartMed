@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MaterialProveedorRequest;
+use App\Http\Requests\MedidaProveedorRequest;
 use App\Models\Material;
 use App\Models\MaterialProveedor as Vinculo;
 use App\Models\MaterialProveedorTipoMedida as Medida;
@@ -11,19 +12,22 @@ use App\Models\Proveedor;
 use App\Models\TipoMedida;
 use App\Support\Auditor;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
- * Que proveedor vende cada material, a que precio y en que unidades.
+ * Que proveedor vende cada material, en que unidades y a que precio.
  *
  * No es un catalogo: MaterialProveedor es una relacion con atributos, y las
  * unidades cuelgan de ella con su propio rango de vigencia. Por eso queda
  * fuera del ABM generico y tiene pantalla propia.
  *
+ * El precio no cuelga del proveedor sino de la unidad: un implante de 0,5 m y
+ * uno de 1 m son dos articulos facturables distintos del mismo proveedor. El
+ * codigo externo acompana al precio por la misma razon.
+ *
  * Esto no toca el historial de pedidos: PedidoMaterial guarda su propio
- * idMaterial, idProveedor, idTipoMedida y subtotal, sin referenciar a
+ * idMaterial, idProveedor, idTipoMedida, unitario y subtotal, sin referenciar a
  * MaterialProveedor. Un precio que cambia hoy no reescribe lo que se pidio
  * ayer.
  */
@@ -31,12 +35,23 @@ class PrecioController extends Controller
 {
     public function index(): View
     {
+        // El precio vive dos niveles abajo, asi que el minimo y el maximo
+        // salen de la relacion through, contando solo asignaciones vigentes:
+        // una unidad cerrada es historial y no deberia fijar el minimo.
+        $vigentes = fn ($q) => $q->whereNull('fechaFinAsignacionMaterialTipoMedida');
+
         return view('admin.precios.index', [
             'materiales' => Material::query()
                 ->whereNull('fechaBajaMaterial')
                 ->withCount('materialProveedores')
-                ->withMin('materialProveedores', 'precioExternoMaterialProveedor')
-                ->withMax('materialProveedores', 'precioExternoMaterialProveedor')
+                ->withMin(
+                    ['materialProveedorTipoMedidas as precioMinimo' => $vigentes],
+                    'precioExternoMaterialProveedorTipoMedida'
+                )
+                ->withMax(
+                    ['materialProveedorTipoMedidas as precioMaximo' => $vigentes],
+                    'precioExternoMaterialProveedorTipoMedida'
+                )
                 ->orderBy('nombreMaterial')
                 ->get(),
         ]);
@@ -77,39 +92,14 @@ class PrecioController extends Controller
 
     public function agregarProveedor(MaterialProveedorRequest $request, Material $material): RedirectResponse
     {
-        $datos = $request->validated();
-
         $vinculo = Vinculo::create([
             'idMaterial' => $material->idMaterial,
-            ...$datos,
-            'fechaActualizacionPrecio' => ($datos['precioExternoMaterialProveedor'] ?? null) !== null ? now() : null,
+            ...$request->validated(),
         ]);
 
         Auditor::registrar(Auditor::ALTA, $vinculo, $this->comoSeLlama($vinculo->load('proveedor')));
 
-        return back()->with('exito', 'Proveedor agregado.');
-    }
-
-    public function actualizarProveedor(MaterialProveedorRequest $request, Material $material, Vinculo $vinculo): RedirectResponse
-    {
-        $datos = $request->validated();
-        $antes = Auditor::foto($vinculo);
-
-        $vinculo->fill($datos);
-
-        // La fecha se mueve sola: es lo que dice el nombre de la columna, y a
-        // mano nadie la va a mantener al dia.
-        if ($vinculo->isDirty('precioExternoMaterialProveedor')) {
-            $vinculo->fechaActualizacionPrecio = now();
-        }
-
-        $vinculo->save();
-
-        if ($cambios = Auditor::diferencia($vinculo, $antes)) {
-            Auditor::registrar(Auditor::EDICION, $vinculo, $this->comoSeLlama($vinculo), $cambios);
-        }
-
-        return back()->with('exito', 'Precio actualizado.');
+        return back()->with('exito', 'Proveedor agregado. Cargale en qué unidades lo vende.');
     }
 
     /**
@@ -130,40 +120,52 @@ class PrecioController extends Controller
         return back()->with('exito', 'Proveedor quitado de este material.');
     }
 
-    // --- Unidades en que lo vende ---
+    // --- Unidades en que lo vende, con su precio ---
 
-    public function agregarMedida(Request $request, Material $material, Vinculo $vinculo): RedirectResponse
+    public function agregarMedida(MedidaProveedorRequest $request, Material $material, Vinculo $vinculo): RedirectResponse
     {
-        $datos = $request->validate(
-            [
-                'idTipoMedida' => [
-                    'required',
-                    'exists:TipoMedida,idTipoMedida',
-                    // Una unidad no puede estar asignada dos veces a la vez.
-                    function (string $atributo, mixed $valor, callable $falla) use ($vinculo) {
-                        $yaEsta = $vinculo->materialProveedorTipoMedidas()
-                            ->where('idTipoMedida', $valor)
-                            ->whereNull('fechaFinAsignacionMaterialTipoMedida')
-                            ->exists();
+        $datos = $request->validated();
 
-                        if ($yaEsta) {
-                            $falla('Ese proveedor ya vende este material en esa unidad.');
-                        }
-                    },
-                ],
-                'disponibleMaterialTipoMedida' => ['boolean'],
-            ],
-            attributes: ['idTipoMedida' => 'unidad'],
-        );
-
-        Medida::create([
+        $medida = Medida::create([
             'idMaterialProveedor' => $vinculo->idMaterialProveedor,
-            'idTipoMedida' => $datos['idTipoMedida'],
+            ...$datos,
             'fechaAsignacionMaterialTipoMedida' => now(),
-            'disponibleMaterialTipoMedida' => $datos['disponibleMaterialTipoMedida'] ?? true,
+            'disponibleMaterialTipoMedida' => true,
+            'fechaActualizacionPrecioMaterialProveedorTipoMedida' => ($datos['precioExternoMaterialProveedorTipoMedida'] ?? null) !== null ? now() : null,
         ]);
 
+        Auditor::registrar(Auditor::ALTA, $medida, $this->comoSeLlamaLaMedida($medida->load('tipoMedida'), $vinculo));
+
         return back()->with('exito', 'Unidad agregada.');
+    }
+
+    public function actualizarMedida(MedidaProveedorRequest $request, Material $material, Vinculo $vinculo, Medida $medida): RedirectResponse
+    {
+        $antes = Auditor::foto($medida);
+
+        $medida->fill($request->validated());
+
+        // La fecha se mueve sola: es lo que dice el nombre de la columna, y a
+        // mano nadie la va a mantener al dia.
+        $cambioElPrecio = $medida->isDirty('precioExternoMaterialProveedorTipoMedida');
+
+        if ($cambioElPrecio) {
+            $medida->fechaActualizacionPrecioMaterialProveedorTipoMedida = now();
+        }
+
+        $medida->save();
+
+        if ($cambios = Auditor::diferencia($medida, $antes)) {
+            Auditor::registrar(Auditor::EDICION, $medida, $this->comoSeLlamaLaMedida($medida, $vinculo), $cambios);
+        }
+
+        // El aviso dice lo que de verdad paso: la fila tiene dos campos y
+        // "Precio actualizado" despues de corregir un codigo es mentira.
+        return match (true) {
+            $cambios === [] => back()->with('info', 'No había nada que cambiar.'),
+            $cambioElPrecio => back()->with('exito', 'Precio actualizado.'),
+            default => back()->with('exito', 'Código actualizado.'),
+        };
     }
 
     /**
@@ -172,9 +174,18 @@ class PrecioController extends Controller
      */
     public function alternarMedida(Material $material, Vinculo $vinculo, Medida $medida): RedirectResponse
     {
+        $antes = Auditor::foto($medida);
+
         $medida->update([
             'disponibleMaterialTipoMedida' => ! $medida->disponibleMaterialTipoMedida,
         ]);
+
+        Auditor::registrar(
+            Auditor::EDICION,
+            $medida,
+            $this->comoSeLlamaLaMedida($medida, $vinculo),
+            Auditor::diferencia($medida, $antes),
+        );
 
         return back()->with('exito', $medida->disponibleMaterialTipoMedida
             ? 'Unidad marcada como disponible.'
@@ -183,18 +194,34 @@ class PrecioController extends Controller
 
     /**
      * Cerrar la asignacion en vez de borrarla: la tabla tiene rango de
-     * vigencia, asi que queda registrado hasta cuando se vendio asi.
+     * vigencia, asi que queda registrado hasta cuando se vendio asi, y a que
+     * precio.
      */
     public function quitarMedida(Material $material, Vinculo $vinculo, Medida $medida): RedirectResponse
     {
+        $descripcion = $this->comoSeLlamaLaMedida($medida->load('tipoMedida'), $vinculo);
+
         $medida->update(['fechaFinAsignacionMaterialTipoMedida' => now()]);
+
+        Auditor::registrar(Auditor::BAJA, $medida, $descripcion);
 
         return back()->with('exito', 'Unidad dada de baja. Queda en el historial.');
     }
 
     private function comoSeLlama(Vinculo $vinculo): string
     {
-        return 'Precio de «'.$vinculo->material->nombreMaterial.'» en '
+        return '«'.$vinculo->material->nombreMaterial.'» en '
+            .($vinculo->proveedor?->nombreProveedor ?? 'proveedor desconocido');
+    }
+
+    /**
+     * Nombra la unidad, no solo el material: si no, tres precios del mismo
+     * material aparecen como tres renglones identicos en la auditoria.
+     */
+    private function comoSeLlamaLaMedida(Medida $medida, Vinculo $vinculo): string
+    {
+        return 'Precio de «'.$vinculo->material->nombreMaterial.'» por '
+            .($medida->tipoMedida?->nombreTipoMedida ?? 'unidad desconocida').' en '
             .($vinculo->proveedor?->nombreProveedor ?? 'proveedor desconocido');
     }
 }

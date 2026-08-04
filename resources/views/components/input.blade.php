@@ -10,12 +10,17 @@
     // formularios: sin esto los id se duplicarian y el label apuntaria al
     // primero. El name siempre sale de $nombre.
     'id' => null,
+    // Para esa misma pagina: old() y los errores son globales, no del
+    // formulario que fallo, asi que sin esto un precio rechazado en una fila
+    // reaparece marcado en rojo en todas las demas. El formulario dice si fue
+    // el que se envio; los que no, se dibujan con su valor guardado.
+    'enviado' => true,
 ])
 
 @php
     // old() conserva lo que el usuario habia tipeado cuando la validacion falla.
-    $valorActual = old($nombre, $valor);
-    $hayError = $errors->has($nombre);
+    $valorActual = $enviado ? old($nombre, $valor) : $valor;
+    $hayError = $enviado && $errors->has($nombre);
     $idCampo = $id ?? $nombre;
 @endphp
 
@@ -49,10 +54,12 @@
         <p class="text-xs text-hu-gris-medio">{{ $ayuda }}</p>
     @endif
 
-    @error($nombre)
+    {{-- No es @error: ese directive mira el bag global y se dibujaria tambien
+         en los formularios que no se enviaron. --}}
+    @if ($hayError)
         <p id="{{ $nombre }}-error" class="flex items-center gap-1 text-xs font-semibold text-red-700">
             <x-icono nombre="error" class="text-sm" relleno />
-            {{ $message }}
+            {{ $errors->first($nombre) }}
         </p>
-    @enderror
+    @endif
 </div>

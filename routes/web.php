@@ -223,10 +223,10 @@ Route::middleware('auth')->group(function () {
         Route::get('precios', [PrecioController::class, 'index'])->name('precios.index');
         Route::get('precios/{material}', [PrecioController::class, 'show'])->name('precios.show');
         Route::post('precios/{material}/proveedores', [PrecioController::class, 'agregarProveedor'])->name('precios.proveedores.store');
-        Route::put('precios/{material}/proveedores/{vinculo}', [PrecioController::class, 'actualizarProveedor'])->name('precios.proveedores.update');
         Route::delete('precios/{material}/proveedores/{vinculo}', [PrecioController::class, 'quitarProveedor'])->name('precios.proveedores.destroy');
         Route::post('precios/{material}/proveedores/{vinculo}/medidas', [PrecioController::class, 'agregarMedida'])->name('precios.medidas.store');
-        Route::put('precios/{material}/proveedores/{vinculo}/medidas/{medida}', [PrecioController::class, 'alternarMedida'])->name('precios.medidas.update');
+        Route::put('precios/{material}/proveedores/{vinculo}/medidas/{medida}', [PrecioController::class, 'actualizarMedida'])->name('precios.medidas.update');
+        Route::patch('precios/{material}/proveedores/{vinculo}/medidas/{medida}/disponibilidad', [PrecioController::class, 'alternarMedida'])->name('precios.medidas.disponibilidad');
         Route::delete('precios/{material}/proveedores/{vinculo}/medidas/{medida}', [PrecioController::class, 'quitarMedida'])->name('precios.medidas.destroy');
 
         Route::get('usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');

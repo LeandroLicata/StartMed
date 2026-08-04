@@ -8,7 +8,10 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Alta y edicion de lo que un proveedor cobra por un material.
+ * Alta del vinculo entre un material y un proveedor.
+ *
+ * El vinculo no tiene mas datos que eso: el codigo y el precio dependen de la
+ * unidad en que se venda, asi que viven en MedidaProveedorRequest.
  */
 class MaterialProveedorRequest extends FormRequest
 {
@@ -23,19 +26,12 @@ class MaterialProveedorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // El proveedor identifica el vinculo: al editar ya no se cambia,
-            // se quita este y se agrega otro.
-            ...$this->route('vinculo') ? [] : [
-                'idProveedor' => [
-                    'required',
-                    Rule::exists((new Proveedor)->getTable(), 'idProveedor'),
-                    Rule::unique((new MaterialProveedor)->getTable(), 'idProveedor')
-                        ->where('idMaterial', $this->route('material')->idMaterial),
-                ],
+            'idProveedor' => [
+                'required',
+                Rule::exists((new Proveedor)->getTable(), 'idProveedor'),
+                Rule::unique((new MaterialProveedor)->getTable(), 'idProveedor')
+                    ->where('idMaterial', $this->route('material')->idMaterial),
             ],
-            'codExternoMaterialProveedor' => ['nullable', 'string', 'max:60'],
-            // decimal(12,2): doce digitos en total, dos decimales.
-            'precioExternoMaterialProveedor' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
         ];
     }
 
@@ -46,8 +42,6 @@ class MaterialProveedorRequest extends FormRequest
     {
         return [
             'idProveedor' => 'proveedor',
-            'codExternoMaterialProveedor' => 'código del proveedor',
-            'precioExternoMaterialProveedor' => 'precio',
         ];
     }
 
