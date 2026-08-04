@@ -17,18 +17,7 @@ class MaterialProveedor extends Model
     protected $fillable = [
         'idMaterial',
         'idProveedor',
-        'codExternoMaterialProveedor',
-        'precioExternoMaterialProveedor',
-        'fechaActualizacionPrecio',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'precioExternoMaterialProveedor' => 'decimal:2',
-            'fechaActualizacionPrecio' => 'datetime',
-        ];
-    }
 
     public function material(): BelongsTo
     {

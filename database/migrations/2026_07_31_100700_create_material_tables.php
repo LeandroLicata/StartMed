@@ -23,13 +23,13 @@ return new class extends Migration
             $table->dateTime('fechaBajaProveedor')->nullable();
         });
 
+        // Que proveedores venden cada material. El precio no vive aca: un
+        // proveedor cobra distinto segun la unidad en que lo venda, asi que
+        // cuelga de MaterialProveedorTipoMedida.
         Schema::create('MaterialProveedor', function (Blueprint $table) {
             $table->id('idMaterialProveedor');
             $table->unsignedBigInteger('idMaterial');
             $table->unsignedBigInteger('idProveedor');
-            $table->string('codExternoMaterialProveedor', 60)->nullable();
-            $table->decimal('precioExternoMaterialProveedor', 12, 2)->nullable();
-            $table->dateTime('fechaActualizacionPrecio')->nullable();
 
             $table->foreign('idMaterial', 'fk_materialproveedor_material')
                 ->references('idMaterial')->on('Material');
@@ -50,6 +50,12 @@ return new class extends Migration
             $table->dateTime('fechaAsignacionMaterialTipoMedida')->nullable();
             $table->dateTime('fechaFinAsignacionMaterialTipoMedida')->nullable();
             $table->boolean('disponibleMaterialTipoMedida')->default(true);
+            // Lo que el proveedor cobra por esta presentacion, y su codigo en
+            // el catalogo de ese proveedor: son dos identificaciones del mismo
+            // articulo facturable (implante de 0,5 m y de 1 m no son lo mismo).
+            $table->string('codExternoMaterialProveedorTipoMedida', 60)->nullable();
+            $table->decimal('precioExternoMaterialProveedorTipoMedida', 12, 2)->nullable();
+            $table->dateTime('fechaActualizacionPrecioMaterialProveedorTipoMedida')->nullable();
 
             $table->foreign('idMaterialProveedor', 'fk_mptm_materialproveedor')
                 ->references('idMaterialProveedor')->on('MaterialProveedor');
@@ -72,6 +78,9 @@ return new class extends Migration
             $table->unsignedBigInteger('idTipoMedida')->nullable();
             $table->integer('cantidadPedidoMaterial')->default(1);
             $table->string('observacionesPedidoMaterial', 255)->nullable();
+            // Copia del precio al momento del pedido: editar la cantidad de un
+            // pedido viejo no puede traerse la lista de precios de hoy.
+            $table->decimal('precioUnitarioPedidoMaterial', 12, 2)->nullable();
             $table->decimal('subtotalPedidoMaterial', 12, 2)->nullable();
             $table->dateTime('fechaPedidoMaterial')->nullable();
 

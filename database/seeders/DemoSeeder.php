@@ -23,6 +23,7 @@ use App\Models\HisopadoSarm;
 use App\Models\HisopadoSarmEstado;
 use App\Models\Material;
 use App\Models\MaterialProveedor;
+use App\Models\MaterialProveedorTipoMedida;
 use App\Models\ObraSocial;
 use App\Models\PedidoHemoderivado;
 use App\Models\PedidoMaterial;
@@ -132,9 +133,9 @@ class DemoSeeder extends Seeder
                 'evaluacion' => ['ASA III', 'Regional / peridural', 'Completada'],
                 'profilaxis' => [['Vancomicina 1g IV', 'Alternativa por alergia'], ['Cefazolina 2g IV', 'Complementaria']],
                 'materiales' => [
-                    ['Sistema tibial de rodilla', 1, 3200.00],
-                    ['Componente femoral de rodilla', 1, 2800.00],
-                    ['Inserto de polietileno 10mm', 1, 1100.00],
+                    ['Sistema tibial de rodilla', 1],
+                    ['Componente femoral de rodilla', 1],
+                    ['Inserto de polietileno 10mm', 1],
                 ],
                 'hemoderivados' => [['Glóbulos rojos desplasmatizados', 2]],
                 'observaciones' => 'HTA + diabetes tipo 2. Alergia a penicilina documentada.',
@@ -274,25 +275,47 @@ class DemoSeeder extends Seeder
             ['cuitProveedor' => '30712345678', 'telefonoProveedor' => '2614567890'],
         );
 
+        // Cada material se vende en una o mas unidades, y cada una tiene su
+        // precio y su codigo en el catalogo del proveedor: la malla suelta y
+        // la caja de nueve no son el mismo articulo facturable.
         $catalogo = [
-            'Sistema tibial de rodilla' => ['7.02.01', 3200.00],
-            'Componente femoral de rodilla' => ['7.02.02', 2800.00],
-            'Inserto de polietileno 10mm' => ['7.02.03', 1100.00],
-            'Malla de polipropileno' => ['5.01.04', 180.00],
+            'Sistema tibial de rodilla' => ['7.02.01', ['Unidad' => 3200.00, 'Set' => 8900.00]],
+            'Componente femoral de rodilla' => ['7.02.02', ['Unidad' => 2800.00]],
+            'Inserto de polietileno 10mm' => ['7.02.03', ['Unidad' => 1100.00]],
+            'Malla de polipropileno' => ['5.01.04', ['Unidad' => 180.00, 'Caja' => 1620.00]],
         ];
 
+        $unidades = TipoMedida::pluck('idTipoMedida', 'nombreTipoMedida');
         $materiales = [];
 
-        foreach ($catalogo as $nombre => [$codigo, $precio]) {
+        foreach ($catalogo as $nombre => [$codigo, $precios]) {
             $material = Material::firstOrCreate(
                 ['nombreMaterial' => $nombre],
                 ['codMaterial' => $codigo],
             );
 
-            $materiales[$nombre] = MaterialProveedor::firstOrCreate(
-                ['idMaterial' => $material->idMaterial, 'idProveedor' => $proveedor->idProveedor],
-                ['codExternoMaterialProveedor' => $codigo, 'precioExternoMaterialProveedor' => $precio, 'fechaActualizacionPrecio' => now()],
-            );
+            $vinculo = MaterialProveedor::firstOrCreate([
+                'idMaterial' => $material->idMaterial,
+                'idProveedor' => $proveedor->idProveedor,
+            ]);
+
+            foreach ($precios as $unidad => $precio) {
+                MaterialProveedorTipoMedida::firstOrCreate(
+                    [
+                        'idMaterialProveedor' => $vinculo->idMaterialProveedor,
+                        'idTipoMedida' => $unidades[$unidad],
+                    ],
+                    [
+                        'fechaAsignacionMaterialTipoMedida' => now()->subMonths(3),
+                        'disponibleMaterialTipoMedida' => true,
+                        'codExternoMaterialProveedorTipoMedida' => $codigo.'-'.mb_substr($unidad, 0, 1),
+                        'precioExternoMaterialProveedorTipoMedida' => $precio,
+                        'fechaActualizacionPrecioMaterialProveedorTipoMedida' => now()->subMonths(3),
+                    ],
+                );
+            }
+
+            $materiales[$nombre] = $vinculo;
         }
 
         return $materiales;
@@ -534,7 +557,7 @@ class DemoSeeder extends Seeder
     }
 
     /**
-     * @param  list<array{0:string,1:int,2:float}>  $items
+     * @param  list<array{0:string,1:int}>  $items
      * @param  array<string, MaterialProveedor>  $materiales
      */
     private function materialesDelCaso(Cirugia $cirugia, Plan $plan, array $items, array $materiales): void
@@ -542,8 +565,15 @@ class DemoSeeder extends Seeder
         $unidad = TipoMedida::where('nombreTipoMedida', 'Unidad')->value('idTipoMedida');
         $enAuditoria = EstadoPedidoMaterial::where('nombreEstadoPedidoMaterial', 'En auditoría')->value('idEstadoPedidoMaterial');
 
-        foreach ($items as [$nombre, $cantidad, $precio]) {
+        foreach ($items as [$nombre, $cantidad]) {
             $materialProveedor = $materiales[$nombre];
+
+            // El precio sale de la unidad pedida, no del proveedor, y queda
+            // copiado en el pedido: es lo que se cotizo ese dia.
+            $precio = MaterialProveedorTipoMedida::query()
+                ->where('idMaterialProveedor', $materialProveedor->idMaterialProveedor)
+                ->where('idTipoMedida', $unidad)
+                ->value('precioExternoMaterialProveedorTipoMedida');
 
             $pedido = PedidoMaterial::firstOrCreate(
                 [
@@ -555,6 +585,7 @@ class DemoSeeder extends Seeder
                     'idProveedor' => $materialProveedor->idProveedor,
                     'idTipoMedida' => $unidad,
                     'cantidadPedidoMaterial' => $cantidad,
+                    'precioUnitarioPedidoMaterial' => $precio,
                     'subtotalPedidoMaterial' => $precio * $cantidad,
                     'fechaPedidoMaterial' => now()->subDays(5),
                 ],
