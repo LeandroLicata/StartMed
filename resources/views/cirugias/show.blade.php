@@ -1901,6 +1901,21 @@
             checkMaterialSubmit();
         }
 
+        // El precio depende de la unidad, así que se muestra al elegirla: es lo
+        // que se va a valorizar en el pedido.
+        function etiquetaPrecio(medida) {
+            const precio = medida.precioExternoMaterialProveedorTipoMedida;
+
+            if (precio === null || precio === undefined) {
+                return ' — sin precio cargado';
+            }
+
+            return ' — USD ' + Number(precio).toLocaleString('es-AR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+
         function cargarProveedores(idMaterial) {
             const selectProv = document.getElementById('select-proveedor');
             selectProv.innerHTML = '<option value="">Cargando...</option>';
@@ -1938,7 +1953,7 @@
                 const proveedor = proveedoresCache.find(p => p.idProveedor == idProv);
                 if (proveedor && proveedor.material_proveedor_tipo_medidas && proveedor.material_proveedor_tipo_medidas.length > 0) {
                     selectMedida.innerHTML = '<option value="">Seleccione medida</option>' + proveedor.material_proveedor_tipo_medidas.map(m => `
-                        <option value="${m.idTipoMedida}">${m.tipo_medida.nombreTipoMedida}</option>
+                        <option value="${m.idTipoMedida}">${m.tipo_medida.nombreTipoMedida}${etiquetaPrecio(m)}</option>
                     `).join('');
                     selectMedida.disabled = false;
                 } else if (proveedor && proveedor.material_proveedor_tipo_medidas) {
@@ -1949,7 +1964,7 @@
                     const medidas = proveedor.materialProveedorTipoMedidas || [];
                     if(medidas.length > 0) {
                         selectMedida.innerHTML = '<option value="">Seleccione medida</option>' + medidas.map(m => `
-                            <option value="${m.idTipoMedida}">${m.tipoMedida.nombreTipoMedida}</option>
+                            <option value="${m.idTipoMedida}">${m.tipoMedida.nombreTipoMedida}${etiquetaPrecio(m)}</option>
                         `).join('');
                         selectMedida.disabled = false;
                     } else {

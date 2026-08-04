@@ -6,35 +6,42 @@ use App\Http\Controllers\Concerns\FiltraCirugias;
 use App\Models\AutCirugia;
 use App\Models\AutoCirugiaEstado;
 use App\Models\Cirugia;
+use App\Models\CirugiaEstado;
+use App\Models\CirugiaPersonal;
+use App\Models\CirugiaQuirofano;
 use App\Models\CirugiaTipoEstudio;
 use App\Models\Establecimiento;
 use App\Models\EstadoAutCirugia;
+use App\Models\EstadoCirugia;
 use App\Models\EstadoHisopadoSarm;
 use App\Models\EstadoPedidoHemoderivado;
+use App\Models\EstadoPedidoMaterial;
 use App\Models\EstadoPedidoTipoHemoderivado;
 use App\Models\HisopadoSarm;
 use App\Models\HisopadoSarmEstado;
+use App\Models\Material;
+use App\Models\MaterialProveedorTipoMedida;
 use App\Models\ObraSocial;
 use App\Models\PedidoHemoderivado;
 use App\Models\PedidoHemoderivadoEstado;
+use App\Models\PedidoMaterial;
+use App\Models\PedidoMaterialEstado;
 use App\Models\PedidoTipoHemoderivado;
 use App\Models\PedidoTipoHemoderivadoEstado;
+use App\Models\Personal;
 use App\Models\PreparacionPaciente;
 use App\Models\PreparacionPacienteTipoPreparacion;
 use App\Models\PreparacionPacienteTipoPreparacionTipoIndicacion;
+use App\Models\Profilaxis;
+use App\Models\ProfilaxisAtbHisopadoSarm;
+use App\Models\ProfilaxisAtbHisopadoSarmProfilaxis;
+use App\Models\ProfilaxisRol;
 use App\Models\Quirofano;
-use App\Models\Personal;
 use App\Models\Rol;
-use App\Models\CirugiaPersonal;
 use App\Models\TipoEstudio;
 use App\Models\TipoHemoderivado;
 use App\Models\TipoIndicacion;
 use App\Models\TipoPreparacion;
-use App\Models\Material;
-use App\Models\MaterialProveedor;
-use App\Models\PedidoMaterial;
-use App\Models\PedidoMaterialEstado;
-use App\Models\EstadoPedidoMaterial;
 use App\Services\ReprogramarCirugiaService;
 use App\Support\ResumenCirugia;
 use Illuminate\Http\RedirectResponse;
@@ -125,11 +132,11 @@ class CirugiaController extends Controller
             'establecimientosHisopado' => Establecimiento::orderBy('nombreEstablecimiento')
                 ->get()
                 ->mapWithKeys(fn ($e) => [$e->idEstablecimiento => $e->nombreEstablecimiento]),
-            'profilaxisOpciones' => \App\Models\Profilaxis::whereNull('fechaBajaProfilaxis')
+            'profilaxisOpciones' => Profilaxis::whereNull('fechaBajaProfilaxis')
                 ->orderBy('nombreProfilaxis')
                 ->get()
                 ->mapWithKeys(fn ($p) => [$p->idProfilaxis => $p->nombreProfilaxis]),
-            'profilaxisRoles' => \App\Models\ProfilaxisRol::whereNull('fechaBajaProfilaxisRol')
+            'profilaxisRoles' => ProfilaxisRol::whereNull('fechaBajaProfilaxisRol')
                 ->orderBy('nombreProfilaxisRol')
                 ->get()
                 ->mapWithKeys(fn ($r) => [$r->idProfilaxisRol => $r->nombreProfilaxisRol]),
@@ -170,9 +177,9 @@ class CirugiaController extends Controller
     {
         $datos = $request->validate([
             'observacionesPreparacionPaciente' => ['nullable', 'string', 'max:255'],
-            'indicaciones'                     => ['nullable', 'array'],
-            'indicaciones.*'                   => ['array'],
-            'indicaciones.*.*'                 => ['nullable', 'integer', 'min:0', 'max:999'],
+            'indicaciones' => ['nullable', 'array'],
+            'indicaciones.*' => ['array'],
+            'indicaciones.*.*' => ['nullable', 'integer', 'min:0', 'max:999'],
         ]);
 
         // Buscar o crear el registro raíz de preparación.
@@ -199,14 +206,14 @@ class CirugiaController extends Controller
 
             $bloque = PreparacionPacienteTipoPreparacion::create([
                 'idPreparacionPaciente' => $preparacion->idPreparacionPaciente,
-                'idTipoPreparacion'     => $idTipoPreparacion,
+                'idTipoPreparacion' => $idTipoPreparacion,
             ]);
 
             foreach ($indicaciones as $idTipoIndicacion => $horas) {
                 PreparacionPacienteTipoPreparacionTipoIndicacion::create([
-                    'idPreparacionPacienteTipoPreparacion'    => $bloque->idPreparacionPacienteTipoPreparacion,
-                    'idTipoIndicacion'                        => $idTipoIndicacion,
-                    'hsReglaCantidadIngestaAnteriorCirugia'   => $horas !== '' ? (int) $horas : null,
+                    'idPreparacionPacienteTipoPreparacion' => $bloque->idPreparacionPacienteTipoPreparacion,
+                    'idTipoIndicacion' => $idTipoIndicacion,
+                    'hsReglaCantidadIngestaAnteriorCirugia' => $horas !== '' ? (int) $horas : null,
                 ]);
             }
         }
@@ -287,11 +294,11 @@ class CirugiaController extends Controller
             'idCirugia' => $cirugia->idCirugia,
         ]);
 
-        $profilaxisSarm = \App\Models\ProfilaxisAtbHisopadoSarm::firstOrCreate([
+        $profilaxisSarm = ProfilaxisAtbHisopadoSarm::firstOrCreate([
             'idHisopadoSarm' => $hisopado->idHisopadoSarm,
         ]);
 
-        \App\Models\ProfilaxisAtbHisopadoSarmProfilaxis::create([
+        ProfilaxisAtbHisopadoSarmProfilaxis::create([
             'idProfilaxisAtbHisopadoSarm' => $profilaxisSarm->idProfilaxisAtbHisopadoSarm,
             'idProfilaxis' => $datos['idProfilaxis'],
             'idProfilaxisRol' => $datos['idProfilaxisRol'],
@@ -451,11 +458,11 @@ class CirugiaController extends Controller
         $materiales = Material::whereNull('fechaBajaMaterial')
             ->where(function ($query) use ($q) {
                 $query->where('nombreMaterial', 'like', "%{$q}%")
-                      ->orWhere('codMaterial', 'like', "%{$q}%");
+                    ->orWhere('codMaterial', 'like', "%{$q}%");
             })
             ->take(20)
             ->get(['idMaterial', 'nombreMaterial', 'codMaterial']);
-            
+
         return response()->json($materiales);
     }
 
@@ -465,9 +472,9 @@ class CirugiaController extends Controller
             'proveedor:idProveedor,nombreProveedor',
             'materialProveedorTipoMedidas' => function ($q) {
                 $q->whereNull('fechaFinAsignacionMaterialTipoMedida')
-                  ->where('disponibleMaterialTipoMedida', 1);
+                    ->where('disponibleMaterialTipoMedida', 1);
             },
-            'materialProveedorTipoMedidas.tipoMedida:idTipoMedida,nombreTipoMedida'
+            'materialProveedorTipoMedidas.tipoMedida:idTipoMedida,nombreTipoMedida',
         ])->get();
 
         return response()->json($proveedores);
@@ -482,11 +489,11 @@ class CirugiaController extends Controller
             'cantidadPedidoMaterial' => ['required', 'integer', 'min:1'],
         ]);
 
-        $mp = MaterialProveedor::where('idMaterial', $datos['idMaterial'])
-            ->where('idProveedor', $datos['idProveedor'])
-            ->firstOrFail();
-
-        $subtotal = $mp->precioExternoMaterialProveedor * $datos['cantidadPedidoMaterial'];
+        $unitario = $this->precioVigente(
+            $datos['idMaterial'],
+            $datos['idProveedor'],
+            $datos['idTipoMedida'],
+        );
 
         $pedido = PedidoMaterial::create([
             'idCirugia' => $cirugia->idCirugia,
@@ -494,12 +501,14 @@ class CirugiaController extends Controller
             'idProveedor' => $datos['idProveedor'],
             'idTipoMedida' => $datos['idTipoMedida'],
             'cantidadPedidoMaterial' => $datos['cantidadPedidoMaterial'],
-            'subtotalPedidoMaterial' => $subtotal,
+            // El unitario queda copiado en el pedido: es lo que se cotizo hoy.
+            'precioUnitarioPedidoMaterial' => $unitario,
+            'subtotalPedidoMaterial' => $unitario * $datos['cantidadPedidoMaterial'],
             'fechaPedidoMaterial' => now(),
         ]);
-        
+
         $estadoSolicitado = EstadoPedidoMaterial::where('nombreEstadoPedidoMaterial', 'Solicitado')->value('idEstadoPedidoMaterial');
-        
+
         if ($estadoSolicitado) {
             PedidoMaterialEstado::create([
                 'idPedidoMaterial' => $pedido->idPedidoMaterial,
@@ -518,15 +527,20 @@ class CirugiaController extends Controller
             'cantidadPedidoMaterial' => ['required', 'integer', 'min:1'],
         ]);
 
-        $mp = MaterialProveedor::where('idMaterial', $pedido->idMaterial)
-            ->where('idProveedor', $pedido->idProveedor)
-            ->firstOrFail();
-
-        $subtotal = $mp->precioExternoMaterialProveedor * $datos['cantidadPedidoMaterial'];
+        // Se recalcula con el unitario que el pedido tiene congelado, no con la
+        // lista de precios de hoy: cambiar la cantidad de un pedido de hace un
+        // mes no puede traerle el aumento del proveedor.
+        $unitario = $pedido->precioUnitarioPedidoMaterial
+            // Pedidos anteriores a que existiera la columna: se deduce de lo
+            // que ya se habia cotizado, sin volver a la lista de precios.
+            ?? ($pedido->cantidadPedidoMaterial > 0
+                ? $pedido->subtotalPedidoMaterial / $pedido->cantidadPedidoMaterial
+                : 0);
 
         $pedido->update([
             'cantidadPedidoMaterial' => $datos['cantidadPedidoMaterial'],
-            'subtotalPedidoMaterial' => $subtotal,
+            'precioUnitarioPedidoMaterial' => $unitario,
+            'subtotalPedidoMaterial' => $unitario * $datos['cantidadPedidoMaterial'],
         ]);
 
         return redirect()
@@ -534,9 +548,36 @@ class CirugiaController extends Controller
             ->with('exito', 'Cantidad de material actualizada.');
     }
 
+    /**
+     * Lo que ese proveedor cobra hoy por ese material en esa unidad.
+     *
+     * El precio depende de la presentacion, no del proveedor: el implante de
+     * 0,5 m y el de 1 m son dos articulos distintos. Sin precio cargado el
+     * pedido no se puede valorizar, y dejarlo pasar guardaria un subtotal cero
+     * que nadie vuelve a mirar.
+     */
+    private function precioVigente(int $idMaterial, int $idProveedor, int $idTipoMedida): float
+    {
+        $precio = MaterialProveedorTipoMedida::query()
+            ->whereHas('materialProveedor', fn ($q) => $q
+                ->where('idMaterial', $idMaterial)
+                ->where('idProveedor', $idProveedor))
+            ->where('idTipoMedida', $idTipoMedida)
+            ->whereNull('fechaFinAsignacionMaterialTipoMedida')
+            ->value('precioExternoMaterialProveedorTipoMedida');
+
+        if ($precio === null) {
+            throw ValidationException::withMessages([
+                'idTipoMedida' => 'Ese proveedor no tiene precio cargado para este material en esa unidad.',
+            ]);
+        }
+
+        return (float) $precio;
+    }
+
     public function destroyPedidoMaterial(Cirugia $cirugia, PedidoMaterial $pedido): RedirectResponse
     {
-        // Se podrían eliminar los estados si hubiera foreign keys con cascade, 
+        // Se podrían eliminar los estados si hubiera foreign keys con cascade,
         // pero por precaución los borramos manualmente primero.
         PedidoMaterialEstado::where('idPedidoMaterial', $pedido->idPedidoMaterial)->delete();
         $pedido->delete();
@@ -657,8 +698,8 @@ class CirugiaController extends Controller
 
         // Filtramos por disponibilidad
         $disponibles = $personal->filter(function ($p) use ($rol, $inicio, $fin, $cirugia) {
-            $columna = 'idPersonal' . $rol;
-            
+            $columna = 'idPersonal'.$rol;
+
             // Buscar otras cirugias en ese horario para este profesional
             $otrasCirugias = Cirugia::where($columna, $p->idPersonal)
                 ->where('idCirugia', '!=', $cirugia->idCirugia)
@@ -673,10 +714,11 @@ class CirugiaController extends Controller
                 }
 
                 $vigente = $otra->cirugiaEstados->firstWhere('fechaDesasignacionCirugiaEstado', null);
+
                 return $vigente?->estadoCirugia?->nombreEstadoCirugia !== 'Suspendida';
             });
 
-            return !$ocupado;
+            return ! $ocupado;
         });
 
         // Mapeamos a json (id, nombre completo)
@@ -703,7 +745,7 @@ class CirugiaController extends Controller
         // Doble validación de disponibilidad
         $inicio = $cirugia->fechaHoraCirugia;
         $fin = $cirugia->fechaHoraFinCirugia ?? $inicio->copy()->addMinutes(120);
-        $columna = 'idPersonal' . $rol;
+        $columna = 'idPersonal'.$rol;
 
         $otrasCirugias = Cirugia::where($columna, $idPersonal)
             ->where('idCirugia', '!=', $cirugia->idCirugia)
@@ -718,6 +760,7 @@ class CirugiaController extends Controller
             }
 
             $vigente = $otra->cirugiaEstados->firstWhere('fechaDesasignacionCirugiaEstado', null);
+
             return $vigente?->estadoCirugia?->nombreEstadoCirugia !== 'Suspendida';
         });
 
@@ -762,22 +805,22 @@ class CirugiaController extends Controller
             if ($req === 'implante') {
                 $cirugia->update(['requiereImplante' => true]);
             } elseif ($req === 'hemoderivados') {
-                \App\Models\PedidoHemoderivado::firstOrCreate([
+                PedidoHemoderivado::firstOrCreate([
                     'idCirugia' => $cirugia->idCirugia,
                 ], [
                     'fechaPedidoHemoderivado' => now(),
                 ]);
             } elseif ($req === 'hisopado') {
-                $hisopado = \App\Models\HisopadoSarm::firstOrCreate([
+                $hisopado = HisopadoSarm::firstOrCreate([
                     'idCirugia' => $cirugia->idCirugia,
                 ], [
                     'fechaSolicitacionHisopadoSarm' => now(),
                 ]);
 
                 if ($hisopado->wasRecentlyCreated) {
-                    \App\Models\HisopadoSarmEstado::create([
+                    HisopadoSarmEstado::create([
                         'idHisopadoSarm' => $hisopado->idHisopadoSarm,
-                        'idEstadoHisopadoSarm' => \App\Models\EstadoHisopadoSarm::where('nombreEstadoHisopadoSarm', 'Pendiente')
+                        'idEstadoHisopadoSarm' => EstadoHisopadoSarm::where('nombreEstadoHisopadoSarm', 'Pendiente')
                             ->value('idEstadoHisopadoSarm'),
                         'fechaInicioAsignacionHisopadoSarmEstado' => now(),
                     ]);
@@ -796,15 +839,15 @@ class CirugiaController extends Controller
         DB::transaction(function () use ($cirugia) {
             // Cancelar la cirugia (EstadoCirugia = Cancelado o similar, si no existe Cancelado, buscamos Suspendida o lo creamos, vamos a asumir 'Suspendida' o 'Cancelado'. En otro metodo usaron 'Suspendida')
             // Voy a usar 'Cancelada' si existe, o 'Suspendida'. Vamos a usar el ID correspondiente.
-            $estadoSuspendida = \App\Models\EstadoCirugia::whereIn('nombreEstadoCirugia', ['Cancelada', 'Cancelado', 'Suspendida'])->first();
-            
+            $estadoSuspendida = EstadoCirugia::whereIn('nombreEstadoCirugia', ['Cancelada', 'Cancelado', 'Suspendida'])->first();
+
             if ($estadoSuspendida) {
                 // Cerrar estado actual
-                \App\Models\CirugiaEstado::where('idCirugia', $cirugia->idCirugia)
+                CirugiaEstado::where('idCirugia', $cirugia->idCirugia)
                     ->whereNull('fechaDesasignacionCirugiaEstado')
                     ->update(['fechaDesasignacionCirugiaEstado' => now()]);
 
-                \App\Models\CirugiaEstado::create([
+                CirugiaEstado::create([
                     'idCirugia' => $cirugia->idCirugia,
                     'idEstadoCirugia' => $estadoSuspendida->idEstadoCirugia,
                     'fechaAsignacionCirugiaEstado' => now(),
@@ -812,12 +855,12 @@ class CirugiaController extends Controller
             }
 
             // Liberar quirófano
-            \App\Models\CirugiaQuirofano::where('idCirugia', $cirugia->idCirugia)
+            CirugiaQuirofano::where('idCirugia', $cirugia->idCirugia)
                 ->whereNull('fechaDesasignacionCirugiaQuirofano')
                 ->update(['fechaDesasignacionCirugiaQuirofano' => now()]);
 
             // Liberar personal
-            \App\Models\CirugiaPersonal::where('idCirugia', $cirugia->idCirugia)
+            CirugiaPersonal::where('idCirugia', $cirugia->idCirugia)
                 ->whereNull('fechaFinAsignacionCirugiaPersonal')
                 ->update(['fechaFinAsignacionCirugiaPersonal' => now()]);
         });

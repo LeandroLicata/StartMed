@@ -267,16 +267,28 @@ new one clones the whole tree so it can be tweaked. The three levels (version �
 → options) live on **one screen with many small forms**, which keeps the project's
 near-zero JavaScript.
 
-**Supplier pricing hangs off a material** (`Admin\PrecioController`, `/admin/precios`).
-`MaterialProveedor` is a relation with attributes, not a catalog, and the units it is
-sold in hang off it with their own validity range — hence its own screen. Three rules
-the schema dictates: `fechaActualizacionPrecio` is written by the controller whenever the
-price actually changes (nobody keeps it current by hand); removing a unit **closes**
-`fechaFinAsignacionMaterialTipoMedida` instead of deleting, and is different from
-`disponibleMaterialTipoMedida`, which is "we sell it that way but have no stock"; and
-unlinking a supplier **does delete** — that table has no baja column, and `PedidoMaterial`
-keeps its own `idMaterial` / `idProveedor` / `idTipoMedida` / subtotal, so no order
-history is lost.
+**Supplier pricing hangs off the unit of sale, not off the supplier**
+(`Admin\PrecioController`, `/admin/precios`). `MaterialProveedor` says only *who sells
+what*: `idMaterial` + `idProveedor` and nothing else. Price
+(`precioExternoMaterialProveedorTipoMedida`), the supplier's catalog code and the
+last-updated date all live one level down, on `MaterialProveedorTipoMedida` — a femoral
+implant of 0.5 m and one of 1 m are two different billable articles from the same
+supplier, with two prices and usually two SKUs. **Do not put a price back on
+`MaterialProveedor`**: that is what this schema used to do, and it silently made every
+presentation of a material cost the same. Neither table is a catalog (one is a relation
+with attributes, the other a relation with a validity range), hence the dedicated screen.
+
+Four rules the schema dictates: `fechaActualizacionPrecioMaterialProveedorTipoMedida` is
+written by the controller whenever the price actually changes (nobody keeps it current by
+hand); removing a unit **closes** `fechaFinAsignacionMaterialTipoMedida` instead of
+deleting, so the history keeps what it used to sell for, and is different from
+`disponibleMaterialTipoMedida`, which is "we sell it that way but have no stock";
+unlinking a supplier **does delete** — that table has no baja column; and ordering a
+material reads the price of the **unit being ordered** and copies it into
+`PedidoMaterial.precioUnitarioPedidoMaterial`, so editing the quantity of an old order
+never pulls in today's price list. `PedidoMaterial` keeps its own `idMaterial` /
+`idProveedor` / `idTipoMedida` / unit price / subtotal, so no order history is lost when
+the price list moves.
 
 **Every write is audited.** No domain table has `created_at`, so there was no way to tell
 who created a user or deactivated a catalog. `App\Support\Auditor` writes one `Auditoria`
