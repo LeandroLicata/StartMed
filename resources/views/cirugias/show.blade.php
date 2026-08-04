@@ -20,7 +20,7 @@
             @endif
 
             <x-estado :tono="$caso->semaforo()" :icono="$caso->estaLista() ? 'check_circle' : 'warning'">
-                {{ $caso->estaLista() ? 'Listo para operar' : $caso->estado() }}
+                {{ $caso->estaLista() ? 'Listo para operar' : ($caso->semaforo() === 'error' ? 'En riesgo' : $caso->estado()) }}
             </x-estado>
 
             <x-boton
@@ -42,8 +42,68 @@
             >
                 Reprogramar
             </x-boton>
+            
+            <div class="relative" id="contenedor-menu-cirugia">
+                <button type="button" id="btn-menu-cirugia" class="flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-hu-gris-suave/80 text-hu-gris-medio hover:border-hu-dorado hover:text-hu-azul transition-colors focus:outline-none bg-white">
+                    <x-icono nombre="more_vert" class="text-xl" />
+                </button>
+                <div id="dropdown-menu-cirugia" style="display: none;" class="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-hu-gris-suave/80 bg-white shadow-xl overflow-hidden py-1">
+                    @unless ($caso->cirugia->requiereImplante)
+                        <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="requerimiento" value="implante">
+                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">Activar Implante</button>
+                        </form>
+                    @endunless
+                    
+                    @if ($caso->cirugia->pedidoHemoderivados->isEmpty())
+                        <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="requerimiento" value="hemoderivados">
+                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">Requerir Hemoderivados</button>
+                        </form>
+                    @endif
+                    
+                    @if ($caso->cirugia->hisopadoSarms->isEmpty())
+                        <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="requerimiento" value="hisopado">
+                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">Requerir Hisopado SAMR</button>
+                        </form>
+                    @endif
+
+                    @if ($caso->estado() !== 'Cancelada' && $caso->estado() !== 'Cancelado' && $caso->estado() !== 'Suspendida')
+                        @if(!$caso->cirugia->pedidoHemoderivados->isEmpty() || !$caso->cirugia->hisopadoSarms->isEmpty() || !$caso->cirugia->requiereImplante === false)
+                            <div class="my-1 border-t border-hu-gris-suave/40"></div>
+                        @endif
+                        <form method="POST" action="{{ route('cirugias.cancelar', $caso->cirugia) }}" class="block" data-confirmar="¿Seguro que deseás cancelar esta cirugía? Se liberará el quirófano y el equipo médico." data-confirmar-titulo="Cancelar Cirugía" data-confirmar-accion="Sí, cancelar">
+                            @csrf @method('PATCH')
+                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-red-50 text-red-600">Cancelar Cirugía</button>
+                        </form>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('btn-menu-cirugia');
+            const menu = document.getElementById('dropdown-menu-cirugia');
+            const contenedor = document.getElementById('contenedor-menu-cirugia');
+            
+            if (btn && menu) {
+                btn.addEventListener('click', () => {
+                    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+                });
+                document.addEventListener('click', (e) => {
+                    if (!contenedor.contains(e.target)) {
+                        menu.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
 
     {{-- Modal Reprogramar --}}
     <dialog id="modal-reprogramar" class="m-auto w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95">
@@ -137,6 +197,7 @@
     <nav class="mb-6 flex flex-wrap gap-1 border-b border-hu-gris-suave/70" aria-label="Secciones de la cirugía">
         @foreach ([
             'resumen' => ['Resumen', 'check_circle'],
+            'preparacion' => ['Preparación', 'no_food'],
             'estudios' => ['Estudios prequirúrgicos', 'science'],
             'materiales' => ['Materiales y presupuesto', 'inventory_2'],
             'hemoderivados' => ['Hemoderivados', 'bloodtype'],
@@ -239,6 +300,16 @@
 
             {{-- Equipo --}}
             <x-tarjeta titulo="Equipo quirúrgico" icono="groups">
+                @if (auth()->user()->tieneRol('Gestor de quirófano', 'Dirección médica'))
+                    <x-slot:acciones>
+                        <div class="flex gap-2">
+                            <x-boton variante="fantasma" icono="history" class="!px-2 !py-1 !text-xs" onclick="document.getElementById('modal-historial-personal').showModal()">Historial</x-boton>
+                            <x-boton variante="fantasma" icono="swap_horiz" class="!px-2 !py-1 !text-xs" onclick="abrirModalReasignar('Cirujano')">Cirujano</x-boton>
+                            <x-boton variante="fantasma" icono="swap_horiz" class="!px-2 !py-1 !text-xs" onclick="abrirModalReasignar('Anestesista')">Anestesista</x-boton>
+                        </div>
+                    </x-slot:acciones>
+                @endif
+                
                 @forelse ($caso->equipo() as $miembro)
                     <div class="flex items-center gap-3 border-b border-hu-gris-suave/60 py-2.5 last:border-0">
                         <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-hu-azul-tenue text-hu-azul">
@@ -282,6 +353,350 @@
             </x-tarjeta>
         @endif
     @endif
+
+    {{-- Modal Historial Personal --}}
+    <dialog id="modal-historial-personal"
+            class="m-auto w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl
+                   backdrop:bg-black/50 backdrop:backdrop-blur-sm
+                   open:animate-in open:fade-in open:zoom-in-95">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-hu-azul">Historial de Asignaciones</h2>
+            <button type="button" onclick="document.getElementById('modal-historial-personal').close()"
+                    class="rounded-full p-1 text-hu-gris-medio hover:bg-hu-gris-suave/50 hover:text-hu-azul transition-colors">
+                <x-icono nombre="close" />
+            </button>
+        </div>
+
+        <div class="overflow-x-auto text-sm">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-hu-gris-suave/60 text-xs uppercase tracking-wider text-hu-gris-medio">
+                        <th class="py-2 pr-4 font-semibold">Profesional</th>
+                        <th class="py-2 pr-4 font-semibold">Rol</th>
+                        <th class="py-2 pr-4 font-semibold">Inicio</th>
+                        <th class="py-2 font-semibold">Fin</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-hu-gris-suave/40">
+                    @forelse ($caso->cirugia->cirugiaPersonales()->orderByDesc('fechaInicioAsignacionCirugiaPersonal')->get() as $historial)
+                        <tr class="hover:bg-hu-gris-tenue/30 transition-colors">
+                            <td class="py-2.5 pr-4 font-semibold text-hu-azul">
+                                {{ $historial->personal?->persona?->nombre_completo ?? 'Desconocido' }}
+                            </td>
+                            <td class="py-2.5 pr-4 text-hu-gris-medio">
+                                {{ $historial->rol?->nombreRol ?? 'Desconocido' }}
+                            </td>
+                            <td class="py-2.5 pr-4 text-hu-gris-medio">
+                                {{ $historial->fechaInicioAsignacionCirugiaPersonal?->format('d/m/Y H:i') ?? '-' }}
+                            </td>
+                            <td class="py-2.5">
+                                @if($historial->fechaFinAsignacionCirugiaPersonal)
+                                    <span class="text-hu-gris-medio">{{ $historial->fechaFinAsignacionCirugiaPersonal->format('d/m/Y H:i') }}</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Actual</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="py-4 text-center text-hu-gris-medio">No hay historial de asignaciones registrado.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </dialog>
+
+    {{-- Modal Reasignar Personal --}}
+    @if (auth()->user()->tieneRol('Gestor de quirófano', 'Dirección médica'))
+    <dialog id="modal-reasignar"
+            class="m-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-xl
+                   backdrop:bg-black/50 backdrop:backdrop-blur-sm
+                   open:animate-in open:fade-in open:zoom-in-95">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-hu-azul" id="titulo-modal-reasignar">Reasignar Profesional</h2>
+            <button type="button" onclick="document.getElementById('modal-reasignar').close()"
+                    class="rounded-full p-1 text-hu-gris-medio hover:bg-hu-gris-suave/50 hover:text-hu-azul transition-colors">
+                <x-icono nombre="close" />
+            </button>
+        </div>
+
+        <form method="POST" action="{{ route('cirugias.personal.reasignar', $caso->cirugia) }}">
+            @csrf
+            @method('PATCH')
+            
+            <input type="hidden" name="rol" id="input-rol-reasignar">
+            
+            <div class="space-y-4">
+                <p class="text-sm text-hu-gris-medio">
+                    Seleccione un profesional disponible. Solo se muestran los profesionales que <strong class="font-bold">no tienen otra cirugía programada</strong> en este mismo horario.
+                </p>
+
+                <div>
+                    <label for="select-personal-reasignar" class="mb-1 block text-sm font-semibold text-hu-azul">
+                        Profesional Disponible
+                    </label>
+                    <select name="idPersonal" id="select-personal-reasignar" required
+                            class="w-full rounded-xl border border-hu-gris-suave/80 bg-hu-gris-tenue/20 px-3 py-2
+                                   text-sm outline-none transition-colors focus:border-hu-dorado focus:bg-white focus:ring-1 focus:ring-hu-dorado disabled:opacity-50">
+                        <option value="">Cargando profesionales...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3 border-t border-hu-gris-suave/60 pt-4">
+                <x-boton type="button" variante="fantasma" onclick="document.getElementById('modal-reasignar').close()">
+                    Cancelar
+                </x-boton>
+                <x-boton type="submit" icono="save">
+                    Guardar Cambios
+                </x-boton>
+            </div>
+        </form>
+    </dialog>
+    <script>
+        function abrirModalReasignar(rol) {
+            document.getElementById('titulo-modal-reasignar').innerText = 'Reasignar ' + rol;
+            document.getElementById('input-rol-reasignar').value = rol;
+            
+            const select = document.getElementById('select-personal-reasignar');
+            select.innerHTML = '<option value="">Cargando profesionales libres...</option>';
+            select.disabled = true;
+
+            document.getElementById('modal-reasignar').showModal();
+
+            fetch(`{{ route('cirugias.personal.disponible', $caso->cirugia) }}?rol=${rol}`)
+                .then(res => res.json())
+                .then(data => {
+                    select.disabled = false;
+                    if (data.length === 0) {
+                        select.innerHTML = '<option value="">No hay profesionales disponibles en este horario</option>';
+                    } else {
+                        select.innerHTML = '<option value="">Seleccione un profesional...</option>';
+                        data.forEach(p => {
+                            select.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+                        });
+                    }
+                })
+                .catch(err => {
+                    select.innerHTML = '<option value="">Error al cargar datos</option>';
+                    console.error(err);
+                });
+        }
+    </script>
+    @endif
+
+    {{-- Preparación para la cirugía --}}
+    @if ($tabActivo === 'preparacion')
+        @php
+            $preparacionActual = $caso->preparacion();
+        @endphp
+
+        {{-- Modal Editar Preparación --}}
+        @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+        <dialog id="modal-preparacion"
+                class="m-auto w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl
+                       backdrop:bg-black/50 backdrop:backdrop-blur-sm
+                       open:animate-in open:fade-in open:zoom-in-95">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-hu-azul">Indicaciones de preparación</h2>
+                <button type="button" onclick="this.closest('dialog').close()"
+                        class="text-hu-gris-medio hover:text-hu-azul">
+                    <x-icono nombre="close" class="text-2xl" />
+                </button>
+            </div>
+
+            <form action="{{ route('cirugias.preparacion.guardar', $caso->cirugia) }}" method="POST">
+                @csrf
+
+                {{-- Bloques de indicaciones --}}
+                @php
+                    // Armar mapa de indicaciones actuales: [idTipoPreparacion][idTipoIndicacion] = horas
+                    $activasMap = [];
+                    foreach ($caso->cirugia->preparacionPacientes->first()?->preparacionPacienteTipoPreparaciones ?? [] as $bloque) {
+                        foreach ($bloque->preparacionPacienteTipoPreparacionTipoIndicaciones as $ind) {
+                            $activasMap[$bloque->idTipoPreparacion][$ind->idTipoIndicacion] = $ind->hsReglaCantidadIngestaAnteriorCirugia;
+                        }
+                    }
+
+                    // Agrupar TipoIndicacion por TipoPreparacion según el catálogo del seeder.
+                    // Todos los TipoIndicacion se muestran bajo cada TipoPreparacion (el usuario elige cuáles aplican).
+                    // En producción podría haber una tabla de relación; por ahora mostramos todos debajo de cada bloque.
+                    $indicacionesPorBloque = [
+                        'Ayuno'                  => ['Sólidos', 'Líquidos claros', 'Tabaco'],
+                        'Higiene prequirúrgica'  => ['Ducha con antiséptico'],
+                        'Medicación habitual'    => ['Medicación habitual'],
+                        'Documentación'          => ['Documentación'],
+                        'Otro'                   => [],
+                    ];
+                @endphp
+
+                <div class="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
+                    @foreach ($tiposPreparacion as $tipoPrep)
+                        @php
+                            $indicacionesDeEsteBloque = $tiposIndicacion;
+                        @endphp
+                        <fieldset class="rounded-xl border border-hu-gris-suave/70 p-4">
+                            <legend class="px-1 text-xs font-bold uppercase tracking-wider text-hu-dorado-oscuro">
+                                {{ $tipoPrep->nombreTipoPreparacion }}
+                            </legend>
+
+                            <div class="mt-2 space-y-3">
+                                @foreach ($tiposIndicacion as $tipoInd)
+                                    @php
+                                        $estaActiva  = isset($activasMap[$tipoPrep->idTipoPreparacion][$tipoInd->idTipoIndicacion]);
+                                        $horasActual = $activasMap[$tipoPrep->idTipoPreparacion][$tipoInd->idTipoIndicacion] ?? '';
+                                        $checkId     = 'chk_'.$tipoPrep->idTipoPreparacion.'_'.$tipoInd->idTipoIndicacion;
+                                        $inputName   = 'indicaciones['.$tipoPrep->idTipoPreparacion.']['.$tipoInd->idTipoIndicacion.']';
+                                    @endphp
+                                    <div class="flex items-center gap-4">
+                                        {{-- Checkbox activa/desactiva la indicación --}}
+                                        <label for="{{ $checkId }}"
+                                               class="flex flex-1 cursor-pointer items-center gap-2 text-sm text-hu-azul">
+                                            <input
+                                                type="checkbox"
+                                                id="{{ $checkId }}"
+                                                class="prep-check size-4 cursor-pointer accent-hu-dorado-oscuro"
+                                                data-target="horas_{{ $tipoPrep->idTipoPreparacion }}_{{ $tipoInd->idTipoIndicacion }}"
+                                                {{ $estaActiva ? 'checked' : '' }}
+                                            >
+                                            {{ $tipoInd->nombreTipoIndicacion }}
+                                        </label>
+
+                                        {{-- Horas antes de la cirugía --}}
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                            <input
+                                                type="number"
+                                                id="horas_{{ $tipoPrep->idTipoPreparacion }}_{{ $tipoInd->idTipoIndicacion }}"
+                                                name="{{ $inputName }}"
+                                                min="0"
+                                                max="999"
+                                                placeholder="—"
+                                                value="{{ $horasActual }}"
+                                                {{ $estaActiva ? '' : 'disabled' }}
+                                                class="w-16 rounded-lg border border-hu-gris-suave px-2 py-1 text-center text-sm
+                                                       focus:border-hu-dorado-oscuro focus:outline-none
+                                                       disabled:opacity-30 disabled:cursor-not-allowed"
+                                            >
+                                            <span class="text-xs text-hu-gris-medio">hs antes</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </fieldset>
+                    @endforeach
+
+                    {{-- Observaciones generales --}}
+                    <div>
+                        <label for="obsPreparacion" class="block text-xs font-semibold uppercase tracking-wider text-hu-gris-medio mb-1">
+                            Observaciones generales
+                        </label>
+                        <textarea
+                            id="obsPreparacion"
+                            name="observacionesPreparacionPaciente"
+                            rows="2"
+                            maxlength="255"
+                            placeholder="Ej: Preparación estándar prequirúrgica."
+                            class="w-full rounded-xl border border-hu-gris-suave px-3 py-2 text-sm
+                                   focus:border-hu-dorado-oscuro focus:outline-none resize-none"
+                        >{{ $caso->cirugia->preparacionPacientes->first()?->observacionesPreparacionPaciente }}</textarea>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex justify-end gap-3">
+                    <x-boton tipo="button" variante="fantasma" forma="grupo"
+                             onclick="this.closest('dialog').close()">
+                        Cancelar
+                    </x-boton>
+                    <x-boton tipo="submit" variante="primario" forma="grupo" icono="save">
+                        Guardar preparación
+                    </x-boton>
+                </div>
+            </form>
+        </dialog>
+
+        @endif
+
+        @php
+            $puedeEditarPreparacion = auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano');
+        @endphp
+        <section class="mt-6 rounded-2xl border border-hu-gris-suave/70 bg-white shadow-sm">
+            <header class="flex items-center justify-between gap-4 border-b border-hu-gris-suave/70 px-5 py-4">
+                <h2 class="flex items-center gap-2 text-sm font-semibold text-hu-azul">
+                    <x-icono nombre="no_food" class="text-xl text-hu-dorado" relleno />
+                    Preparación para la cirugía
+                </h2>
+
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        @if(! $puedeEditarPreparacion) style="display:none" @endif
+                        onclick="document.getElementById('modal-preparacion').showModal()"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-hu-gris-suave px-3 py-1.5
+                               text-xs font-semibold text-hu-azul hover:bg-hu-gris-tenue transition-colors"
+                    >
+                        <x-icono nombre="edit" class="text-sm" />
+                        Editar preparación
+                    </button>
+                </div>
+            </header>
+
+            <div class="px-5 py-4">
+                @if ($preparacionActual->isNotEmpty())
+                @if ($caso->cuando())
+                    <p class="mb-3 text-sm text-hu-gris-medio">
+                        Contado hacia atrás desde las
+                        <strong class="text-hu-azul">{{ $caso->cuando()->format('H:i') }} hs</strong>
+                        del {{ $caso->cuando()->translatedFormat('l j/m') }}.
+                    </p>
+                @endif
+
+                @foreach ($preparacionActual->groupBy('bloque') as $bloque => $items)
+                    <p class="titulo-corto mt-3 text-xs text-hu-dorado-oscuro first:mt-0">{{ $bloque }}</p>
+                    <ul class="mt-1 space-y-1.5">
+                        @foreach ($items as $item)
+                            <li class="flex items-center justify-between gap-3 text-sm border-b border-hu-gris-suave/40 py-2 last:border-0">
+                                <span>{{ $item['indicacion'] }}</span>
+                                @if ($item['horas'])
+                                    <span class="shrink-0 text-right">
+                                        <span class="font-semibold text-hu-azul">
+                                            {{ $caso->cuando()?->copy()->subHours($item['horas'])->translatedFormat('D H:i') }} hs
+                                        </span>
+                                        <span class="block text-xs text-hu-gris-medio">{{ $item['horas'] }} hs antes</span>
+                                    </span>
+                                @endif
+                                @if (! $item['horas'])
+                                    <x-estado tono="neutro">Sin hora definida</x-estado>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endforeach
+
+                @if ($observaciones = $caso->cirugia->preparacionPacientes->first()?->observacionesPreparacionPaciente)
+                    <p class="mt-3 rounded-xl bg-hu-gris-tenue px-3 py-2 text-xs text-hu-gris-medio">
+                        {{ $observaciones }}
+                    </p>
+                @endif
+            @endif
+
+            @if ($preparacionActual->isEmpty())
+                <p class="py-6 text-center text-sm text-hu-gris-medio">
+                    Sin indicaciones de preparación cargadas.
+                    <button type="button"
+                            @if(! $puedeEditarPreparacion) style="display:none" @endif
+                            onclick="document.getElementById('modal-preparacion').showModal()"
+                            class="ml-1 font-semibold text-hu-dorado-oscuro underline underline-offset-2 hover:text-hu-azul">
+                        Agregar ahora
+                    </button>
+                </p>
+            @endif
+            </div>
+        </section>
+    @endif
+
+
+
 
     {{-- Estudios prequirúrgicos --}}
     @if ($tabActivo === 'estudios')
@@ -381,15 +796,32 @@
 
     {{-- Materiales y presupuesto --}}
     @if ($tabActivo === 'materiales')
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-hu-azul">Materiales y presupuesto</h2>
+            @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                <x-boton tipo="button" onclick="document.getElementById('modal-agregar-material').showModal()">
+                    <x-icono nombre="add" class="text-sm" /> Agregar material
+                </x-boton>
+            @endif
+        </div>
+
         @if ($caso->requiereMateriales())
-            <x-tarjeta titulo="Materiales y presupuesto" icono="inventory_2">
-                <x-slot:acciones>
+            <x-tarjeta class="!p-0 overflow-hidden">
+                <div class="flex items-center justify-between border-b border-hu-gris-suave/60 bg-hu-gris-tenue/50 px-5 py-3">
+                    <div class="flex items-center gap-3">
+                        <span class="flex size-8 items-center justify-center rounded-full bg-white text-hu-azul shadow-sm">
+                            <x-icono nombre="inventory_2" class="text-lg" />
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-bold text-hu-azul">Detalle de presupuesto</h3>
+                        </div>
+                    </div>
                     <x-estado :tono="$caso->materialesAprobados() ? 'exito' : 'aviso'">
                         {{ $caso->materiales() }}
                     </x-estado>
-                </x-slot:acciones>
+                </div>
 
-                <div class="-mx-5 overflow-x-auto">
+                <div class="-mx-5 overflow-x-auto px-5 pt-3 pb-5">
                     <table class="w-full min-w-160 text-sm">
                         <thead>
                             <tr class="border-b border-hu-gris-suave/70 text-left text-xs uppercase tracking-wide text-hu-gris-medio">
@@ -397,6 +829,9 @@
                                 <th class="px-3 pb-2 font-semibold">Proveedor</th>
                                 <th class="px-3 pb-2 font-semibold">Cantidad</th>
                                 <th class="px-5 pb-2 text-right font-semibold">Subtotal</th>
+                                @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                                    <th class="px-5 pb-2 text-right font-semibold"></th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-hu-gris-suave/60">
@@ -416,12 +851,55 @@
                                     <td class="px-5 py-2.5 text-right font-semibold text-hu-azul">
                                         USD {{ number_format((float) $pedido->subtotalPedidoMaterial, 2, ',', '.') }}
                                     </td>
+                                    @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                                        <td class="px-5 py-2.5 text-right">
+                                            <div class="flex items-center justify-end gap-2">
+                                                <button type="button" onclick="document.getElementById('modal-editar-material-{{ $pedido->idPedidoMaterial }}').showModal()" class="text-hu-gris-medio hover:text-hu-azul transition-colors" title="Editar cantidad">
+                                                    <x-icono nombre="edit" class="text-lg" />
+                                                </button>
+                                                
+                                                <form action="{{ route('cirugias.materiales.destroy', [$caso->cirugia, $pedido]) }}" method="POST" class="inline-block" onsubmit="return confirm('¿Está seguro de eliminar este material del presupuesto?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="text-hu-gris-medio hover:text-red-500 transition-colors" title="Eliminar">
+                                                        <x-icono nombre="delete" class="text-lg" />
+                                                    </button>
+                                                </form>
+                                            </div>
+
+                                            <dialog id="modal-editar-material-{{ $pedido->idPedidoMaterial }}" class="m-auto w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95">
+                                                <div class="mb-4 flex items-center justify-between">
+                                                    <h2 class="text-lg font-bold text-hu-azul">Editar cantidad</h2>
+                                                    <button type="button" onclick="this.closest('dialog').close()" class="text-hu-gris-medio hover:text-hu-azul">
+                                                        <x-icono nombre="close" class="text-2xl" />
+                                                    </button>
+                                                </div>
+
+                                                <form method="POST" action="{{ route('cirugias.materiales.update', [$caso->cirugia, $pedido]) }}">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <div class="mb-3">
+                                                        <p class="text-sm font-semibold text-hu-azul">{{ $pedido->material?->nombreMaterial }}</p>
+                                                        <p class="text-xs text-hu-gris-medio">{{ $pedido->proveedor?->nombreProveedor }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-sm font-semibold text-hu-azul mb-1">Nueva Cantidad</label>
+                                                        <input type="number" name="cantidadPedidoMaterial" min="1" value="{{ $pedido->cantidadPedidoMaterial }}" required class="w-full rounded-md border-hu-gris-suave px-3 py-2 text-sm focus:border-hu-azul focus:ring-hu-azul">
+                                                    </div>
+                                                    <div class="mt-6 flex justify-end gap-3">
+                                                        <x-boton tipo="button" variante="fantasma" onclick="this.closest('dialog').close()">Cancelar</x-boton>
+                                                        <x-boton tipo="submit" icono="save">Guardar</x-boton>
+                                                    </div>
+                                                </form>
+                                            </dialog>
+                                        </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         </tbody>
                         <tfoot>
                             <tr class="border-t-2 border-hu-azul/20">
-                                <td colspan="3" class="px-5 pt-3 text-right text-sm font-semibold">Total</td>
+                                <td colspan="{{ auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano') ? 4 : 3 }}" class="px-5 pt-3 text-right text-sm font-semibold">Total</td>
                                 <td class="px-5 pt-3 text-right text-base font-black text-hu-azul">
                                     USD {{ number_format($caso->importeMateriales(), 2, ',', '.') }}
                                 </td>
@@ -431,10 +909,66 @@
                 </div>
             </x-tarjeta>
         @else
-            <x-tarjeta titulo="Materiales y presupuesto" icono="inventory_2">
-                <p class="py-6 text-center text-sm text-hu-gris-medio">Esta cirugía no requiere materiales.</p>
+            <x-tarjeta>
+                <p class="py-6 text-center text-sm text-hu-gris-medio">Esta cirugía no tiene materiales asociados.</p>
             </x-tarjeta>
         @endif
+        
+        <dialog id="modal-agregar-material" class="m-auto w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-hu-azul">Agregar Material</h2>
+                <button type="button" onclick="this.closest('dialog').close()" class="text-hu-gris-medio hover:text-hu-azul">
+                    <x-icono nombre="close" class="text-2xl" />
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('cirugias.materiales.store', $caso->cirugia) }}" class="space-y-4">
+                @csrf
+                
+                <div>
+                    <label class="block text-sm font-semibold text-hu-azul mb-1">Buscar Material</label>
+                    <input type="text" id="buscador-material" placeholder="Escriba para buscar..." autocomplete="off" class="w-full rounded-md border-hu-gris-suave px-3 py-2 text-sm focus:border-hu-azul focus:ring-hu-azul">
+                    <div id="resultados-materiales" class="absolute z-10 w-full max-w-md bg-white border border-hu-gris-suave rounded-md shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                </div>
+
+                <div id="material-seleccionado-info" class="hidden rounded-lg bg-hu-gris-tenue p-3 border border-hu-gris-suave/60 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-bold text-hu-azul" id="mat-nombre"></p>
+                        <p class="text-xs text-hu-gris-medio" id="mat-codigo"></p>
+                    </div>
+                    <button type="button" class="text-hu-gris-medio hover:text-red-500" onclick="limpiarMaterial()">
+                        <x-icono nombre="close" class="text-lg" />
+                    </button>
+                </div>
+                
+                <input type="hidden" name="idMaterial" id="idMaterial">
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-hu-azul mb-1">Proveedor</label>
+                        <select name="idProveedor" id="select-proveedor" required disabled class="w-full rounded-md border-hu-gris-suave px-3 py-2 text-sm focus:border-hu-azul focus:ring-hu-azul">
+                            <option value="">Seleccione material primero</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-hu-azul mb-1">Tipo de Medida</label>
+                        <select name="idTipoMedida" id="select-medida" required disabled class="w-full rounded-md border-hu-gris-suave px-3 py-2 text-sm focus:border-hu-azul focus:ring-hu-azul">
+                            <option value="">Seleccione proveedor primero</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-hu-azul mb-1">Cantidad</label>
+                    <input type="number" name="cantidadPedidoMaterial" min="1" value="1" required class="w-full rounded-md border-hu-gris-suave px-3 py-2 text-sm focus:border-hu-azul focus:ring-hu-azul">
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <x-boton tipo="button" variante="fantasma" onclick="this.closest('dialog').close()">Cancelar</x-boton>
+                    <x-boton tipo="submit" icono="save" id="btn-submit-material" disabled class="opacity-50 cursor-not-allowed">Agregar</x-boton>
+                </div>
+            </form>
+        </dialog>
     @endif
 
     {{-- Hemoderivados --}}
@@ -631,6 +1165,19 @@
             </x-tarjeta>
 
             <x-tarjeta titulo="Profilaxis antibiótica" icono="vaccines">
+                <x-slot:acciones>
+                    @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                        <button
+                            type="button"
+                            onclick="document.getElementById('modal-agregar-profilaxis').showModal()"
+                            class="rounded-lg p-1 text-hu-gris-medio transition hover:bg-hu-gris-suave hover:text-hu-azul"
+                            title="Agregar profilaxis"
+                        >
+                            <x-icono nombre="add" class="text-xl" />
+                        </button>
+                    @endif
+                </x-slot:acciones>
+
                 @forelse ($caso->profilaxis() as $item)
                     <div class="border-b border-hu-gris-suave/60 py-2.5 last:border-0">
                         <div class="flex items-center justify-between gap-3">
@@ -857,10 +1404,53 @@
                 </div>
             </form>
         </dialog>
+        {{-- Modal agregar profilaxis --}}
+        <dialog
+            id="modal-agregar-profilaxis"
+            class="m-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95"
+        >
+            <div class="mb-5 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-hu-azul">Agregar Profilaxis Antibiótica</h2>
+                <button type="button" onclick="this.closest('dialog').close()" class="text-hu-gris-medio hover:text-hu-azul">
+                    <x-icono nombre="close" class="text-2xl" />
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('cirugias.profilaxis.store', $caso->cirugia) }}" class="space-y-4">
+                @csrf
+
+                <x-select
+                    nombre="idProfilaxis"
+                    etiqueta="Antibiótico"
+                    :opciones="$profilaxisOpciones"
+                    vacio="Seleccionar antibiótico..."
+                    requerido
+                />
+
+                <x-select
+                    nombre="idProfilaxisRol"
+                    etiqueta="Rol"
+                    :opciones="$profilaxisRoles"
+                    vacio="Seleccionar rol..."
+                    requerido
+                />
+
+                <x-input
+                    nombre="indicaciones"
+                    etiqueta="Indicaciones / Observaciones (opcional)"
+                    placeholder="Ej: Administrar 30 min antes de la incisión"
+                />
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-hu-gris-suave/60">
+                    <x-boton tipo="button" variante="fantasma" onclick="this.closest('dialog').close()">Cancelar</x-boton>
+                    <x-boton tipo="submit" icono="save">Agregar</x-boton>
+                </div>
+            </form>
+        </dialog>
     @endif
 
     {{-- Modal actualizar estado de autorización --}}
-    @if ($tabActivo === 'autorizacion' && clone($caso)->cirugia->autCirugias->first())
+    @if ($tabActivo === 'autorizacion')
         <dialog
             id="modal-estado-autorizacion"
             class="m-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95"
@@ -1089,7 +1679,7 @@
 @push('scripts')
     <script>
         // Cierra modales al hacer clic en el backdrop.
-        ['modal-hisopado', 'modal-resultado-hisopado', 'modal-estado-autorizacion', 'modal-agregar-estudio', 'modal-gestionar-estudio', 'modal-nuevo-pedido-hemoderivado'].forEach(function (id) {
+        ['modal-hisopado', 'modal-resultado-hisopado', 'modal-estado-autorizacion', 'modal-agregar-estudio', 'modal-gestionar-estudio', 'modal-nuevo-pedido-hemoderivado', 'modal-agregar-material'].forEach(function (id) {
             document.getElementById(id)?.addEventListener('click', function (e) {
                 if (e.target === this) this.close();
             });
@@ -1218,6 +1808,176 @@
                 btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
                 tabla.classList.add('hidden');
                 mensaje.classList.remove('hidden');
+            }
+        }
+    </script>
+
+    <script>
+        // Preparacion: checkbox habilita/deshabilita el input de horas
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.prep-check').forEach(function (chk) {
+                chk.addEventListener('change', function () {
+                    var input = document.getElementById(this.dataset.target);
+                    if (input) {
+                        input.disabled = !this.checked;
+                        if (!this.checked) { input.value = ''; }
+                    }
+                });
+            });
+        });
+    </script>
+    <script>
+        // Material Modal Logic
+        let proveedoresCache = [];
+        let searchTimeout = null;
+
+        const inputBuscar = document.getElementById('buscador-material');
+        const listResultados = document.getElementById('resultados-materiales');
+        
+        if (inputBuscar) {
+            inputBuscar.addEventListener('input', function() {
+                const q = this.value.trim();
+                if (q.length < 2) {
+                    listResultados.classList.add('hidden');
+                    return;
+                }
+                
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    fetch(`{{ route('cirugias.materiales.buscar') }}?q=${encodeURIComponent(q)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.length === 0) {
+                                listResultados.innerHTML = '<div class="px-3 py-2 text-sm text-hu-gris-medio">No se encontraron resultados.</div>';
+                            } else {
+                                listResultados.innerHTML = data.map(m => `
+                                    <div class="px-3 py-2 cursor-pointer hover:bg-hu-gris-tenue border-b border-hu-gris-suave last:border-0" onclick="seleccionarMaterial(${m.idMaterial}, '${m.nombreMaterial.replace(/'/g, "\\'")}', '${m.codMaterial || ''}')">
+                                        <p class="text-sm font-semibold text-hu-azul">${m.nombreMaterial}</p>
+                                        <p class="text-xs text-hu-gris-medio">Cód. ${m.codMaterial || 'N/A'}</p>
+                                    </div>
+                                `).join('');
+                            }
+                            listResultados.classList.remove('hidden');
+                        });
+                }, 300);
+            });
+            
+            // Cerrar resultados click fuera
+            document.addEventListener('click', function(e) {
+                if (!inputBuscar.contains(e.target) && !listResultados.contains(e.target)) {
+                    listResultados.classList.add('hidden');
+                }
+            });
+        }
+
+        function seleccionarMaterial(id, nombre, cod) {
+            document.getElementById('idMaterial').value = id;
+            document.getElementById('mat-nombre').textContent = nombre;
+            document.getElementById('mat-codigo').textContent = cod ? `Cód. ${cod}` : '';
+            
+            document.getElementById('buscador-material').classList.add('hidden');
+            document.getElementById('resultados-materiales').classList.add('hidden');
+            document.getElementById('material-seleccionado-info').classList.remove('hidden');
+            document.getElementById('material-seleccionado-info').classList.add('flex');
+            
+            cargarProveedores(id);
+        }
+
+        function limpiarMaterial() {
+            document.getElementById('idMaterial').value = '';
+            document.getElementById('buscador-material').value = '';
+            document.getElementById('buscador-material').classList.remove('hidden');
+            document.getElementById('material-seleccionado-info').classList.add('hidden');
+            document.getElementById('material-seleccionado-info').classList.remove('flex');
+            
+            const selectProv = document.getElementById('select-proveedor');
+            selectProv.innerHTML = '<option value="">Seleccione material primero</option>';
+            selectProv.disabled = true;
+            
+            const selectMedida = document.getElementById('select-medida');
+            selectMedida.innerHTML = '<option value="">Seleccione proveedor primero</option>';
+            selectMedida.disabled = true;
+            
+            checkMaterialSubmit();
+        }
+
+        function cargarProveedores(idMaterial) {
+            const selectProv = document.getElementById('select-proveedor');
+            selectProv.innerHTML = '<option value="">Cargando...</option>';
+            selectProv.disabled = true;
+            
+            fetch(`{{ url('/cirugias/api/materiales') }}/${idMaterial}/proveedores`)
+                .then(res => res.json())
+                .then(data => {
+                    proveedoresCache = data;
+                    if (data.length === 0) {
+                        selectProv.innerHTML = '<option value="">Sin proveedores asignados</option>';
+                    } else {
+                        selectProv.innerHTML = '<option value="">Seleccione proveedor</option>' + data.map(p => `
+                            <option value="${p.idProveedor}">${p.proveedor.nombreProveedor}</option>
+                        `).join('');
+                        selectProv.disabled = false;
+                    }
+                    checkMaterialSubmit();
+                });
+        }
+
+        const selectProveedor = document.getElementById('select-proveedor');
+        if (selectProveedor) {
+            selectProveedor.addEventListener('change', function() {
+                const idProv = this.value;
+                const selectMedida = document.getElementById('select-medida');
+                
+                if (!idProv) {
+                    selectMedida.innerHTML = '<option value="">Seleccione proveedor primero</option>';
+                    selectMedida.disabled = true;
+                    checkMaterialSubmit();
+                    return;
+                }
+                
+                const proveedor = proveedoresCache.find(p => p.idProveedor == idProv);
+                if (proveedor && proveedor.material_proveedor_tipo_medidas && proveedor.material_proveedor_tipo_medidas.length > 0) {
+                    selectMedida.innerHTML = '<option value="">Seleccione medida</option>' + proveedor.material_proveedor_tipo_medidas.map(m => `
+                        <option value="${m.idTipoMedida}">${m.tipo_medida.nombreTipoMedida}</option>
+                    `).join('');
+                    selectMedida.disabled = false;
+                } else if (proveedor && proveedor.material_proveedor_tipo_medidas) {
+                    selectMedida.innerHTML = '<option value="">Sin medidas disponibles</option>';
+                    selectMedida.disabled = true;
+                } else {
+                    // Si viene con keys en camelCase (depende de Laravel Resource o array conversion)
+                    const medidas = proveedor.materialProveedorTipoMedidas || [];
+                    if(medidas.length > 0) {
+                        selectMedida.innerHTML = '<option value="">Seleccione medida</option>' + medidas.map(m => `
+                            <option value="${m.idTipoMedida}">${m.tipoMedida.nombreTipoMedida}</option>
+                        `).join('');
+                        selectMedida.disabled = false;
+                    } else {
+                        selectMedida.innerHTML = '<option value="">Sin medidas disponibles</option>';
+                        selectMedida.disabled = true;
+                    }
+                }
+                checkMaterialSubmit();
+            });
+        }
+
+        const selectMedidaMat = document.getElementById('select-medida');
+        if (selectMedidaMat) {
+            selectMedidaMat.addEventListener('change', checkMaterialSubmit);
+        }
+        
+        function checkMaterialSubmit() {
+            const btn = document.getElementById('btn-submit-material');
+            const idMat = document.getElementById('idMaterial').value;
+            const idProv = document.getElementById('select-proveedor').value;
+            const idMedida = document.getElementById('select-medida').value;
+            
+            if (idMat && idProv && idMedida) {
+                btn.removeAttribute('disabled');
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.setAttribute('disabled', 'disabled');
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
             }
         }
     </script>

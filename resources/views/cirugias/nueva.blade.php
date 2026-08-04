@@ -12,80 +12,170 @@
     @unless ($persona)
         {{-- Paso 1: buscar o dar de alta al paciente --}}
         <x-tarjeta titulo="Buscar paciente" icono="badge">
-            <form method="GET" action="{{ route('cirugias.crear') }}" class="flex flex-wrap items-end gap-3">
-                @if ($fecha)
-                    <input type="hidden" name="fecha" value="{{ $fecha }}">
-                @endif
-                <div class="w-full max-w-xs">
-                    <x-input nombre="q" etiqueta="DNI o apellido" :valor="$q" requerido />
+            <div class="relative w-full max-w-md" id="contenedor-buscador-pacientes">
+                <form id="form-buscador-pacientes" method="GET" action="{{ route('cirugias.crear') }}" class="flex flex-wrap items-end gap-3">
+                    @if ($fecha)
+                        <input type="hidden" id="input-fecha-paciente" name="fecha" value="{{ $fecha }}">
+                    @endif
+                    <div class="flex-1 min-w-0">
+                        <x-input nombre="q" etiqueta="DNI o apellido" :valor="$q" 
+                                 id="input-buscar-paciente"
+                                 autocomplete="off" requerido />
+                    </div>
+                    <x-boton tipo="submit" forma="grupo">Buscar</x-boton>
+                </form>
+
+                <!-- Dropdown de sugerencias -->
+                <div id="dropdown-pacientes" 
+                     style="display: none;"
+                     class="absolute z-50 mt-1 w-full rounded-xl border border-hu-gris-suave/80 bg-white shadow-xl max-h-60 overflow-y-auto">
+                    <div id="dropdown-pacientes-contenido"></div>
                 </div>
-                <x-boton tipo="submit" forma="grupo">Buscar</x-boton>
-            </form>
+            </div>
+            
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const form = document.getElementById('form-buscador-pacientes');
+                    const input = document.getElementById('input-buscar-paciente');
+                    const dropdown = document.getElementById('dropdown-pacientes');
+                    const contenido = document.getElementById('dropdown-pacientes-contenido');
+                    const inputFecha = document.getElementById('input-fecha-paciente');
+                    const fecha = inputFecha ? inputFecha.value : null;
+                    
+                    let timeoutId;
+                    let currentSugerencias = [];
+                    let seleccionado = -1;
+
+                    function cerrarDropdown() {
+                        dropdown.style.display = 'none';
+                        seleccionado = -1;
+                    }
+
+                    function seleccionar(p) {
+                        if (p.fechaHoraBajaPersona) return; // No dejar seleccionar dados de baja
+                        let url = `{{ route('cirugias.crear') }}?persona=${p.idPersona}`;
+                        if (fecha) url += `&fecha=${fecha}`;
+                        window.location.href = url;
+                    }
+
+                    function renderizarDropdown(cargando, sugerencias) {
+                        currentSugerencias = sugerencias || [];
+                        dropdown.style.display = 'block';
+                        
+                        if (cargando) {
+                            contenido.innerHTML = '<div class="px-4 py-3 text-sm text-hu-gris-medio">Buscando...</div>';
+                            return;
+                        }
+
+                        if (sugerencias.length === 0) {
+                            contenido.innerHTML = `<div class="px-4 py-3 text-sm text-hu-gris-medio">No se encontraron pacientes para "${input.value}".</div>`;
+                            return;
+                        }
+
+                        contenido.innerHTML = '';
+                        sugerencias.forEach((p, index) => {
+                            const div = document.createElement('div');
+                            div.className = `block px-4 py-3 border-b border-hu-gris-suave/40 cursor-pointer transition-colors last:border-0 hover:bg-hu-gris-tenue/30 ${index === seleccionado ? 'bg-hu-gris-tenue/50' : ''}`;
+                            
+                            let text = `<p class="text-sm font-semibold text-hu-azul">${p.documento} — ${p.nombre_completo}</p>`;
+                            if (p.fechaHoraBajaPersona) {
+                                text += `<p class="text-xs font-semibold text-red-700 mt-1">Dado de baja</p>`;
+                            }
+                            
+                            div.innerHTML = text;
+                            div.addEventListener('click', () => seleccionar(p));
+                            contenido.appendChild(div);
+                        });
+                    }
+
+                    input.addEventListener('input', () => {
+                        clearTimeout(timeoutId);
+                        const q = input.value.trim();
+                        
+                        if (q.length < 1) {
+                            cerrarDropdown();
+                            return;
+                        }
+
+                        renderizarDropdown(true, null);
+
+                        timeoutId = setTimeout(() => {
+                            fetch(`{{ route('cirugias.crear') }}?q=${encodeURIComponent(q)}`, {
+                                headers: { 'Accept': 'application/json' }
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                renderizarDropdown(false, data);
+                            });
+                        }, 300);
+                    });
+
+                    input.addEventListener('keydown', (e) => {
+                        if (dropdown.style.display === 'none') return;
+
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            if (currentSugerencias.length > 0) {
+                                seleccionado = (seleccionado + 1) % currentSugerencias.length;
+                                renderizarDropdown(false, currentSugerencias);
+                            }
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            if (currentSugerencias.length > 0) {
+                                seleccionado = seleccionado - 1 < 0 ? currentSugerencias.length - 1 : seleccionado - 1;
+                                renderizarDropdown(false, currentSugerencias);
+                            }
+                        } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (seleccionado >= 0 && currentSugerencias[seleccionado]) {
+                                seleccionar(currentSugerencias[seleccionado]);
+                            } else if (currentSugerencias.length === 1) {
+                                seleccionar(currentSugerencias[0]);
+                            } else {
+                                form.submit();
+                            }
+                        }
+                    });
+
+                    document.addEventListener('click', (e) => {
+                        if (!document.getElementById('contenedor-buscador-pacientes').contains(e.target)) {
+                            cerrarDropdown();
+                        }
+                    });
+                });
+            </script>
         </x-tarjeta>
 
-        @if (! is_null($resultados))
+        @if (! is_null($resultados) && $resultados->isEmpty())
             <div class="mt-6">
-                @if ($resultados->isNotEmpty())
-                    <x-tarjeta titulo="Resultados" icono="groups">
-                        <ul class="divide-y divide-hu-gris-suave/60">
-                            @foreach ($resultados as $r)
-                                <li class="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                                    <div>
-                                        <p class="text-sm font-semibold text-hu-azul">
-                                            {{ $r->documento }} — {{ $r->nombre_completo }}
-                                        </p>
-                                        @if ($r->fechaHoraBajaPersona)
-                                            <p class="text-xs font-semibold text-red-700">Dado de baja</p>
-                                        @endif
-                                    </div>
-                                    @unless ($r->fechaHoraBajaPersona)
-                                        <x-boton
-                                            forma="grupo"
-                                            :href="route('cirugias.crear', array_filter(['persona' => $r->idPersona, 'fecha' => $fecha]))"
-                                        >
-                                            Seleccionar
-                                        </x-boton>
-                                    @endunless
-                                </li>
-                            @endforeach
-                        </ul>
+                <x-alerta tipo="aviso" titulo="No se encontró ningún paciente para &quot;{{ $q }}&quot;" class="mb-6">
+                    Podés darlo de alta ahora para continuar con la cirugía.
+                </x-alerta>
 
-                        @if ($resultados->count() === 15)
-                            <p class="mt-3 text-xs text-hu-gris-medio">
-                                Mostrando los primeros 15 resultados — afiná la búsqueda si no encontrás a quien buscás.
-                            </p>
+                <x-tarjeta titulo="Dar de alta al paciente" icono="person">
+                    <form method="POST" action="{{ route('cirugias.crear.paciente') }}" class="grid gap-4 sm:grid-cols-2">
+                        @csrf
+                        @if ($fecha)
+                            <input type="hidden" name="fecha" value="{{ $fecha }}">
                         @endif
-                    </x-tarjeta>
-                @else
-                    <x-alerta tipo="aviso" titulo="No se encontró ningún paciente para &quot;{{ $q }}&quot;" class="mb-6">
-                        Podés darlo de alta ahora para continuar con la cirugía.
-                    </x-alerta>
 
-                    <x-tarjeta titulo="Dar de alta al paciente" icono="person">
-                        <form method="POST" action="{{ route('cirugias.crear.paciente') }}" class="grid gap-4 sm:grid-cols-2">
-                            @csrf
-                            @if ($fecha)
-                                <input type="hidden" name="fecha" value="{{ $fecha }}">
-                            @endif
+                        <x-input nombre="apellidos" etiqueta="Apellidos" requerido />
+                        <x-input nombre="nombres" etiqueta="Nombres" requerido />
+                        <x-input nombre="documento" etiqueta="DNI" :valor="ctype_digit((string) $q) ? $q : null" requerido />
+                        <x-input nombre="fecha_nacimiento" etiqueta="Fecha de nacimiento" tipo="date" />
+                        <x-select
+                            nombre="genero"
+                            etiqueta="Género"
+                            :opciones="['F' => 'Femenino', 'M' => 'Masculino', 'X' => 'Otro']"
+                        />
+                        <x-input nombre="contacto_email_direccion" etiqueta="Email de contacto" tipo="email" />
+                        <x-input nombre="contacto_telefono_numero" etiqueta="Teléfono de contacto" />
 
-                            <x-input nombre="apellidos" etiqueta="Apellidos" requerido />
-                            <x-input nombre="nombres" etiqueta="Nombres" requerido />
-                            <x-input nombre="documento" etiqueta="DNI" :valor="ctype_digit((string) $q) ? $q : null" requerido />
-                            <x-input nombre="fecha_nacimiento" etiqueta="Fecha de nacimiento" tipo="date" />
-                            <x-select
-                                nombre="genero"
-                                etiqueta="Género"
-                                :opciones="['F' => 'Femenino', 'M' => 'Masculino', 'X' => 'Otro']"
-                            />
-                            <x-input nombre="contacto_email_direccion" etiqueta="Email de contacto" tipo="email" />
-                            <x-input nombre="contacto_telefono_numero" etiqueta="Teléfono de contacto" />
-
-                            <div class="sm:col-span-2">
-                                <x-boton tipo="submit" icono="check_circle">Dar de alta y continuar</x-boton>
-                            </div>
-                        </form>
-                    </x-tarjeta>
-                @endif
+                        <div class="sm:col-span-2">
+                            <x-boton tipo="submit" icono="check_circle">Dar de alta y continuar</x-boton>
+                        </div>
+                    </form>
+                </x-tarjeta>
             </div>
         @endif
     @else
@@ -305,5 +395,31 @@
             @endif
         </form>
     @endunless
+
+    <!-- Flatpickr para mejor selector de fecha/hora -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr("input[type=datetime-local]", {
+                enableTime: true,
+                dateFormat: "Y-m-d\\TH:i",
+                altInput: true,
+                altFormat: "d/m/Y H:i",
+                locale: "es",
+                time_24hr: true,
+                minuteIncrement: 15
+            });
+            
+            flatpickr("input[type=date]", {
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "d/m/Y",
+                locale: "es"
+            });
+        });
+    </script>
 
 @endsection

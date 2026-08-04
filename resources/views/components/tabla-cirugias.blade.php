@@ -79,7 +79,7 @@
                             :tono="$caso->semaforo()"
                             :icono="$caso->estaLista() ? 'check_circle' : 'warning'"
                         >
-                            {{ $caso->estaLista() ? 'Listo' : $caso->estado() }}
+                            {{ $caso->estaLista() ? 'Listo' : ($caso->semaforo() === 'error' ? 'En riesgo' : $caso->estado()) }}
                         </x-estado>
                     </td>
                 </tr>

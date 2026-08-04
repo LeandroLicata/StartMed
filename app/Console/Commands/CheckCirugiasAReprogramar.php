@@ -34,13 +34,15 @@ class CheckCirugiasAReprogramar extends Command
         $en24hs = $ahora->copy()->addHours(24);
 
         $estadoAReprogramar = EstadoCirugia::where('nombreEstadoCirugia', 'A reprogramar')->firstOrFail();
+        $estadoConfirmada = EstadoCirugia::where('nombreEstadoCirugia', 'Listo para la cirugia')->firstOrFail();
 
-        // Obtener cirugías que ocurran en las próximas 24 horas y que no estén ya en un estado final o "A reprogramar"
+        // Obtener cirugías que ocurran en las próximas 24 horas
         $cirugias = Cirugia::with(ResumenCirugia::RELACIONES)
             ->whereBetween('fechaHoraCirugia', [$ahora, $en24hs])
             ->get();
 
-        $count = 0;
+        $countReprogramar = 0;
+        $countConfirmar = 0;
 
         foreach ($cirugias as $cirugia) {
             $resumen = new ResumenCirugia($cirugia);
@@ -51,10 +53,13 @@ class CheckCirugiasAReprogramar extends Command
                 continue;
             }
 
-            // Si no está lista, la pasamos a "A reprogramar"
-            if (! $resumen->estaLista()) {
-                // Cerrar estado anterior (si aplica)
-                $ultimoEstado = $cirugia->cirugiaEstados()->whereNull('fechaDesasignacionCirugiaEstado')->first();
+            $ultimoEstado = $cirugia->cirugiaEstados()->whereNull('fechaDesasignacionCirugiaEstado')->first();
+
+            $pendientes = $resumen->pendientes();
+            $pendientesCriticos = $pendientes->filter(fn ($p) => $p !== 'Consentimiento sin firmar');
+
+            // Si faltan requisitos críticos (autorización, estudios, materiales), la pasamos a "A reprogramar"
+            if ($pendientesCriticos->isNotEmpty()) {
                 if ($ultimoEstado) {
                     $ultimoEstado->update(['fechaDesasignacionCirugiaEstado' => $ahora]);
                 }
@@ -72,10 +77,25 @@ class CheckCirugiasAReprogramar extends Command
                     $quirofanoActivo->update(['fechaHoraDesasignacion' => $ahora]);
                 }
 
-                $count++;
+                $countReprogramar++;
+            } elseif ($pendientes->isEmpty()) {
+                // Si está lista, y el estado actual no es "Listo para la cirugia", la actualizamos.
+                if ($estadoActual !== 'Listo para la cirugia') {
+                    if ($ultimoEstado) {
+                        $ultimoEstado->update(['fechaDesasignacionCirugiaEstado' => $ahora]);
+                    }
+
+                    CirugiaEstado::create([
+                        'idCirugia' => $cirugia->idCirugia,
+                        'idEstadoCirugia' => $estadoConfirmada->idEstadoCirugia,
+                        'fechaAsignacionCirugiaEstado' => $ahora,
+                    ]);
+                    
+                    $countConfirmar++;
+                }
             }
         }
 
-        $this->info("Se marcaron {$count} cirugías para reprogramar.");
+        $this->info("Se marcaron {$countReprogramar} cirugías para reprogramar y se confirmaron {$countConfirmar} cirugías listas.");
     }
 }

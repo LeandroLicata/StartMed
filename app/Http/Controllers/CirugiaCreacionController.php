@@ -40,7 +40,7 @@ use Illuminate\View\View;
  */
 class CirugiaCreacionController extends Controller
 {
-    public function buscar(Request $request): View
+    public function buscar(Request $request)
     {
         $q = $request->query('q');
         $idPersona = $request->query('persona');
@@ -57,6 +57,15 @@ class CirugiaCreacionController extends Controller
                 ->orderBy('apellidos')
                 ->limit(15)
                 ->get();
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json($resultados ? $resultados->map(fn($p) => [
+                'idPersona' => $p->idPersona,
+                'documento' => $p->documento,
+                'nombre_completo' => $p->nombre_completo,
+                'fechaHoraBajaPersona' => $p->fechaHoraBajaPersona,
+            ]) : []);
         }
 
         return view('cirugias.nueva', array_merge([

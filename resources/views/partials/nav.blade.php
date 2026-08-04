@@ -49,8 +49,8 @@
             'ruta' => 'direccion',
             'roles' => ['Dirección médica'],
         ],
-        // Todavia sin pantalla: un paciente es una Persona sin legajo.
-        ['etiqueta' => 'Pacientes', 'icono' => 'groups', 'ruta' => null, 'roles' => []],
+        // Pacientes, disponible para Gestor, Cirujano y Anestesista
+        ['etiqueta' => 'Pacientes', 'icono' => 'groups', 'ruta' => 'pacientes.index', 'roles' => ['Gestor de quirófano', 'Cirujano', 'Anestesista']],
 
         /*
          * Unica puerta a los datos maestros: catalogos y usuarios. Queda

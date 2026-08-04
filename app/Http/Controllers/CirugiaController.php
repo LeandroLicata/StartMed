@@ -19,9 +19,22 @@ use App\Models\PedidoHemoderivado;
 use App\Models\PedidoHemoderivadoEstado;
 use App\Models\PedidoTipoHemoderivado;
 use App\Models\PedidoTipoHemoderivadoEstado;
+use App\Models\PreparacionPaciente;
+use App\Models\PreparacionPacienteTipoPreparacion;
+use App\Models\PreparacionPacienteTipoPreparacionTipoIndicacion;
 use App\Models\Quirofano;
+use App\Models\Personal;
+use App\Models\Rol;
+use App\Models\CirugiaPersonal;
 use App\Models\TipoEstudio;
 use App\Models\TipoHemoderivado;
+use App\Models\TipoIndicacion;
+use App\Models\TipoPreparacion;
+use App\Models\Material;
+use App\Models\MaterialProveedor;
+use App\Models\PedidoMaterial;
+use App\Models\PedidoMaterialEstado;
+use App\Models\EstadoPedidoMaterial;
 use App\Services\ReprogramarCirugiaService;
 use App\Support\ResumenCirugia;
 use Illuminate\Http\RedirectResponse;
@@ -35,7 +48,7 @@ class CirugiaController extends Controller
 {
     use FiltraCirugias;
 
-    private const TABS = ['resumen', 'estudios', 'materiales', 'hemoderivados', 'profilaxis', 'autorizacion'];
+    private const TABS = ['resumen', 'preparacion', 'estudios', 'materiales', 'hemoderivados', 'profilaxis', 'autorizacion'];
 
     private const POR_PAGINA = 20;
 
@@ -112,6 +125,14 @@ class CirugiaController extends Controller
             'establecimientosHisopado' => Establecimiento::orderBy('nombreEstablecimiento')
                 ->get()
                 ->mapWithKeys(fn ($e) => [$e->idEstablecimiento => $e->nombreEstablecimiento]),
+            'profilaxisOpciones' => \App\Models\Profilaxis::whereNull('fechaBajaProfilaxis')
+                ->orderBy('nombreProfilaxis')
+                ->get()
+                ->mapWithKeys(fn ($p) => [$p->idProfilaxis => $p->nombreProfilaxis]),
+            'profilaxisRoles' => \App\Models\ProfilaxisRol::whereNull('fechaBajaProfilaxisRol')
+                ->orderBy('nombreProfilaxisRol')
+                ->get()
+                ->mapWithKeys(fn ($r) => [$r->idProfilaxisRol => $r->nombreProfilaxisRol]),
             'estadosAutorizacion' => EstadoAutCirugia::orderBy('nombreEstadoAutCirugia')
                 ->get()
                 ->mapWithKeys(fn ($e) => [$e->idEstadoAutCirugia => $e->nombreEstadoAutCirugia]),
@@ -125,7 +146,74 @@ class CirugiaController extends Controller
             'estadosHemoderivados' => EstadoPedidoTipoHemoderivado::orderBy('nombreEstadoPedidoTipoHemoderivado')
                 ->get()
                 ->mapWithKeys(fn ($e) => [$e->idEstadoPedidoTipoHemoderivado => $e->nombreEstadoPedidoTipoHemoderivado]),
+            'tiposPreparacion' => TipoPreparacion::whereNull('fechaBajaTipoPreparacion')
+                ->orderBy('idTipoPreparacion')
+                ->get(),
+            'tiposIndicacion' => TipoIndicacion::whereNull('fechaBajaTipoIndicacion')
+                ->orderBy('idTipoIndicacion')
+                ->get(),
         ]);
+    }
+
+    /**
+     * Crea o reemplaza las indicaciones de preparación prequirúrgica de la cirugía.
+     *
+     * Recibe un array `indicaciones[idTipoPreparacion][idTipoIndicacion] = horas`
+     * (solo las indicaciones que el usuario marcó como activas) y una
+     * observación general opcional.
+     *
+     * La estrategia es "delete + insert": se borran todos los bloques
+     * existentes y se vuelven a crear con los valores nuevos, lo que evita
+     * tener que rastrear qué cambió individualmente.
+     */
+    public function guardarPreparacion(Request $request, Cirugia $cirugia): RedirectResponse
+    {
+        $datos = $request->validate([
+            'observacionesPreparacionPaciente' => ['nullable', 'string', 'max:255'],
+            'indicaciones'                     => ['nullable', 'array'],
+            'indicaciones.*'                   => ['array'],
+            'indicaciones.*.*'                 => ['nullable', 'integer', 'min:0', 'max:999'],
+        ]);
+
+        // Buscar o crear el registro raíz de preparación.
+        $preparacion = PreparacionPaciente::firstOrCreate(
+            ['idCirugia' => $cirugia->idCirugia],
+            ['observacionesPreparacionPaciente' => null],
+        );
+
+        $preparacion->update([
+            'observacionesPreparacionPaciente' => $datos['observacionesPreparacionPaciente'] ?? null,
+        ]);
+
+        // Borrar todos los bloques actuales (cascada hacia las indicaciones).
+        $preparacion->preparacionPacienteTipoPreparaciones()->each(function ($bloque) {
+            $bloque->preparacionPacienteTipoPreparacionTipoIndicaciones()->delete();
+            $bloque->delete();
+        });
+
+        // Recrear con lo que vino del formulario.
+        foreach ($datos['indicaciones'] ?? [] as $idTipoPreparacion => $indicaciones) {
+            if (empty($indicaciones)) {
+                continue;
+            }
+
+            $bloque = PreparacionPacienteTipoPreparacion::create([
+                'idPreparacionPaciente' => $preparacion->idPreparacionPaciente,
+                'idTipoPreparacion'     => $idTipoPreparacion,
+            ]);
+
+            foreach ($indicaciones as $idTipoIndicacion => $horas) {
+                PreparacionPacienteTipoPreparacionTipoIndicacion::create([
+                    'idPreparacionPacienteTipoPreparacion'    => $bloque->idPreparacionPacienteTipoPreparacion,
+                    'idTipoIndicacion'                        => $idTipoIndicacion,
+                    'hsReglaCantidadIngestaAnteriorCirugia'   => $horas !== '' ? (int) $horas : null,
+                ]);
+            }
+        }
+
+        return redirect()
+            ->route('cirugias.show', [$cirugia, 'tab' => 'resumen'])
+            ->with('exito', 'Indicaciones de preparación actualizadas.');
     }
 
     /**
@@ -187,6 +275,34 @@ class CirugiaController extends Controller
             ->with('exito', 'Resultado del hisopado registrado correctamente.');
     }
 
+    public function agregarProfilaxis(Request $request, Cirugia $cirugia): RedirectResponse
+    {
+        $datos = $request->validate([
+            'idProfilaxis' => ['required', 'exists:Profilaxis,idProfilaxis'],
+            'idProfilaxisRol' => ['required', 'exists:ProfilaxisRol,idProfilaxisRol'],
+            'indicaciones' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $hisopado = HisopadoSarm::firstOrCreate([
+            'idCirugia' => $cirugia->idCirugia,
+        ]);
+
+        $profilaxisSarm = \App\Models\ProfilaxisAtbHisopadoSarm::firstOrCreate([
+            'idHisopadoSarm' => $hisopado->idHisopadoSarm,
+        ]);
+
+        \App\Models\ProfilaxisAtbHisopadoSarmProfilaxis::create([
+            'idProfilaxisAtbHisopadoSarm' => $profilaxisSarm->idProfilaxisAtbHisopadoSarm,
+            'idProfilaxis' => $datos['idProfilaxis'],
+            'idProfilaxisRol' => $datos['idProfilaxisRol'],
+            'indicacionesProfilaxisAtbHisopadoSarmProfilaxis' => $datos['indicaciones'],
+        ]);
+
+        return redirect()
+            ->route('cirugias.show', [$cirugia, 'tab' => 'profilaxis'])
+            ->with('exito', 'Profilaxis agregada correctamente.');
+    }
+
     /**
      * Cambia el estado de la autorización del financiador.
      */
@@ -197,7 +313,10 @@ class CirugiaController extends Controller
             'observacionesAutoCirugiaEstado' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $autorizacion = AutCirugia::where('idCirugia', $cirugia->idCirugia)->firstOrFail();
+        $autorizacion = AutCirugia::firstOrCreate(
+            ['idCirugia' => $cirugia->idCirugia],
+            ['idPlan' => $cirugia->paciente?->planObraSociales?->first()?->idPlan]
+        );
 
         // Cerrar estado vigente.
         AutoCirugiaEstado::where('idAutCirugia', $autorizacion->idAutCirugia)
@@ -326,6 +445,107 @@ class CirugiaController extends Controller
             ->with('exito', 'Pedido de hemoderivados creado con sus componentes.');
     }
 
+    public function buscarMateriales(Request $request)
+    {
+        $q = $request->query('q');
+        $materiales = Material::whereNull('fechaBajaMaterial')
+            ->where(function ($query) use ($q) {
+                $query->where('nombreMaterial', 'like', "%{$q}%")
+                      ->orWhere('codMaterial', 'like', "%{$q}%");
+            })
+            ->take(20)
+            ->get(['idMaterial', 'nombreMaterial', 'codMaterial']);
+            
+        return response()->json($materiales);
+    }
+
+    public function proveedoresMaterial(Material $material)
+    {
+        $proveedores = $material->materialProveedores()->with([
+            'proveedor:idProveedor,nombreProveedor',
+            'materialProveedorTipoMedidas' => function ($q) {
+                $q->whereNull('fechaFinAsignacionMaterialTipoMedida')
+                  ->where('disponibleMaterialTipoMedida', 1);
+            },
+            'materialProveedorTipoMedidas.tipoMedida:idTipoMedida,nombreTipoMedida'
+        ])->get();
+
+        return response()->json($proveedores);
+    }
+
+    public function storePedidoMaterial(Request $request, Cirugia $cirugia): RedirectResponse
+    {
+        $datos = $request->validate([
+            'idMaterial' => ['required', 'exists:Material,idMaterial'],
+            'idProveedor' => ['required', 'exists:Proveedor,idProveedor'],
+            'idTipoMedida' => ['required', 'exists:TipoMedida,idTipoMedida'],
+            'cantidadPedidoMaterial' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $mp = MaterialProveedor::where('idMaterial', $datos['idMaterial'])
+            ->where('idProveedor', $datos['idProveedor'])
+            ->firstOrFail();
+
+        $subtotal = $mp->precioExternoMaterialProveedor * $datos['cantidadPedidoMaterial'];
+
+        $pedido = PedidoMaterial::create([
+            'idCirugia' => $cirugia->idCirugia,
+            'idMaterial' => $datos['idMaterial'],
+            'idProveedor' => $datos['idProveedor'],
+            'idTipoMedida' => $datos['idTipoMedida'],
+            'cantidadPedidoMaterial' => $datos['cantidadPedidoMaterial'],
+            'subtotalPedidoMaterial' => $subtotal,
+            'fechaPedidoMaterial' => now(),
+        ]);
+        
+        $estadoSolicitado = EstadoPedidoMaterial::where('nombreEstadoPedidoMaterial', 'Solicitado')->value('idEstadoPedidoMaterial');
+        
+        if ($estadoSolicitado) {
+            PedidoMaterialEstado::create([
+                'idPedidoMaterial' => $pedido->idPedidoMaterial,
+                'idEstadoPedidoMaterial' => $estadoSolicitado,
+            ]);
+        }
+
+        return redirect()
+            ->route('cirugias.show', [$cirugia, 'tab' => 'materiales'])
+            ->with('exito', 'Material agregado al pedido.');
+    }
+
+    public function updatePedidoMaterial(Request $request, Cirugia $cirugia, PedidoMaterial $pedido): RedirectResponse
+    {
+        $datos = $request->validate([
+            'cantidadPedidoMaterial' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $mp = MaterialProveedor::where('idMaterial', $pedido->idMaterial)
+            ->where('idProveedor', $pedido->idProveedor)
+            ->firstOrFail();
+
+        $subtotal = $mp->precioExternoMaterialProveedor * $datos['cantidadPedidoMaterial'];
+
+        $pedido->update([
+            'cantidadPedidoMaterial' => $datos['cantidadPedidoMaterial'],
+            'subtotalPedidoMaterial' => $subtotal,
+        ]);
+
+        return redirect()
+            ->route('cirugias.show', [$cirugia, 'tab' => 'materiales'])
+            ->with('exito', 'Cantidad de material actualizada.');
+    }
+
+    public function destroyPedidoMaterial(Cirugia $cirugia, PedidoMaterial $pedido): RedirectResponse
+    {
+        // Se podrían eliminar los estados si hubiera foreign keys con cascade, 
+        // pero por precaución los borramos manualmente primero.
+        PedidoMaterialEstado::where('idPedidoMaterial', $pedido->idPedidoMaterial)->delete();
+        $pedido->delete();
+
+        return redirect()
+            ->route('cirugias.show', [$cirugia, 'tab' => 'materiales'])
+            ->with('exito', 'Material eliminado del pedido.');
+    }
+
     /**
      * Actualiza el estado de un componente de hemoderivado (Solicitado, Reservado, Condicional, Entregado, etc.).
      */
@@ -420,5 +640,188 @@ class CirugiaController extends Controller
 
         return redirect()->route('cirugias.show', $nuevaCirugia)
             ->with('exito', 'Cirugía reprogramada exitosamente.');
+    }
+
+    public function personalDisponible(Request $request, Cirugia $cirugia)
+    {
+        $rol = $request->query('rol'); // 'Cirujano' o 'Anestesista'
+        abort_unless(in_array($rol, ['Cirujano', 'Anestesista']), 400, 'Rol inválido.');
+
+        $inicio = $cirugia->fechaHoraCirugia;
+        $fin = $cirugia->fechaHoraFinCirugia ?? $inicio->copy()->addMinutes(120);
+
+        // Obtenemos todos los profesionales con el rol
+        $personal = Personal::with('persona')
+            ->whereHas('rolesVigentes', fn ($q) => $q->where('nombreRol', $rol))
+            ->get();
+
+        // Filtramos por disponibilidad
+        $disponibles = $personal->filter(function ($p) use ($rol, $inicio, $fin, $cirugia) {
+            $columna = 'idPersonal' . $rol;
+            
+            // Buscar otras cirugias en ese horario para este profesional
+            $otrasCirugias = Cirugia::where($columna, $p->idPersonal)
+                ->where('idCirugia', '!=', $cirugia->idCirugia)
+                ->with('cirugiaEstados.estadoCirugia')
+                ->get();
+
+            $ocupado = $otrasCirugias->contains(function (Cirugia $otra) use ($inicio, $fin) {
+                $otroFin = $otra->fechaHoraFinCirugia ?? $otra->fechaHoraCirugia->copy()->addMinutes(120);
+
+                if (! ($inicio->lt($otroFin) && $otra->fechaHoraCirugia->lt($fin))) {
+                    return false;
+                }
+
+                $vigente = $otra->cirugiaEstados->firstWhere('fechaDesasignacionCirugiaEstado', null);
+                return $vigente?->estadoCirugia?->nombreEstadoCirugia !== 'Suspendida';
+            });
+
+            return !$ocupado;
+        });
+
+        // Mapeamos a json (id, nombre completo)
+        $resultado = $disponibles->map(function ($p) {
+            return [
+                'id' => $p->idPersonal,
+                'nombre' => $p->persona->nombre_completo,
+            ];
+        })->values();
+
+        return response()->json($resultado);
+    }
+
+    public function reasignarPersonal(Request $request, Cirugia $cirugia)
+    {
+        $datos = $request->validate([
+            'rol' => 'required|in:Cirujano,Anestesista',
+            'idPersonal' => 'required|exists:Personal,idPersonal',
+        ]);
+
+        $rol = $datos['rol'];
+        $idPersonal = $datos['idPersonal'];
+
+        // Doble validación de disponibilidad
+        $inicio = $cirugia->fechaHoraCirugia;
+        $fin = $cirugia->fechaHoraFinCirugia ?? $inicio->copy()->addMinutes(120);
+        $columna = 'idPersonal' . $rol;
+
+        $otrasCirugias = Cirugia::where($columna, $idPersonal)
+            ->where('idCirugia', '!=', $cirugia->idCirugia)
+            ->with('cirugiaEstados.estadoCirugia')
+            ->get();
+
+        $ocupado = $otrasCirugias->contains(function (Cirugia $otra) use ($inicio, $fin) {
+            $otroFin = $otra->fechaHoraFinCirugia ?? $otra->fechaHoraCirugia->copy()->addMinutes(120);
+
+            if (! ($inicio->lt($otroFin) && $otra->fechaHoraCirugia->lt($fin))) {
+                return false;
+            }
+
+            $vigente = $otra->cirugiaEstados->firstWhere('fechaDesasignacionCirugiaEstado', null);
+            return $vigente?->estadoCirugia?->nombreEstadoCirugia !== 'Suspendida';
+        });
+
+        if ($ocupado) {
+            return back()->withErrors(['idPersonal' => 'El profesional seleccionado ya no está disponible en ese horario.']);
+        }
+
+        // Actualizamos
+        $cirugia->update([$columna => $idPersonal]);
+
+        $idRol = Rol::where('nombreRol', $rol)->value('idRol');
+
+        // Cerramos la asignación anterior vigente de este rol
+        CirugiaPersonal::where('idCirugia', $cirugia->idCirugia)
+            ->where('idRol', $idRol)
+            ->whereNull('fechaFinAsignacionCirugiaPersonal')
+            ->update(['fechaFinAsignacionCirugiaPersonal' => now()]);
+
+        // Guardamos historial
+        CirugiaPersonal::create([
+            'idCirugia' => $cirugia->idCirugia,
+            'idPersonal' => $idPersonal,
+            'idRol' => $idRol,
+            'fechaInicioAsignacionCirugiaPersonal' => now(),
+        ]);
+
+        return back()->with('exito', "{$rol} reasignado correctamente.");
+    }
+
+    /**
+     * Agrega un requerimiento a la cirugía (implante, hemoderivados, hisopado)
+     */
+    public function agregarRequerimiento(Request $request, Cirugia $cirugia)
+    {
+        $datos = $request->validate([
+            'requerimiento' => 'required|in:implante,hemoderivados,hisopado',
+        ]);
+
+        $req = $datos['requerimiento'];
+
+        DB::transaction(function () use ($cirugia, $req) {
+            if ($req === 'implante') {
+                $cirugia->update(['requiereImplante' => true]);
+            } elseif ($req === 'hemoderivados') {
+                \App\Models\PedidoHemoderivado::firstOrCreate([
+                    'idCirugia' => $cirugia->idCirugia,
+                ], [
+                    'fechaPedidoHemoderivado' => now(),
+                ]);
+            } elseif ($req === 'hisopado') {
+                $hisopado = \App\Models\HisopadoSarm::firstOrCreate([
+                    'idCirugia' => $cirugia->idCirugia,
+                ], [
+                    'fechaSolicitacionHisopadoSarm' => now(),
+                ]);
+
+                if ($hisopado->wasRecentlyCreated) {
+                    \App\Models\HisopadoSarmEstado::create([
+                        'idHisopadoSarm' => $hisopado->idHisopadoSarm,
+                        'idEstadoHisopadoSarm' => \App\Models\EstadoHisopadoSarm::where('nombreEstadoHisopadoSarm', 'Pendiente')
+                            ->value('idEstadoHisopadoSarm'),
+                        'fechaInicioAsignacionHisopadoSarmEstado' => now(),
+                    ]);
+                }
+            }
+        });
+
+        return back()->with('exito', 'Requerimiento agregado correctamente.');
+    }
+
+    /**
+     * Cancela la cirugía y libera los turnos.
+     */
+    public function cancelar(Cirugia $cirugia)
+    {
+        DB::transaction(function () use ($cirugia) {
+            // Cancelar la cirugia (EstadoCirugia = Cancelado o similar, si no existe Cancelado, buscamos Suspendida o lo creamos, vamos a asumir 'Suspendida' o 'Cancelado'. En otro metodo usaron 'Suspendida')
+            // Voy a usar 'Cancelada' si existe, o 'Suspendida'. Vamos a usar el ID correspondiente.
+            $estadoSuspendida = \App\Models\EstadoCirugia::whereIn('nombreEstadoCirugia', ['Cancelada', 'Cancelado', 'Suspendida'])->first();
+            
+            if ($estadoSuspendida) {
+                // Cerrar estado actual
+                \App\Models\CirugiaEstado::where('idCirugia', $cirugia->idCirugia)
+                    ->whereNull('fechaDesasignacionCirugiaEstado')
+                    ->update(['fechaDesasignacionCirugiaEstado' => now()]);
+
+                \App\Models\CirugiaEstado::create([
+                    'idCirugia' => $cirugia->idCirugia,
+                    'idEstadoCirugia' => $estadoSuspendida->idEstadoCirugia,
+                    'fechaAsignacionCirugiaEstado' => now(),
+                ]);
+            }
+
+            // Liberar quirófano
+            \App\Models\CirugiaQuirofano::where('idCirugia', $cirugia->idCirugia)
+                ->whereNull('fechaDesasignacionCirugiaQuirofano')
+                ->update(['fechaDesasignacionCirugiaQuirofano' => now()]);
+
+            // Liberar personal
+            \App\Models\CirugiaPersonal::where('idCirugia', $cirugia->idCirugia)
+                ->whereNull('fechaFinAsignacionCirugiaPersonal')
+                ->update(['fechaFinAsignacionCirugiaPersonal' => now()]);
+        });
+
+        return redirect()->route('cirugias.show', $cirugia)->with('exito', 'La cirugía ha sido cancelada y los horarios liberados.');
     }
 }

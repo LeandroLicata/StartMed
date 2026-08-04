@@ -15,6 +15,7 @@ use App\Http\Controllers\CirugiaCreacionController;
 use App\Http\Controllers\CirujanoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
+use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\PortalPacienteController;
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +46,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)
         ->middleware('rol:Gestor de quirófano,Dirección médica')
         ->name('dashboard');
+
+    Route::resource('pacientes', PacienteController::class)
+        ->only(['index', 'show'])
+        ->middleware('rol:Gestor de quirófano,Cirujano,Anestesista');
 
     Route::get('/cirujano', CirujanoController::class)
         ->middleware('rol:Cirujano')
@@ -80,6 +85,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/cirugias/{cirugia}/reprogramar', [CirugiaController::class, 'reprogramar'])
             ->name('cirugias.reprogramar');
 
+        Route::patch('/cirugias/{cirugia}/requerimientos', [CirugiaController::class, 'agregarRequerimiento'])
+            ->name('cirugias.requerimientos.agregar');
+
+        Route::patch('/cirugias/{cirugia}/cancelar', [CirugiaController::class, 'cancelar'])
+            ->name('cirugias.cancelar');
+
         Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda');
         Route::get('/agenda/{fecha}', [AgendaController::class, 'dia'])
             ->where('fecha', '[0-9]{4}-[0-9]{2}-[0-9]{2}')
@@ -93,8 +104,20 @@ Route::middleware('auth')->group(function () {
         Route::patch('/cirugias/{cirugia}/hisopado/estado', [CirugiaController::class, 'actualizarEstadoHisopado'])
             ->name('cirugias.hisopado.estado');
 
+        Route::post('/cirugias/{cirugia}/profilaxis', [CirugiaController::class, 'agregarProfilaxis'])
+            ->name('cirugias.profilaxis.store');
+
         Route::patch('/cirugias/{cirugia}/autorizacion/estado', [CirugiaController::class, 'actualizarEstadoAutorizacion'])
             ->name('cirugias.autorizacion.estado');
+
+        Route::post('/cirugias/{cirugia}/preparacion', [CirugiaController::class, 'guardarPreparacion'])
+            ->name('cirugias.preparacion.guardar');
+
+        Route::get('/cirugias/{cirugia}/api/personal-disponible', [CirugiaController::class, 'personalDisponible'])
+            ->name('cirugias.personal.disponible');
+
+        Route::patch('/cirugias/{cirugia}/personal', [CirugiaController::class, 'reasignarPersonal'])
+            ->name('cirugias.personal.reasignar');
     });
 
     Route::middleware('rol:Gestor de quirófano,Cirujano,Anestesista')->group(function () {
@@ -109,6 +132,21 @@ Route::middleware('auth')->group(function () {
 
         Route::patch('/cirugias/{cirugia}/hemoderivados/{componente}/estado', [CirugiaController::class, 'actualizarEstadoComponenteHemoderivado'])
             ->name('cirugias.hemoderivados.componente.estado');
+
+        Route::get('/cirugias/api/materiales/buscar', [CirugiaController::class, 'buscarMateriales'])
+            ->name('cirugias.materiales.buscar');
+
+        Route::get('/cirugias/api/materiales/{material}/proveedores', [CirugiaController::class, 'proveedoresMaterial'])
+            ->name('cirugias.materiales.proveedores');
+
+        Route::post('/cirugias/{cirugia}/materiales', [CirugiaController::class, 'storePedidoMaterial'])
+            ->name('cirugias.materiales.store');
+
+        Route::put('/cirugias/{cirugia}/materiales/{pedido}', [CirugiaController::class, 'updatePedidoMaterial'])
+            ->name('cirugias.materiales.update');
+
+        Route::delete('/cirugias/{cirugia}/materiales/{pedido}', [CirugiaController::class, 'destroyPedidoMaterial'])
+            ->name('cirugias.materiales.destroy');
     });
 
     Route::get('/cirugias/{cirugia}', [CirugiaController::class, 'show'])
