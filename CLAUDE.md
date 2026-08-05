@@ -186,7 +186,8 @@ the mobile sidebar toggle in `resources/js/app.js`.
 | `/cirugias/{cirugia}` | any authenticated | `cirugias/show` |
 | `/cirugias/{cirugia}/portal-paciente` | any authenticated | `cirugias/portal-paciente` |
 | `/admin` (índice de catálogos), `/admin/catalogos/…` | Administrador | `admin/inicio`, `admin/catalogos/*` |
-| `/admin/usuarios/…`, `/admin/consentimientos/…`, `/admin/cuestionario/…`, `/admin/precios/…`, `/admin/auditoria` | Administrador | `admin/*` |
+| `/admin/usuarios/…`, `/admin/consentimientos/…`, `/admin/precios/…`, `/admin/auditoria` | Administrador | `admin/*` |
+| `/admin/cuestionario/…` | Administrador, **Anestesista** | `admin/cuestionario/*` |
 
 Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
 `layouts/guest` (login). Views use `@extends` / `@section('contenido')`.
@@ -295,6 +296,17 @@ asked. So a version is editable only while it is current *and* unanswered; publi
 new one clones the whole tree so it can be tweaked. The three levels (version → questions
 → options) live on **one screen with many small forms**, which keeps the project's
 near-zero JavaScript.
+
+It is also **the one `/admin` module that is not the administrator's alone**: an
+`Anestesista` has full access, because what a patient is asked before being anaesthetised
+is a clinical decision and they are the one who knows it. Nothing in the controller checks
+roles — the guards that matter (frozen once answered, `Auditor` recording who did what
+from `auth()->id()`) are state-based and apply to both. Its routes therefore sit in
+**their own group** in `routes/web.php` with `rol:Administrador,Anestesista`: nested group
+middleware is merged, not replaced, so leaving them inside the `rol:Administrador` block
+would still bounce an anaesthetist. The sidebar item carries both roles, and since the
+`Administración` label hangs off the Usuarios item, an anaesthetist sees the entry in
+their own list instead of under a heading that is not theirs.
 
 **Supplier pricing hangs off the unit of sale, not off the supplier**
 (`Admin\PrecioController`, `/admin/precios`). `MaterialProveedor` says only *who sells

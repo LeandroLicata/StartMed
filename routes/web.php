@@ -203,20 +203,6 @@ Route::middleware('auth')->group(function () {
         Route::delete('consentimientos/{tipoCirugia}', [ConsentimientoController::class, 'destroy'])->name('consentimientos.destroy');
 
         /*
-         * Cuestionario preanestesico: arbol de version -> preguntas -> opciones,
-         * todo sobre una sola pantalla por version para no pedir JavaScript.
-         */
-        Route::get('cuestionario', [CuestionarioController::class, 'index'])->name('cuestionario.index');
-        Route::post('cuestionario', [CuestionarioController::class, 'store'])->name('cuestionario.store');
-        Route::get('cuestionario/{version}', [CuestionarioController::class, 'show'])->name('cuestionario.show');
-        Route::delete('cuestionario/{version}', [CuestionarioController::class, 'destroy'])->name('cuestionario.destroy');
-        Route::post('cuestionario/{version}/preguntas', [CuestionarioController::class, 'agregarPregunta'])->name('cuestionario.preguntas.store');
-        Route::put('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'actualizarPregunta'])->name('cuestionario.preguntas.update');
-        Route::delete('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'eliminarPregunta'])->name('cuestionario.preguntas.destroy');
-        Route::post('cuestionario/{version}/preguntas/{pregunta}/respuestas', [CuestionarioController::class, 'agregarRespuesta'])->name('cuestionario.respuestas.store');
-        Route::delete('cuestionario/{version}/preguntas/{pregunta}/respuestas/{respuesta}', [CuestionarioController::class, 'eliminarRespuesta'])->name('cuestionario.respuestas.destroy');
-
-        /*
          * Precios por proveedor: MaterialProveedor es una relacion con
          * atributos, no un catalogo, y las unidades cuelgan de ella.
          */
@@ -237,5 +223,30 @@ Route::middleware('auth')->group(function () {
         Route::put('usuarios/{usuario}/clave', [UsuarioController::class, 'clave'])->name('usuarios.clave');
         Route::delete('usuarios/{usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
         Route::post('usuarios/{usuario}/reactivar', [UsuarioController::class, 'restore'])->name('usuarios.restore');
+    });
+
+    /*
+     * Cuestionario preanestesico: arbol de version -> preguntas -> opciones,
+     * todo sobre una sola pantalla por version para no pedir JavaScript.
+     *
+     * Es el unico modulo de /admin que no es solo del administrador: que se le
+     * pregunta a un paciente antes de anestesiarlo es una decision clinica, y
+     * la sabe el anestesista. Va en su propio grupo porque los middleware de
+     * grupos anidados se suman en vez de reemplazarse, asi que adentro del
+     * bloque 'rol:Administrador' un anestesista igual rebotaria.
+     *
+     * Los frenos no dependen del rol y siguen valiendo: una version se congela
+     * en cuanto alguien la responde, y Auditor guarda quien hizo cada cosa.
+     */
+    Route::middleware('rol:Administrador,Anestesista')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('cuestionario', [CuestionarioController::class, 'index'])->name('cuestionario.index');
+        Route::post('cuestionario', [CuestionarioController::class, 'store'])->name('cuestionario.store');
+        Route::get('cuestionario/{version}', [CuestionarioController::class, 'show'])->name('cuestionario.show');
+        Route::delete('cuestionario/{version}', [CuestionarioController::class, 'destroy'])->name('cuestionario.destroy');
+        Route::post('cuestionario/{version}/preguntas', [CuestionarioController::class, 'agregarPregunta'])->name('cuestionario.preguntas.store');
+        Route::put('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'actualizarPregunta'])->name('cuestionario.preguntas.update');
+        Route::delete('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'eliminarPregunta'])->name('cuestionario.preguntas.destroy');
+        Route::post('cuestionario/{version}/preguntas/{pregunta}/respuestas', [CuestionarioController::class, 'agregarRespuesta'])->name('cuestionario.respuestas.store');
+        Route::delete('cuestionario/{version}/preguntas/{pregunta}/respuestas/{respuesta}', [CuestionarioController::class, 'eliminarRespuesta'])->name('cuestionario.respuestas.destroy');
     });
 });

@@ -75,12 +75,18 @@
             'activaEn' => 'admin.consentimientos.*',
             'roles' => ['Administrador'],
         ],
+        /*
+         * El unico item de este bloque que no es solo del administrador. Para
+         * el anestesista no aparece bajo el rotulo 'Administración' —cuelga del
+         * item Usuarios, que el no ve— sino al final de su propia lista, que es
+         * donde corresponde: el cuestionario es su herramienta de trabajo.
+         */
         [
             'etiqueta' => 'Cuestionario preanestésico',
             'icono' => 'assignment',
             'ruta' => 'admin.cuestionario.index',
             'activaEn' => 'admin.cuestionario.*',
-            'roles' => ['Administrador'],
+            'roles' => ['Administrador', 'Anestesista'],
         ],
         [
             'etiqueta' => 'Proveedores y precios',

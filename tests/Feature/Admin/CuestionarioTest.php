@@ -290,4 +290,67 @@ class CuestionarioTest extends TestCase
         $this->actingAs($cirujano)->get(route('admin.cuestionario.index'))->assertForbidden();
         $this->actingAs($cirujano)->post(route('admin.cuestionario.store'))->assertForbidden();
     }
+
+    /**
+     * Qué se le pregunta a un paciente antes de anestesiarlo es una decisión
+     * clínica: el anestesista entra y escribe, no solo mira. Los frenos son de
+     * estado, no de rol, así que valen igual para él.
+     */
+    public function test_el_anestesista_tambien_administra_el_cuestionario(): void
+    {
+        $this->seed(DemoSeeder::class);
+
+        $anestesista = Usuario::where('nombreUsuario', 'ramos')->firstOrFail();
+
+        $this->actingAs($anestesista)->get(route('admin.cuestionario.index'))->assertOk();
+
+        $this->actingAs($anestesista)
+            ->post(route('admin.cuestionario.store'))
+            ->assertSessionHas('exito');
+
+        $version = Version::whereNull('fechaFinVigeConfigTipoExamenPreAnestesico')->firstOrFail();
+
+        $this->actingAs($anestesista)
+            ->post(route('admin.cuestionario.preguntas.store', $version), [
+                'nombrePreguntaConfigTipoExamenPreAnestesicoPregunta' => '¿Tomó algo esta mañana?',
+                'requiereOpcionRespuestaConfigTipoExamenPreAnestesicoPregunta' => '0',
+            ])
+            ->assertSessionHas('exito');
+
+        $this->assertDatabaseHas('ConfigTipoExamenPreAnestesicoPregunta', [
+            'nombrePreguntaConfigTipoExamenPreAnestesicoPregunta' => '¿Tomó algo esta mañana?',
+        ]);
+
+        // Y queda claro quién lo hizo: Auditor toma el usuario de la sesión.
+        $this->assertDatabaseHas('Auditoria', ['idUsuario' => $anestesista->idUsuario]);
+    }
+
+    /**
+     * Abrirle el cuestionario no le abre el resto de /admin.
+     */
+    public function test_el_anestesista_no_entra_a_los_demas_modulos(): void
+    {
+        $this->seed(DemoSeeder::class);
+
+        $anestesista = Usuario::where('nombreUsuario', 'ramos')->firstOrFail();
+
+        foreach (['admin.inicio', 'admin.usuarios.index', 'admin.precios.index', 'admin.auditoria'] as $ruta) {
+            $this->actingAs($anestesista)->get(route($ruta))->assertForbidden();
+        }
+    }
+
+    /**
+     * Y lo ve en el menú, en su propia lista: el rótulo «Administración» cuelga
+     * del item Usuarios, que no le corresponde.
+     */
+    public function test_el_anestesista_ve_el_cuestionario_en_su_menu(): void
+    {
+        $this->seed(DemoSeeder::class);
+
+        $this->actingAs(Usuario::where('nombreUsuario', 'ramos')->firstOrFail())
+            ->get(route('anestesista'))
+            ->assertOk()
+            ->assertSee('href="'.route('admin.cuestionario.index').'"', false)
+            ->assertDontSee('Administración');
+    }
 }
