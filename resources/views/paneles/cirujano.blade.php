@@ -4,17 +4,7 @@
 @section('subtitulo', $personal->persona?->nombre_completo.' - '.($personal->matriculaProvincial ?? 'sin matricula'))
 @section('contenido')
 
-    <div class="mb-4 flex justify-end">
-        <x-boton
-            variante="contorno"
-            forma="grupo"
-            icono="event"
-            :href="route('cirujano.agenda')"
-            class="px-4 py-2 text-sm"
-        >
-            Ver agenda
-        </x-boton>
-    </div>
+    
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-metrica
@@ -133,7 +123,8 @@
         <x-tarjeta titulo="Que falta resolver" icono="warning" class="mt-6">
             <ul class="divide-y divide-hu-gris-suave/60">
                 @foreach ($conPendientes as $caso)
-                    <li class="py-3 first:pt-0 last:pb-0">
+                    <li class="relative py-3 first:pt-0 last:pb-0">
+                        <a href="{{ route('cirugias.show', $caso->cirugia) }}" class="absolute inset-0" aria-label="Ver cirugia de {{ $caso->nombrePaciente() }}"></a>
                         <p class="font-semibold text-hu-azul">
                             {{ $caso->nombrePaciente() }}
                             <span class="font-normal text-hu-gris-medio">
@@ -179,37 +170,51 @@
             @endforeach
         </div>
     </x-tarjeta>
+            {{-- Tarjeta de Historial de Cirugías --}}
 
-    {{-- Tarjeta de Historial de Cirugías --}}
     <x-tarjeta titulo="Historial de Cirugías" icono="history" class="mt-6">
-        @if($ultimasCirugias->isEmpty())
-            <p class="py-6 text-center text-sm text-hu-gris-medio">Aún no hay cirugías registradas en tu historial.</p>
-        @else
-            <ul class="divide-y divide-hu-gris-suave/60">
-                @foreach($ultimasCirugias as $cirugia)
-                    <li class="flex flex-wrap items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
-                        <div class="flex-1">
-                            <p class="font-semibold text-hu-azul">
-                                {{ method_exists($cirugia, 'procedimiento') ? $cirugia->procedimiento() : ($cirugia->tipoCirugia?->nombreTipoCirugia ?? $cirugia->tipoCirugia?->nombre ?? 'Procedimiento sin nombre') }}
-                            </p>
-                            <p class="mt-1 text-xs text-hu-gris-medio">
-                                <span class="font-medium">
-                                    {{ is_callable([$cirugia, 'cuando']) ? $cirugia->cuando()?->format('d/m/Y • H:i') : (is_object($cirugia->cuando) ? $cirugia->cuando->format('d/m/Y • H:i') : 'Sin fecha') }} hs
-                                </span>
-                                <span class="mx-1">•</span>
-                                {{ $cirugia->quirofano->nombreQuirofano ?? $cirugia->quirofano?->nombre ?? 'Quirófano no asignado' }}
-                            </p>
-                        </div>
 
-                        <x-estado 
-                            :tono="(is_callable([$cirugia, 'estado']) ? $cirugia->estado() : $cirugia->estado) === 'Realizada' ? 'exito' : ((is_callable([$cirugia, 'estado']) ? $cirugia->estado() : $cirugia->estado) === 'Suspendida' ? 'error' : 'neutro')"
+        @if($ultimasCirugias->isEmpty())
+
+            <p class="py-6 text-center text-sm text-hu-gris-medio">Aún no hay cirugías registradas en tu historial.</p>
+
+        @else
+
+            <ul class="divide-y divide-hu-gris-suave/60">
+
+                @foreach($ultimasCirugias as $cirugia)
+
+                    <li class="first:pt-0 last:pb-0">
+                            <a
+                            href="{{ route('cirugias.show', $cirugia->cirugia) }}"
+                            class="-mx-5 flex flex-wrap items-center justify-between gap-4 border-b border-hu-gris-suave/60 px-5 py-3.5
+                                   transition-colors last:border-0 hover:bg-hu-azul-tenue/50"
                         >
-                            {{ is_callable([$cirugia, 'estado']) ? $cirugia->estado() : $cirugia->estado }}
-                        </x-estado>
+                            <div class="flex-1">
+                                <p class="font-semibold text-hu-azul">
+                                    {{ $cirugia->procedimiento() }}
+                                </p>
+                                <p class="mt-1 text-xs text-hu-gris-medio">
+                                    <span class="font-medium">
+                                        {{ $cirugia->cuando()?->format('d/m/Y - H:i') }} hs
+                                    </span>
+                                    <span class="mx-1">-</span>
+                                    {{ $cirugia->quirofano?->nombreQuirofano ?? 'Quirofano no asignado' }}
+                                </p>
+                            </div>
+                            <x-estado :tono="$cirugia->semaforo()">
+                                {{ $cirugia->estado() }}
+                            </x-estado>
+                        </a>
                     </li>
+
                 @endforeach
+
             </ul>
+
         @endif
+
     </x-tarjeta>
+                
 
 @endsection

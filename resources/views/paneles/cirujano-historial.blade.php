@@ -39,7 +39,7 @@
                     <tbody class="divide-y divide-hu-gris-suave/60">
                         @foreach($historial as $cirugia)
                             @php
-                                $estadoVal = is_callable([$cirugia, 'estado']) ? $cirugia->estado() : $cirugia->estado;
+                                $estadoVal = $cirugia->estado();
                                 $tonoEstado = match($estadoVal) {
                                     'Realizada' => 'exito',
                                     'Suspendida' => 'error',
@@ -47,18 +47,19 @@
                                     default => 'neutro',
                                 };
                             @endphp
-                            <tr class="transition-colors hover:bg-gray-50/50">
+                            <tr class="relative align-middle transition-colors hover:bg-gray-50/50">
                                 <td class="py-3.5 px-4 whitespace-nowrap text-xs font-medium">
-                                    {{ is_callable([$cirugia, 'cuando']) ? $cirugia->cuando()?->format('d/m/Y H:i') : 'Sin fecha' }} hs
+                                    <a href="{{ route('cirugias.show', $cirugia->cirugia) }}" class="absolute inset-0" aria-label="Ver cirugia de {{ $cirugia->nombrePaciente() }}"></a>
+                                    {{ $cirugia->cuando()?->format('d/m/Y H:i') }} hs
                                 </td>
                                 <td class="py-3.5 px-4 font-semibold text-hu-azul">
-                                    {{ is_callable([$cirugia, 'procedimiento']) ? $cirugia->procedimiento() : ($cirugia->procedimiento ?? 'Sin especificar') }}
+                                    {{ $cirugia->procedimiento() }}
                                 </td>
                                 <td class="py-3.5 px-4 whitespace-nowrap text-xs text-hu-gris-medio">
-                                    {{ is_callable([$cirugia, 'quirofano']) ? $cirugia->quirofano() : ($cirugia->quirofano?->nombreQuirofano ?? '-') }}
+                                    {{ $cirugia->quirofano?->nombreQuirofano ?? '-' }}
                                 </td>
                                 <td class="py-3.5 px-4 whitespace-nowrap text-xs font-medium text-hu-gris-medio">
-                                    {{ is_callable([$cirugia, 'nombrePaciente']) ? $cirugia->nombrePaciente() : ($cirugia->paciente?->nombreCompleto ?? '-') }}
+                                    {{ $cirugia->nombrePaciente() }}
                                 </td>
                                 <td class="py-3.5 px-4 whitespace-nowrap text-right">
                                     <x-estado :tono="$tonoEstado">

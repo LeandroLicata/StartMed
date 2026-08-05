@@ -40,15 +40,21 @@
             'ruta' => 'cirujano',
             'roles' => ['Cirujano'],
         ],
+        [
+            'etiqueta' => 'Agenda',
+            'icono' => 'schedule',
+            'ruta' => 'cirujano.agenda',
+            'roles' => ['Cirujano'],
+        ],
         // NUEVO: Historial de cirugías para el Cirujano
         [
             'etiqueta' => 'Historial de cirugías',
             'icono' => 'history',
             'ruta' => 'cirujano.historial',
-            'activaEn' => 'cirujano.historial.*',
+            'activaEn' => 'cirujano.historial', // Coincidencia exacta para la vista del historial
             'roles' => ['Cirujano'],
         ],
-        
+
         [
             'etiqueta' => 'Evaluaciones',
             'icono' => 'stethoscope',
@@ -129,10 +135,15 @@
 
         @php
             $habilitada = (bool) $seccion['ruta'];
-            // El asterisco deja activa la sección en sus subrutas, p. ej. el
-            // formulario de evaluación anestésica sigue resaltando "Evaluaciones".
-            $patronesActivos = (array) ($seccion['activaEn'] ?? $seccion['ruta']);
-            $activa = $habilitada && request()->routeIs(...[...$patronesActivos, $seccion['ruta'].'.*']);
+            
+            // Si tiene activaEn se evalúa esa lista/patrón (ej. admin.*).
+            // Si no tiene activaEn, exige coincidencia exacta con su nombre de ruta.
+            if (isset($seccion['activaEn'])) {
+                $patronesActivos = (array) $seccion['activaEn'];
+                $activa = $habilitada && request()->routeIs(...$patronesActivos);
+            } else {
+                $activa = $habilitada && request()->routeIs($seccion['ruta']);
+            }
         @endphp
 
         {{-- El rotulo se dibuja con el item, asi no queda suelto si el rol no lo ve. --}}
