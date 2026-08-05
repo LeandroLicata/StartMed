@@ -212,6 +212,15 @@ rule that still holds. They would duplicate the index, and a label like "Materia
 promises a module while delivering one table out of the four in its group. A module,
 on the other hand, is a screen of its own and earns its row.
 
+**Inside a module, `<x-catalogos-relacionados :slugs="[…]" />` links the catalogs that
+feed it** — Materiales/Proveedores/Tipos de medida on `/admin/precios`, Roles/Tipos de
+documento on `/admin/usuarios`. A second door, not a move: the catalog still lives in
+`/admin`, which is the only thing guaranteeing all 27 are reachable
+(`CatalogosTest::test_el_indice_lleva_a_todos_los_catalogos`). Labels come from the map
+and `Catalogos::buscar()` aborts on an unknown slug, so a typo fails on render instead
+of shipping a dead link. Only catalogs the screen actually consumes belong there —
+this is not a place to relocate the ones that have no module yet.
+
 **Catalogs are driven by a map, not by 26 controllers.** `App\Support\Catalogos`
 declares the 27 master tables (slug → model, labels, group, soft-delete column, fields);
 `Admin\CatalogoController` + `CatalogoRequest` + two Blade views serve all of them.

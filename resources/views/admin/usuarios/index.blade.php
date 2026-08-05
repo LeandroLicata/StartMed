@@ -29,6 +29,9 @@
         />
     </div>
 
+    {{-- Los dos catálogos que el formulario de alta ofrece como opciones. --}}
+    <x-catalogos-relacionados :slugs="['rol', 'tipo-documento']" />
+
     <x-tarjeta titulo="Usuarios del sistema" icono="manage_accounts">
         <x-slot:acciones>
             <x-estado tono="info">{{ $usuarios->total() }}</x-estado>

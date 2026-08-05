@@ -5,6 +5,8 @@
 
 @section('contenido')
 
+    <x-catalogos-relacionados :slugs="['material', 'proveedor', 'tipo-medida']" />
+
     <x-tarjeta titulo="Materiales" icono="inventory_2">
         <x-slot:acciones>
             <x-estado tono="info">{{ $materiales->count() }}</x-estado>

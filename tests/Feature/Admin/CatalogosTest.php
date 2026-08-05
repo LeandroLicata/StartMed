@@ -464,7 +464,33 @@ class CatalogosTest extends TestCase
             $respuesta->assertSee('href="'.route($ruta).'"', false);
         }
 
+        // Obras sociales no es atajo de ninguna pantalla, así que si aparece
+        // acá es porque volvió al menú.
         $respuesta->assertDontSee('href="'.route('admin.catalogos.index', 'obra-social').'"', false);
+    }
+
+    /**
+     * Segunda puerta, no mudanza: el módulo enlaza los catálogos que lo
+     * alimentan, para el que está trabajando ahí y descubre que le falta una
+     * fila, pero el catálogo sigue viviendo en /admin.
+     */
+    public function test_los_modulos_enlazan_los_catalogos_que_los_alimentan(): void
+    {
+        $atajos = [
+            'admin.precios.index' => ['material', 'proveedor', 'tipo-medida'],
+            'admin.usuarios.index' => ['rol', 'tipo-documento'],
+        ];
+
+        foreach ($atajos as $ruta => $slugs) {
+            $respuesta = $this->actingAs($this->admin())->get(route($ruta))->assertOk();
+
+            foreach ($slugs as $slug) {
+                $respuesta
+                    ->assertSee('href="'.route('admin.catalogos.index', $slug).'"', false)
+                    // La etiqueta sale del mapa, no está escrita en la vista.
+                    ->assertSee(Catalogos::buscar($slug)['plural']);
+            }
+        }
     }
 
     /**
