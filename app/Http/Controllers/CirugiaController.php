@@ -43,10 +43,10 @@ use App\Models\TipoHemoderivado;
 use App\Models\TipoIndicacion;
 use App\Models\TipoPreparacion;
 use App\Services\ReprogramarCirugiaService;
+use App\Support\Paginador;
 use App\Support\ResumenCirugia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -78,20 +78,12 @@ class CirugiaController extends Controller
             $query->where('fechaHoraCirugia', '<=', Carbon::parse($request->query('hasta'))->endOfDay());
         }
 
-        $todas = $this->aplicarFiltros($query, $request);
-
-        $pagina = (int) $request->query('page', 1);
-
-        $cirugias = new LengthAwarePaginator(
-            $todas->forPage($pagina, self::POR_PAGINA)->values(),
-            $todas->count(),
-            self::POR_PAGINA,
-            $pagina,
-            ['path' => $request->url(), 'query' => $request->query()],
-        );
-
         return view('cirugias.index', array_merge([
-            'cirugias' => $cirugias,
+            'cirugias' => Paginador::deColeccion(
+                $this->aplicarFiltros($query, $request),
+                $request,
+                self::POR_PAGINA,
+            ),
             'filtros' => $request->only(['q', 'estado', 'idQuirofano', 'idObraSocial', 'desde', 'hasta']),
             'hayFiltrosActivos' => $request->hasAny(['q', 'estado', 'idQuirofano', 'idObraSocial', 'desde', 'hasta']),
         ], $this->catalogosFiltro()));

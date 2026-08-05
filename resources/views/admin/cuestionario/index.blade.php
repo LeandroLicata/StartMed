@@ -19,7 +19,7 @@
 
     <x-tarjeta titulo="Versiones" icono="assignment">
         <x-slot:acciones>
-            <x-estado tono="info">{{ $versiones->count() }}</x-estado>
+            <x-estado tono="info">{{ $versiones->total() }}</x-estado>
         </x-slot:acciones>
 
         <div class="-mx-5 overflow-x-auto">
@@ -83,6 +83,10 @@
                 </tbody>
             </table>
         </div>
+
+        @if ($versiones->hasPages())
+            <div class="pt-4">{{ $versiones->links() }}</div>
+        @endif
     </x-tarjeta>
 
 @endsection

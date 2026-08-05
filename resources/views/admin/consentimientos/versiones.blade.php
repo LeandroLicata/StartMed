@@ -103,4 +103,9 @@
         </x-tarjeta>
     @endforelse
 
+    @if ($versiones->hasPages())
+        {{-- La vigente siempre queda en la primera página: el orden la pone primera. --}}
+        <div class="mt-2">{{ $versiones->links() }}</div>
+    @endif
+
 @endsection

@@ -267,6 +267,33 @@ class CuestionarioTest extends TestCase
             ->assertDontSee('Agregar una pregunta');
     }
 
+    /**
+     * El listado suma una fila por publicación y no se borra ninguna: pagina,
+     * y la vigente cae en la primera página porque el orden la pone primera.
+     */
+    public function test_el_listado_de_versiones_pagina_con_la_vigente_primero(): void
+    {
+        foreach (range(1, 26) as $n) {
+            Version::create([
+                'fechaInicioVigeConfigTipoExamenPreAnestesico' => now()->subDays($n + 1),
+                'fechaFinVigeConfigTipoExamenPreAnestesico' => now()->subDays($n),
+            ]);
+        }
+
+        $vigente = $this->versionEditable();
+        $masVieja = Version::orderBy('fechaInicioVigeConfigTipoExamenPreAnestesico')->firstOrFail();
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('admin.cuestionario.index'))
+            ->assertOk()
+            ->assertSee('page=2')
+            ->getContent();
+
+        // Con la comilla final: /cuestionario/2 es prefijo de /cuestionario/27.
+        $this->assertStringContainsString(route('admin.cuestionario.show', $vigente).'"', $html);
+        $this->assertStringNotContainsString(route('admin.cuestionario.show', $masVieja).'"', $html);
+    }
+
     public function test_una_version_cerrada_tampoco_se_edita(): void
     {
         $version = $this->versionEditable();

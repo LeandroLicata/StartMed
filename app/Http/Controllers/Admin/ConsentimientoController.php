@@ -34,7 +34,7 @@ class ConsentimientoController extends Controller
                     ->whereNull('fechaFinConfigConsentimiento')])
                 ->withCount('configConsentimientos')
                 ->orderBy('nombreTipoCirugia')
-                ->get(),
+                ->paginate(25),
         ]);
     }
 
@@ -50,7 +50,9 @@ class ConsentimientoController extends Controller
                 ->orderByRaw('fechaFinConfigConsentimiento IS NULL DESC')
                 ->orderByDesc('fechaInicioConfigConsentimiento')
                 ->orderByDesc('idConfigConsentimiento')
-                ->get(),
+                // De a pocas: cada version muestra el texto completo, asi que
+                // el historial de un procedimiento viejo no entra en pantalla.
+                ->paginate(5),
         ]);
     }
 

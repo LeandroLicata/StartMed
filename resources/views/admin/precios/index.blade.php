@@ -9,8 +9,27 @@
 
     <x-tarjeta titulo="Materiales" icono="inventory_2">
         <x-slot:acciones>
-            <x-estado tono="info">{{ $materiales->count() }}</x-estado>
+            <x-estado tono="info">{{ $materiales->total() }}</x-estado>
         </x-slot:acciones>
+
+        <form method="GET" class="mb-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <x-input
+                nombre="q"
+                etiqueta="Buscar"
+                :valor="$filtros['q']"
+                placeholder="Nombre o código del material"
+            />
+
+            <div class="flex items-end gap-2">
+                <x-boton tipo="submit" variante="contorno" forma="grupo">Buscar</x-boton>
+
+                @if (array_filter($filtros))
+                    <x-boton :href="route('admin.precios.index')" variante="fantasma" forma="grupo">
+                        Limpiar
+                    </x-boton>
+                @endif
+            </div>
+        </form>
 
         <div class="-mx-5 overflow-x-auto">
             <table class="w-full min-w-160 text-sm">
@@ -74,15 +93,23 @@
                     @empty
                         <tr>
                             <td colspan="5" class="px-5 py-10 text-center text-hu-gris-medio">
-                                No hay materiales activos. Se cargan desde
-                                <a href="{{ route('admin.catalogos.index', 'material') }}" class="text-hu-azul underline">
-                                    el catálogo de materiales</a>.
+                                @if (array_filter($filtros))
+                                    Ningún material coincide con la búsqueda.
+                                @else
+                                    No hay materiales activos. Se cargan desde
+                                    <a href="{{ route('admin.catalogos.index', 'material') }}" class="text-hu-azul underline">
+                                        el catálogo de materiales</a>.
+                                @endif
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+
+        @if ($materiales->hasPages())
+            <div class="pt-4">{{ $materiales->links() }}</div>
+        @endif
     </x-tarjeta>
 
 @endsection

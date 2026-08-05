@@ -12,6 +12,7 @@ use App\Models\Proveedor;
 use App\Models\TipoMedida;
 use App\Support\Auditor;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -33,16 +34,25 @@ use Illuminate\View\View;
  */
 class PrecioController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         // El precio vive dos niveles abajo, asi que el minimo y el maximo
         // salen de la relacion through, contando solo asignaciones vigentes:
         // una unidad cerrada es historial y no deberia fijar el minimo.
         $vigentes = fn ($q) => $q->whereNull('fechaFinAsignacionMaterialTipoMedida');
 
+        $busqueda = trim($request->string('q')->toString());
+
         return view('admin.precios.index', [
             'materiales' => Material::query()
                 ->whereNull('fechaBajaMaterial')
+                // Con el listado paginado, sin buscador encontrar un material
+                // seria pasar paginas hasta dar con la letra.
+                ->when($busqueda !== '', fn ($q) => $q->where(
+                    fn ($q) => $q
+                        ->where('nombreMaterial', 'like', "%{$busqueda}%")
+                        ->orWhere('codMaterial', 'like', "%{$busqueda}%")
+                ))
                 ->withCount('materialProveedores')
                 ->withMin(
                     ['materialProveedorTipoMedidas as precioMinimo' => $vigentes],
@@ -53,7 +63,9 @@ class PrecioController extends Controller
                     'precioExternoMaterialProveedorTipoMedida'
                 )
                 ->orderBy('nombreMaterial')
-                ->get(),
+                ->paginate(25)
+                ->withQueryString(),
+            'filtros' => ['q' => $busqueda],
         ]);
     }
 

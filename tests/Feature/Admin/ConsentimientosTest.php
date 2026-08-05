@@ -254,6 +254,49 @@ class ConsentimientosTest extends TestCase
             ->assertSee('Firmados con esta versión');
     }
 
+    /**
+     * El listado tiene una fila por tipo de cirugía activo: crece con el
+     * catálogo, así que pagina.
+     */
+    public function test_el_listado_de_procedimientos_pagina(): void
+    {
+        foreach (range(1, 30) as $n) {
+            TipoCirugia::create([
+                'nombreTipoCirugia' => 'Procedimiento de prueba '.str_pad($n, 2, '0', STR_PAD_LEFT),
+            ]);
+        }
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.consentimientos.index'))
+            ->assertOk()
+            ->assertSee('Procedimiento de prueba 01')
+            ->assertDontSee('Procedimiento de prueba 30')
+            ->assertSee('page=2');
+    }
+
+    /**
+     * El historial suma una versión por publicación y cada tarjeta trae el
+     * texto entero: se pagina de a pocas, con la vigente siempre primera.
+     */
+    public function test_el_historial_de_versiones_pagina_con_la_vigente_primero(): void
+    {
+        $tipo = $this->tipo();
+
+        foreach (range(1, 7) as $n) {
+            $this->actingAs($this->admin())->post(route('admin.consentimientos.store', $tipo), [
+                'textoConfigConsentimiento' => $this->texto('Redacción número '.$n.'.'),
+            ]);
+        }
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.consentimientos.show', $tipo))
+            ->assertOk()
+            ->assertSee('Versión vigente')
+            ->assertSee('Redacción número 7.')
+            ->assertDontSee('Redacción número 1.')
+            ->assertSee('page=2');
+    }
+
     public function test_la_publicacion_queda_auditada(): void
     {
         $tipo = $this->tipo();

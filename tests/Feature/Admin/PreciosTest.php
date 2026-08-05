@@ -391,6 +391,31 @@ class PreciosTest extends TestCase
             ->assertSee('10.000,00');
     }
 
+    /**
+     * El catálogo de materiales de un hospital son cientos de filas, así que el
+     * listado pagina. Y por eso mismo trae buscador: con solo paginar, dar con
+     * un material sería pasar páginas hasta la letra.
+     */
+    public function test_el_listado_de_materiales_pagina_y_se_busca(): void
+    {
+        foreach (range(1, 30) as $n) {
+            Material::create(['nombreMaterial' => 'Sutura de prueba '.str_pad($n, 2, '0', STR_PAD_LEFT)]);
+        }
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.precios.index'))
+            ->assertOk()
+            ->assertSee('Sutura de prueba 01')
+            ->assertDontSee('Sutura de prueba 30')
+            ->assertSee('page=2');
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.precios.index', ['q' => 'prueba 30']))
+            ->assertOk()
+            ->assertSee('Sutura de prueba 30')
+            ->assertDontSee('Sutura de prueba 01');
+    }
+
     public function test_la_pantalla_del_material_no_ofrece_proveedores_ya_cargados(): void
     {
         // Material propio: DemoSeeder ya vincula proveedores a los sembrados.

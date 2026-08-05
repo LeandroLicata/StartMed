@@ -132,6 +132,10 @@
         @endforelse
     </div>
 
+    @if ($evaluaciones->hasPages())
+        <div class="mt-4">{{ $evaluaciones->links() }}</div>
+    @endif
+
     {{-- Cuestionario del primer caso pendiente, que es el que hay que resolver --}}
     @php($proximo = $pendientes->first(fn ($c) => $c->cuestionario()->isNotEmpty()))
 
