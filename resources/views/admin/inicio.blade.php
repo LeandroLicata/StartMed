@@ -2,102 +2,22 @@
 
 @php
     /*
-     * Todo lo de esta pantalla es navegación: lleva a otro lado y nada más.
-     * Por eso módulos y catálogos comparten el mismo tratamiento —tarjeta
-     * clickeable con chevron— y la jerarquía la hace el orden y la densidad,
-     * no un botón por tarjeta.
+     * Esta pantalla es la única puerta a los 27 catálogos: los módulos de
+     * administración ya son secciones del menú, pero una tabla maestra suelta
+     * no merece un renglón ahí, así que entran todas por acá, agrupadas.
+     *
+     * Todo lo que hay es navegación: lleva a otro lado y nada más. Por eso la
+     * jerarquía la hacen el orden y la densidad, no un botón por tarjeta. El
+     * título de la pantalla ya dice qué es esto: no lleva encabezado propio.
      */
-    $modulos = [
-        [
-            'etiqueta' => 'Usuarios',
-            'descripcion' => 'Personas, legajos, credenciales y roles.',
-            'icono' => 'manage_accounts',
-            'ruta' => 'admin.usuarios.index',
-        ],
-        [
-            'etiqueta' => 'Consentimientos informados',
-            'descripcion' => 'El texto que firma el paciente, por tipo de cirugía.',
-            'icono' => 'draw',
-            'ruta' => 'admin.consentimientos.index',
-        ],
-        [
-            'etiqueta' => 'Cuestionario preanestésico',
-            'descripcion' => 'Lo que completa el paciente antes de la evaluación.',
-            'icono' => 'assignment',
-            'ruta' => 'admin.cuestionario.index',
-        ],
-        [
-            'etiqueta' => 'Proveedores y precios',
-            'descripcion' => 'Quién vende cada material, a cuánto y en qué unidades.',
-            'icono' => 'inventory_2',
-            'ruta' => 'admin.precios.index',
-        ],
-        [
-            'etiqueta' => 'Auditoría',
-            'descripcion' => 'Quién dio de alta, editó o dio de baja cada cosa.',
-            'icono' => 'description',
-            'ruta' => 'admin.auditoria',
-        ],
-    ];
-
-    $encabezado = 'mb-3 text-xs font-semibold uppercase tracking-widest text-hu-gris-medio';
-
-    $tarjetaEnlace = 'group flex items-start gap-3 rounded-2xl border border-hu-gris-suave/70 bg-white
-                      px-5 py-4 shadow-sm transition-colors hover:border-hu-azul-suave
-                      hover:bg-hu-azul-tenue/40 focus-visible:outline-2
-                      focus-visible:-outline-offset-2 focus-visible:outline-hu-azul';
-
-    $chevron = 'mt-1 shrink-0 text-lg text-hu-gris-suave transition-transform
-                group-hover:translate-x-0.5 group-hover:text-hu-dorado motion-reduce:transition-none';
 @endphp
 
-@section('titulo', 'Administración')
-@section('subtitulo', 'Datos maestros y usuarios del sistema')
+@section('titulo', 'Catálogos')
+@section('subtitulo', 'Administración · Datos maestros del sistema')
 
 @section('contenido')
 
-    {{-- En su propia grilla: si comparten fila con los módulos, se estiran. --}}
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <x-metrica
-            :valor="$indicadores['usuarios']"
-            etiqueta="Usuarios activos"
-            icono="manage_accounts"
-            :detalle="$indicadores['dadosDeBaja'].' dados de baja'"
-        />
-
-        <x-metrica
-            :valor="$indicadores['sinRol']"
-            etiqueta="Usuarios sin rol"
-            icono="warning"
-            :tono="$indicadores['sinRol'] > 0 ? 'aviso' : 'exito'"
-            detalle="No pueden entrar a ningún panel"
-        />
-    </div>
-
-    <section class="mt-8">
-        <h2 class="{{ $encabezado }}">Módulos</h2>
-
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            @foreach ($modulos as $modulo)
-                <a href="{{ route($modulo['ruta']) }}" class="{{ $tarjetaEnlace }}">
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-hu-azul-tenue text-hu-azul">
-                        <x-icono :nombre="$modulo['icono']" class="text-xl" relleno />
-                    </span>
-
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-semibold text-hu-azul">{{ $modulo['etiqueta'] }}</span>
-                        <span class="mt-0.5 block text-xs text-hu-gris-medio">{{ $modulo['descripcion'] }}</span>
-                    </span>
-
-                    <x-icono nombre="chevron_right" class="{{ $chevron }}" />
-                </a>
-            @endforeach
-        </div>
-    </section>
-
-    <section class="mt-8">
-        <h2 class="{{ $encabezado }}">Catálogos</h2>
-
+    <section>
         <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             @foreach ($grupos as $nombre => $grupo)
                 <x-tarjeta :titulo="$nombre" :icono="$grupo['icono']">

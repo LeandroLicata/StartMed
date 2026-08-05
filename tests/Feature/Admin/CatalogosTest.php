@@ -121,31 +121,19 @@ class CatalogosTest extends TestCase
             ->get(route('admin.inicio'))
             ->assertOk()
             ->assertSee('Tipos de cirugía')
-            ->assertSee('Obras sociales')
-            ->assertSee('Usuarios activos');
+            ->assertSee('Obras sociales');
     }
 
     /**
-     * El índice es la única puerta a la sección, así que un módulo que no
+     * El índice es la única puerta a los catálogos, así que una tabla que no
      * figure acá queda inalcanzable desde la interfaz.
      */
-    public function test_el_indice_lleva_a_todos_los_modulos(): void
+    public function test_el_indice_lleva_a_todos_los_catalogos(): void
     {
         $respuesta = $this->actingAs($this->admin())
             ->get(route('admin.inicio'))
             ->assertOk();
 
-        foreach ([
-            'admin.usuarios.index',
-            'admin.consentimientos.index',
-            'admin.cuestionario.index',
-            'admin.precios.index',
-            'admin.auditoria',
-        ] as $ruta) {
-            $respuesta->assertSee('href="'.route($ruta).'"', false);
-        }
-
-        // Y a cada uno de los catálogos del mapa.
         foreach (array_keys(Catalogos::todos()) as $slug) {
             $respuesta->assertSee('href="'.route('admin.catalogos.index', $slug).'"', false);
         }
@@ -455,31 +443,91 @@ class CatalogosTest extends TestCase
     }
 
     /**
-     * Los datos maestros entran por una sola puerta. Antes el menú repetía
-     * catálogos sueltos en el nivel superior, duplicando lo que agrupa /admin.
+     * Cada módulo de administración es su propia sección del menú. Los 27
+     * catálogos no: siguen entrando por /admin, que es lo que agrupa el
+     * índice. Un atajo suelto acá duplicaría esa pantalla.
      */
-    public function test_el_menu_tiene_una_sola_puerta_a_administracion(): void
+    public function test_el_menu_lleva_a_todos_los_modulos_pero_no_a_los_catalogos(): void
     {
-        $this->actingAs($this->admin())
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertSee('Administración')
-            ->assertDontSee('Obras sociales');
+        $respuesta = $this->actingAs($this->admin())
+            ->get(route('admin.usuarios.index'))
+            ->assertOk();
+
+        foreach ([
+            'admin.usuarios.index',
+            'admin.consentimientos.index',
+            'admin.cuestionario.index',
+            'admin.precios.index',
+            'admin.auditoria',
+            'admin.inicio',
+        ] as $ruta) {
+            $respuesta->assertSee('href="'.route($ruta).'"', false);
+        }
+
+        $respuesta->assertDontSee('href="'.route('admin.catalogos.index', 'obra-social').'"', false);
     }
 
-    public function test_administracion_queda_marcada_en_todas_sus_pantallas(): void
+    /**
+     * El comodín del administrador es para *entrar* a una ruta, no para
+     * llenarle el menú con el trabajo de los demás: una cuenta que solo
+     * administra no ve las secciones operativas.
+     */
+    public function test_el_menu_del_administrador_no_muestra_las_secciones_operativas(): void
     {
-        foreach (['admin.inicio', 'admin.usuarios.index'] as $ruta) {
+        $respuesta = $this->actingAs($this->admin())
+            ->get(route('admin.inicio'))
+            ->assertOk();
+
+        foreach ([
+            'dashboard',
+            'cirugias.index',
+            'agenda',
+            'cirujano',
+            'anestesista',
+            'direccion',
+            'pacientes.index',
+        ] as $ruta) {
+            $respuesta->assertDontSee('href="'.route($ruta).'"', false);
+        }
+    }
+
+    /**
+     * Y si además tiene el rol funcional, sí las ve: lo que se ocultó es el
+     * comodín, no el rol propio.
+     */
+    public function test_el_administrador_que_ademas_es_gestor_ve_las_dos_cosas(): void
+    {
+        $admin = $this->admin();
+
+        $admin->personal->sincronizarRoles([
+            Rol::where('nombreRol', 'Administrador')->value('idRol'),
+            Rol::where('nombreRol', 'Gestor de quirófano')->value('idRol'),
+        ]);
+
+        $this->actingAs($admin->fresh())
+            ->get(route('admin.inicio'))
+            ->assertOk()
+            ->assertSee('href="'.route('dashboard').'"', false)
+            ->assertSee('href="'.route('admin.auditoria').'"', false);
+    }
+
+    public function test_cada_modulo_queda_marcado_en_todas_sus_pantallas(): void
+    {
+        foreach ([
+            route('admin.inicio'),
+            route('admin.catalogos.index', 'tipo-estudio'),
+            route('admin.usuarios.index'),
+            route('admin.usuarios.create'),
+            route('admin.consentimientos.index'),
+            route('admin.cuestionario.index'),
+            route('admin.precios.index'),
+            route('admin.auditoria'),
+        ] as $url) {
             $this->actingAs($this->admin())
-                ->get(route($ruta))
+                ->get($url)
                 ->assertOk()
                 ->assertSee('aria-current="page"', false);
         }
-
-        $this->actingAs($this->admin())
-            ->get(route('admin.catalogos.index', 'tipo-estudio'))
-            ->assertOk()
-            ->assertSee('aria-current="page"', false);
     }
 
     public function test_los_demas_roles_no_ven_administracion_en_el_menu(): void
@@ -489,7 +537,8 @@ class CatalogosTest extends TestCase
         $this->actingAs(Usuario::where('nombreUsuario', 'perez')->firstOrFail())
             ->get('/cirujano')
             ->assertOk()
-            ->assertDontSee('Administración');
+            ->assertDontSee('Administración')
+            ->assertDontSee('href="'.route('admin.usuarios.index').'"', false);
     }
 
     /**

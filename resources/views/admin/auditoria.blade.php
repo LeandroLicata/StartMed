@@ -16,12 +16,6 @@
         ];
     @endphp
 
-    <div class="mb-4">
-        <x-boton :href="route('admin.inicio')" variante="fantasma" icono="arrow_back" forma="grupo">
-            Volver a administración
-        </x-boton>
-    </div>
-
     <x-tarjeta titulo="Historial de cambios" icono="assignment">
         <x-slot:acciones>
             <x-estado tono="info">{{ $registros->total() }}</x-estado>

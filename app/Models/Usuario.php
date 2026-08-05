@@ -63,7 +63,8 @@ class Usuario extends Authenticatable
 
     /**
      * El administrador entra a todas las secciones sin necesidad de tener
-     * asignado cada rol funcional.
+     * asignado cada rol funcional. Es la pregunta de permiso: la usa el
+     * middleware `rol` y cualquier vista que decida si algo se puede hacer.
      */
     public function tieneRol(string ...$roles): bool
     {
@@ -71,6 +72,19 @@ class Usuario extends Authenticatable
 
         return $propios->contains('Administrador')
             || $propios->intersect($roles)->isNotEmpty();
+    }
+
+    /**
+     * Los roles asignados de verdad, sin el comodin del administrador.
+     *
+     * Es la pregunta de pertenencia, no la de permiso: el menu se arma con
+     * esta para que un administrador no vea las secciones operativas de todos
+     * los demas. Si ademas tiene el rol funcional, las ve; poder entrar por
+     * URL lo sigue resolviendo `tieneRol`.
+     */
+    public function tieneRolPropio(string ...$roles): bool
+    {
+        return $this->roles()->intersect($roles)->isNotEmpty();
     }
 
     /**

@@ -158,6 +158,15 @@ check without holding each functional role.
 Route::get('/cirujano', CirujanoController::class)->middleware('rol:Cirujano');
 ```
 
+**Permission and membership are two different questions.** `Usuario::tieneRol()` answers
+*can they enter* — it carries the `Administrador` wildcard, and it is what the middleware
+uses. `Usuario::tieneRolPropio()` answers *is this their work* — same check without the
+wildcard. The sidebar uses the second one: an admin who is not also a gestor has no
+business seeing the OR panels listed as if they were theirs, even though typing the URL
+still works. An admin who *does* hold a functional role sees both blocks. Anything that
+decides visibility (menus, empty states) wants `tieneRolPropio`; anything that decides
+access wants `tieneRol`.
+
 `Usuario::rutaInicial()` decides where a user lands after login — panels differ per
 role, so sending everyone to `/dashboard` produced a 403 right after a correct login.
 `/` (route name `inicio`) resolves it; users with no role get the `sin-acceso` view
@@ -176,7 +185,8 @@ the mobile sidebar toggle in `resources/js/app.js`.
 | `/direccion` | Dirección médica | `paneles/direccion` |
 | `/cirugias/{cirugia}` | any authenticated | `cirugias/show` |
 | `/cirugias/{cirugia}/portal-paciente` | any authenticated | `cirugias/portal-paciente` |
-| `/admin`, `/admin/catalogos/…`, `/admin/usuarios/…` | Administrador | `admin/*` |
+| `/admin` (índice de catálogos), `/admin/catalogos/…` | Administrador | `admin/inicio`, `admin/catalogos/*` |
+| `/admin/usuarios/…`, `/admin/consentimientos/…`, `/admin/cuestionario/…`, `/admin/precios/…`, `/admin/auditoria` | Administrador | `admin/*` |
 
 Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
 `layouts/guest` (login). Views use `@extends` / `@section('contenido')`.
@@ -189,12 +199,18 @@ rescheduling surgeries writes too (`CirugiaCreacionController`,
 `ReprogramarCirugiaService`) — but those paths do **not** go through `Auditor`, so the
 audit trail currently covers administration only.
 
-**One door, on purpose.** The sidebar carries a single `Administración` item (marked
-active across `admin.*` via the `activaEn` key in `partials/nav.blade.php`); the `/admin`
-index is the hub that groups every catalog. Resist re-adding per-catalog shortcuts to
-the sidebar: they duplicate that index, mix configuration in with the operational
-panels, and a label like "Materiales" promises a module while delivering one table out
-of the four in its group.
+**One door for the catalogs, a section for each module.** The sidebar carries an
+`Administración` group (`partials/nav.blade.php`, opened by the `titulo` key) with one
+item per module — Usuarios, Consentimientos, Cuestionario preanestésico, Proveedores y
+precios, Auditoría — plus `Catálogos`, which points at `/admin`. Each item stays marked
+across its own screens through `activaEn` (`admin.usuarios.*`, …); `Catálogos` takes an
+array of patterns because its index and its tables live under different route names.
+
+`/admin` is now *only* that index: the hub that groups the 27 master tables. **Resist
+adding per-catalog shortcuts to the sidebar** — that is the part of the old "one door"
+rule that still holds. They would duplicate the index, and a label like "Materiales"
+promises a module while delivering one table out of the four in its group. A module,
+on the other hand, is a screen of its own and earns its row.
 
 **Catalogs are driven by a map, not by 26 controllers.** `App\Support\Catalogos`
 declares the 27 master tables (slug → model, labels, group, soft-delete column, fields);

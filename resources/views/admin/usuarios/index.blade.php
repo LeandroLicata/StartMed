@@ -5,15 +5,28 @@
 
 @section('contenido')
 
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <x-boton :href="route('admin.inicio')" variante="fantasma" icono="arrow_back" forma="grupo">
-            Volver a administración
-        </x-boton>
-
-        {{-- Acá arriba van solo acciones; los filtros viven todos en el formulario. --}}
+    {{-- Acá arriba van solo acciones; los filtros viven todos en el formulario. --}}
+    <div class="mb-4 flex flex-wrap items-center justify-end gap-3">
         <x-boton :href="route('admin.usuarios.create')" icono="add">
             Nuevo usuario
         </x-boton>
+    </div>
+
+    <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <x-metrica
+            :valor="$indicadores['usuarios']"
+            etiqueta="Usuarios activos"
+            icono="manage_accounts"
+            :detalle="$indicadores['dadosDeBaja'].' dados de baja'"
+        />
+
+        <x-metrica
+            :valor="$indicadores['sinRol']"
+            etiqueta="Usuarios sin rol"
+            icono="warning"
+            :tono="$indicadores['sinRol'] > 0 ? 'aviso' : 'exito'"
+            detalle="No pueden entrar a ningún panel"
+        />
     </div>
 
     <x-tarjeta titulo="Usuarios del sistema" icono="manage_accounts">

@@ -5,11 +5,7 @@
 
 @section('contenido')
 
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <x-boton :href="route('admin.inicio')" variante="fantasma" icono="arrow_back" forma="grupo">
-            Volver a administración
-        </x-boton>
-
+    <div class="mb-4 flex flex-wrap items-center justify-end gap-3">
         <form method="POST" action="{{ route('admin.cuestionario.store') }}">
             @csrf
             <x-boton icono="add">Publicar versión nueva</x-boton>

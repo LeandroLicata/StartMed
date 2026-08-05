@@ -3,30 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Usuario;
 use App\Support\Catalogos;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
- * Portada de la seccion de administracion: desde donde se entra a cada tabla
- * maestra y a los usuarios.
+ * Indice de los catalogos: la unica puerta a las tablas maestras. Los demas
+ * modulos de administracion son secciones propias del menu, no pasan por aca.
  */
 class AdminController extends Controller
 {
     public function __invoke(): View
     {
-        return view('admin.inicio', [
-            'grupos' => $this->gruposConTotales(),
-            'indicadores' => [
-                'usuarios' => Usuario::query()->whereNull('fechaBajaUsuario')->count(),
-                'dadosDeBaja' => Usuario::query()->whereNotNull('fechaBajaUsuario')->count(),
-                'sinRol' => Usuario::query()
-                    ->whereNull('fechaBajaUsuario')
-                    ->whereDoesntHave('personal.rolesVigentes')
-                    ->count(),
-            ],
-        ]);
+        return view('admin.inicio', ['grupos' => $this->gruposConTotales()]);
     }
 
     /**

@@ -21,7 +21,7 @@
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <x-boton :href="route('admin.inicio')" variante="fantasma" icono="arrow_back" forma="grupo">
-            Volver a administración
+            Volver a catálogos
         </x-boton>
 
         {{-- Acá arriba van solo acciones; el filtro vive dentro de la tarjeta. --}}

@@ -5,12 +5,6 @@
 
 @section('contenido')
 
-    <div class="mb-4">
-        <x-boton :href="route('admin.inicio')" variante="fantasma" icono="arrow_back" forma="grupo">
-            Volver a administración
-        </x-boton>
-    </div>
-
     <x-tarjeta titulo="Materiales" icono="inventory_2">
         <x-slot:acciones>
             <x-estado tono="info">{{ $materiales->count() }}</x-estado>

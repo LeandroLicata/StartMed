@@ -65,6 +65,16 @@ class UsuarioController extends Controller
                 ->orderBy('nombreRol')
                 ->pluck('nombreRol', 'idRol')
                 ->all(),
+            // Sobre el total, no sobre lo filtrado: son el estado del padron,
+            // y quien filtra por «dados de baja» igual quiere ver cuantos hay.
+            'indicadores' => [
+                'usuarios' => Usuario::query()->whereNull('fechaBajaUsuario')->count(),
+                'dadosDeBaja' => Usuario::query()->whereNotNull('fechaBajaUsuario')->count(),
+                'sinRol' => Usuario::query()
+                    ->whereNull('fechaBajaUsuario')
+                    ->whereDoesntHave('personal.rolesVigentes')
+                    ->count(),
+            ],
         ]);
     }
 
