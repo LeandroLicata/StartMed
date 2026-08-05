@@ -180,8 +180,36 @@
         </div>
     </x-tarjeta>
 
+    {{-- Tarjeta de Historial de Cirugías --}}
+    <x-tarjeta titulo="Historial de Cirugías" icono="history" class="mt-6">
+        @if($ultimasCirugias->isEmpty())
+            <p class="py-6 text-center text-sm text-hu-gris-medio">Aún no hay cirugías registradas en tu historial.</p>
+        @else
+            <ul class="divide-y divide-hu-gris-suave/60">
+                @foreach($ultimasCirugias as $cirugia)
+                    <li class="flex flex-wrap items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
+                        <div class="flex-1">
+                            <p class="font-semibold text-hu-azul">
+                                {{ method_exists($cirugia, 'procedimiento') ? $cirugia->procedimiento() : ($cirugia->tipoCirugia?->nombreTipoCirugia ?? $cirugia->tipoCirugia?->nombre ?? 'Procedimiento sin nombre') }}
+                            </p>
+                            <p class="mt-1 text-xs text-hu-gris-medio">
+                                <span class="font-medium">
+                                    {{ is_callable([$cirugia, 'cuando']) ? $cirugia->cuando()?->format('d/m/Y • H:i') : (is_object($cirugia->cuando) ? $cirugia->cuando->format('d/m/Y • H:i') : 'Sin fecha') }} hs
+                                </span>
+                                <span class="mx-1">•</span>
+                                {{ $cirugia->quirofano->nombreQuirofano ?? $cirugia->quirofano?->nombre ?? 'Quirófano no asignado' }}
+                            </p>
+                        </div>
+
+                        <x-estado 
+                            :tono="(is_callable([$cirugia, 'estado']) ? $cirugia->estado() : $cirugia->estado) === 'Realizada' ? 'exito' : ((is_callable([$cirugia, 'estado']) ? $cirugia->estado() : $cirugia->estado) === 'Suspendida' ? 'error' : 'neutro')"
+                        >
+                            {{ is_callable([$cirugia, 'estado']) ? $cirugia->estado() : $cirugia->estado }}
+                        </x-estado>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+    </x-tarjeta>
+
 @endsection
-
-
-
-

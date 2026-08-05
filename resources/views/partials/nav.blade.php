@@ -40,6 +40,15 @@
             'ruta' => 'cirujano',
             'roles' => ['Cirujano'],
         ],
+        // NUEVO: Historial de cirugías para el Cirujano
+        [
+            'etiqueta' => 'Historial de cirugías',
+            'icono' => 'history',
+            'ruta' => 'cirujano.historial',
+            'activaEn' => 'cirujano.historial.*',
+            'roles' => ['Cirujano'],
+        ],
+        
         [
             'etiqueta' => 'Evaluaciones',
             'icono' => 'stethoscope',

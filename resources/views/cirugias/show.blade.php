@@ -5,7 +5,7 @@
 
 @section('contenido')
 
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div class="relative z-30 mb-6 flex flex-wrap items-center justify-between gap-3">
         <x-boton variante="fantasma" forma="grupo" icono="arrow_back" tipo="button"
                 onclick="history.back()" class="px-3">
             Volver
@@ -47,38 +47,42 @@
                 <button type="button" id="btn-menu-cirugia" class="flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-hu-gris-suave/80 text-hu-gris-medio hover:border-hu-dorado hover:text-hu-azul transition-colors focus:outline-none bg-white">
                     <x-icono nombre="more_vert" class="text-xl" />
                 </button>
-                <div id="dropdown-menu-cirugia" style="display: none;" class="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-hu-gris-suave/80 bg-white shadow-xl overflow-hidden py-1">
-                    @unless ($caso->cirugia->requiereImplante)
-                        <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="requerimiento" value="implante">
-                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">Activar Implante</button>
-                        </form>
-                    @endunless
+                <div id="dropdown-menu-cirugia" style="display: none;" class="absolute right-0 top-full z-[100] mt-1 w-56 rounded-xl border border-hu-gris-suave/80 bg-white shadow-xl py-1">
+                    {{-- Opción 1: Activar Implante siempre visible --}}
+                    <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
+                        @csrf @method('PATCH')
+                        <input type="hidden" name="requerimiento" value="implante">
+                        <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">
+                            Activar Implante
+                        </button>
+                    </form>
                     
-                    @if ($caso->cirugia->pedidoHemoderivados->isEmpty())
-                        <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="requerimiento" value="hemoderivados">
-                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">Requerir Hemoderivados</button>
-                        </form>
-                    @endif
+                    {{-- Opción 2: Requerir Hemoderivados siempre visible --}}
+                    <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
+                        @csrf @method('PATCH')
+                        <input type="hidden" name="requerimiento" value="hemoderivados">
+                        <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">
+                            Requerir Hemoderivados
+                        </button>
+                    </form>
                     
-                    @if ($caso->cirugia->hisopadoSarms->isEmpty())
-                        <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="requerimiento" value="hisopado">
-                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">Requerir Hisopado SAMR</button>
-                        </form>
-                    @endif
+                    {{-- Opción 3: Requerir Hisopado SAMR siempre visible --}}
+                    <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
+                        @csrf @method('PATCH')
+                        <input type="hidden" name="requerimiento" value="hisopado">
+                        <button type="submit" class="w-full text-left px-4 py-2.5 text-sm hover:bg-hu-gris-tenue/50 text-hu-azul font-semibold">
+                            Requerir Hisopado SAMR
+                        </button>
+                    </form>
 
+                    {{-- Opción 4: Cancelar Cirugía --}}
                     @if ($caso->estado() !== 'Cancelada' && $caso->estado() !== 'Cancelado' && $caso->estado() !== 'Suspendida')
-                        @if(!$caso->cirugia->pedidoHemoderivados->isEmpty() || !$caso->cirugia->hisopadoSarms->isEmpty() || !$caso->cirugia->requiereImplante === false)
-                            <div class="my-1 border-t border-hu-gris-suave/40"></div>
-                        @endif
+                        <div class="my-1 border-t border-hu-gris-suave/40"></div>
                         <form method="POST" action="{{ route('cirugias.cancelar', $caso->cirugia) }}" class="block" data-confirmar="¿Seguro que deseás cancelar esta cirugía? Se liberará el quirófano y el equipo médico." data-confirmar-titulo="Cancelar Cirugía" data-confirmar-accion="Sí, cancelar">
                             @csrf @method('PATCH')
-                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-red-50 text-red-600">Cancelar Cirugía</button>
+                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-red-50 text-red-600">
+                                Cancelar Cirugía
+                            </button>
                         </form>
                     @endif
                 </div>

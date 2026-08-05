@@ -51,17 +51,22 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'show'])
         ->middleware('rol:Gestor de quirófano,Cirujano,Anestesista');
 
-    Route::get('/cirujano', CirujanoController::class)
+        Route::get('/cirujano', CirujanoController::class)
         ->middleware('rol:Cirujano')
         ->name('cirujano');
 
-    Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
-        ->middleware('rol:Cirujano')
-        ->name('cirujano.agenda');
+        // >>> NUEVA RUTA PARA EL HISTORIAL <<<
+        Route::get('/cirujano/historial', [CirujanoController::class, 'historial'])
+            ->middleware('rol:Cirujano')
+            ->name('cirujano.historial');
 
-    Route::get('/anestesista', [AnestesistaController::class, 'index'])
-        ->middleware('rol:Anestesista')
-        ->name('anestesista');
+        Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
+            ->middleware('rol:Cirujano')
+            ->name('cirujano.agenda');
+
+        Route::get('/anestesista', [AnestesistaController::class, 'index'])
+            ->middleware('rol:Anestesista')
+            ->name('anestesista');
 
     /*
      * CRUD de la evaluación pre-anestésica. La cirugía se resuelve por ruta y
