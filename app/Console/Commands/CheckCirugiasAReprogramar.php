@@ -90,7 +90,7 @@ class CheckCirugiasAReprogramar extends Command
                         'idEstadoCirugia' => $estadoConfirmada->idEstadoCirugia,
                         'fechaAsignacionCirugiaEstado' => $ahora,
                     ]);
-                    
+
                     $countConfirmar++;
                 }
             }

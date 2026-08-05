@@ -19,8 +19,8 @@ class PacienteController extends Controller
         if ($search = $request->query('buscar')) {
             $query->where(function ($q) use ($search) {
                 $q->where('nombres', 'like', "%{$search}%")
-                  ->orWhere('apellidos', 'like', "%{$search}%")
-                  ->orWhere('documento', 'like', "%{$search}%");
+                    ->orWhere('apellidos', 'like', "%{$search}%")
+                    ->orWhere('documento', 'like', "%{$search}%");
             });
         }
 

@@ -30,7 +30,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 /**
  * Alta de una cirugia nueva por el gestor de quirofano, todo en una sola
@@ -60,7 +59,7 @@ class CirugiaCreacionController extends Controller
         }
 
         if ($request->wantsJson()) {
-            return response()->json($resultados ? $resultados->map(fn($p) => [
+            return response()->json($resultados ? $resultados->map(fn ($p) => [
                 'idPersona' => $p->idPersona,
                 'documento' => $p->documento,
                 'nombre_completo' => $p->nombre_completo,
