@@ -5,6 +5,13 @@
 
 @section('contenido')
 
+    {{--
+        Acá el catálogo no llena un campo: define qué filas tiene la tabla. Un
+        procedimiento que no esté cargado no aparece como «Sin plantilla», no
+        aparece, y esa ausencia no se ve desde ninguna parte de esta pantalla.
+    --}}
+    <x-catalogos-relacionados :slugs="['tipo-cirugia']" />
+
     <x-tarjeta titulo="Plantillas por procedimiento" icono="draw">
         <x-slot:acciones>
             <x-estado tono="info">{{ $tipos->count() }}</x-estado>
@@ -74,7 +81,9 @@
                     @empty
                         <tr>
                             <td colspan="5" class="px-5 py-10 text-center text-hu-gris-medio">
-                                No hay tipos de cirugía activos.
+                                No hay tipos de cirugía activos. Se cargan desde
+                                <a href="{{ route('admin.catalogos.index', 'tipo-cirugia') }}" class="text-hu-azul underline">
+                                    el catálogo de tipos de cirugía</a>.
                             </td>
                         </tr>
                     @endforelse

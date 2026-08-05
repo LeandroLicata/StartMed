@@ -479,6 +479,8 @@ class CatalogosTest extends TestCase
         $atajos = [
             'admin.precios.index' => ['material', 'proveedor', 'tipo-medida'],
             'admin.usuarios.index' => ['rol', 'tipo-documento'],
+            // Acá el catálogo no llena un campo: define qué filas hay.
+            'admin.consentimientos.index' => ['tipo-cirugia'],
         ];
 
         foreach ($atajos as $ruta => $slugs) {
@@ -491,6 +493,22 @@ class CatalogosTest extends TestCase
                     ->assertSee(Catalogos::buscar($slug)['plural']);
             }
         }
+    }
+
+    /**
+     * El listado de consentimientos son los tipos de cirugía activos, así que
+     * sin ellos no es que falte una plantilla: no hay de qué hablar. La
+     * pantalla vacía tiene que decir dónde se cargan y no ser un callejón.
+     */
+    public function test_consentimientos_sin_tipos_de_cirugia_lleva_al_catalogo(): void
+    {
+        TipoCirugia::query()->update(['fechaBajaTipoCirugia' => now()]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.consentimientos.index'))
+            ->assertOk()
+            ->assertSee('No hay tipos de cirugía activos')
+            ->assertSee('href="'.route('admin.catalogos.index', 'tipo-cirugia').'"', false);
     }
 
     /**

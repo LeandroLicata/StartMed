@@ -214,7 +214,11 @@ on the other hand, is a screen of its own and earns its row.
 
 **Inside a module, `<x-catalogos-relacionados :slugs="[…]" />` links the catalogs that
 feed it** — Materiales/Proveedores/Tipos de medida on `/admin/precios`, Roles/Tipos de
-documento on `/admin/usuarios`. A second door, not a move: the catalog still lives in
+documento on `/admin/usuarios`, Tipos de cirugía on `/admin/consentimientos`. That last
+one is not a convenience: the consent listing *is* the active `TipoCirugia` rows, so a
+procedure missing from the catalog does not show up as "Sin plantilla" — it does not show
+up at all, and nothing on the screen reveals the gap. Its empty state links the catalog
+for the same reason. A second door, not a move: the catalog still lives in
 `/admin`, which is the only thing guaranteeing all 27 are reachable
 (`CatalogosTest::test_el_indice_lleva_a_todos_los_catalogos`). Labels come from the map
 and `Catalogos::buscar()` aborts on an unknown slug, so a typo fails on render instead
