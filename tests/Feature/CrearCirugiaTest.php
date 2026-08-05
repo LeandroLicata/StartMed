@@ -66,15 +66,25 @@ class CrearCirugiaTest extends TestCase
         $this->actingAs($cirujano)->get('/cirugias/nueva')->assertForbidden();
     }
 
+    /*
+     * El buscador de pacientes es un autocompletado: la pantalla no trae los
+     * resultados renderizados, los pide por JSON mientras se tipea y los pinta
+     * el JS. Por eso estas dos pruebas van contra la respuesta JSON y no
+     * contra el HTML, y por eso miran los nombres de los campos: son el
+     * contrato con el dropdown, y romperlo lo deja mudo sin que falle nada.
+     */
     public function test_buscar_por_dni_exacto_encuentra_un_solo_resultado(): void
     {
         $gestor = $this->conDatosDemo();
 
         $this->actingAs($gestor)
-            ->get('/cirugias/nueva?q=28456789')
+            ->getJson('/cirugias/nueva?q=28456789')
             ->assertOk()
-            ->assertSee('García, María')
-            ->assertSee('Seleccionar');
+            ->assertJsonCount(1)
+            ->assertJsonFragment([
+                'documento' => '28456789',
+                'nombre_completo' => 'García, María',
+            ]);
     }
 
     public function test_buscar_por_apellido_puede_devolver_varias_coincidencias(): void
@@ -84,10 +94,23 @@ class CrearCirugiaTest extends TestCase
         $this->pacienteNuevo('40111231', 'Pérez', 'Julián');
 
         $this->actingAs($gestor)
-            ->get('/cirugias/nueva?q=Pérez')
+            ->getJson('/cirugias/nueva?q=Pérez')
             ->assertOk()
-            ->assertSee('Pérez, Marta')
-            ->assertSee('Pérez, Julián');
+            ->assertJsonFragment(['nombre_completo' => 'Pérez, Marta'])
+            ->assertJsonFragment(['nombre_completo' => 'Pérez, Julián']);
+    }
+
+    /**
+     * La pantalla sí tiene que traer el buscador, aunque no los resultados: si
+     * el JS no encuentra su input, el alta queda sin forma de elegir paciente.
+     */
+    public function test_la_pantalla_de_alta_trae_el_buscador(): void
+    {
+        $this->actingAs($this->conDatosDemo())
+            ->get('/cirugias/nueva')
+            ->assertOk()
+            ->assertSee('id="input-buscar-paciente"', false)
+            ->assertSee('id="dropdown-pacientes"', false);
     }
 
     public function test_buscar_sin_resultado_ofrece_dar_de_alta(): void
