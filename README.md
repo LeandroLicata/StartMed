@@ -336,7 +336,7 @@ así que `migrate:rollback` funciona limpio.
 | `..._100900_create_evaluacion_anestesica_tables` | TipoASA, TipoAnestesia, EvaluacionAnestesica |
 | `..._101000_create_preparacion_paciente_tables` | TipoPreparacion, TipoIndicacion, PreparacionPaciente |
 | `..._101100_create_examen_preanestesico_tables` | config de preguntas/respuestas y examen del paciente |
-| `..._101200_create_profilaxis_tables` | Profilaxis, ProfilaxisRol, ProfilaxisAtbCirugia |
+| `..._101200_create_profilaxis_tables` | Profilaxis, ProfilaxisRol |
 | `..._101300_create_consentimiento_tables` | ConfigConsentimiento, ConsentimientoPaciente |
 
 ### Convenciones del esquema
@@ -392,8 +392,8 @@ En Laragon, el botón **Database** abre HeidiSQL ya conectado.
 
 ## Modelos
 
-**65 modelos** en [`app/Models/`](app/Models/), uno por tabla, con **153
-relaciones** (75 `belongsTo`, 75 `hasMany`/`hasOne`, 3 `belongsToMany`).
+**69 modelos** en [`app/Models/`](app/Models/), uno por tabla, con **162
+relaciones** (80 `belongsTo`, 78 `hasMany`/`hasOne`, 3 `belongsToMany`).
 
 Los nombres de relación derivan de **la columna, no de la tabla**, para que
 varias FK a la misma tabla no colisionen:
@@ -444,7 +444,7 @@ desarrollo**.
 
 | Archivo | Qué cubre |
 |---|---|
-| [`ModelosTest`](tests/Feature/ModelosTest.php) | Recorre por reflexión los 65 modelos y sus 153 relaciones: que la tabla y la PK existan, que cada relación compile a SQL y que todas sus columnas existan |
+| [`ModelosTest`](tests/Feature/ModelosTest.php) | Recorre por reflexión los 69 modelos y sus 162 relaciones: que la tabla y la PK existan, que cada relación compile a SQL y que todas sus columnas existan |
 | [`Auth/LoginTest`](tests/Feature/Auth/LoginTest.php) | Login, contraseña incorrecta, hasheo, usuario dado de baja, ruta inicial por rol |
 | [`DashboardTest`](tests/Feature/DashboardTest.php) | Semáforo de cada cirugía y que las consultas no crezcan con el número de filas |
 | [`PanelesTest`](tests/Feature/PanelesTest.php) | Que cada rol vea lo suyo y no lo ajeno, y el cálculo de horas de ayuno |

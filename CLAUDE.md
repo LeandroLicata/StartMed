@@ -85,13 +85,13 @@ survives** (the DB session driver needs it); the `users` table was removed on pu
 
 ### Models
 
-65 models in `app/Models/`, one per domain table, ~153 relations. **Relation names
+69 models in `app/Models/`, one per domain table, ~162 relations. **Relation names
 derive from the FK column, not the target table**, so multiple FKs to the same table
 don't collide — e.g. in `Cirugia`: `paciente()` (idPersonaPaciente→Persona),
 `cirujano()` / `anestesista()` (idPersonal\*→Personal). When adding relations, follow
 this column-based naming.
 
-`tests/Feature/ModelosTest.php` reflects over all 65 models and their relations,
+`tests/Feature/ModelosTest.php` reflects over all 69 models and their relations,
 asserting each table + PK exists, each relation compiles to SQL, and every referenced
 column (FK, owner/local key, pivot) exists. **Adding a table without its model, or
 renaming a column without updating the model, breaks this test** — it is the guardrail
@@ -322,8 +322,10 @@ extending it:
   doesn't pollute the log.
 - `Auditor::RESERVADOS` keeps passwords out. Never add a credential field to a diff.
 
-`Auditoria` is the one table that does **not** come from the original data model — that
-is why `ModelosTest` now expects 66 models, not 65.
+`Auditoria` is the one table that does **not** come from the original data model. It is
+part of why `ModelosTest` expects 69 models and not the original 65 — the rest is the
+Hisopado SARM module (+5) minus the `ProfilaxisAtbCirugia` pair it replaced (−2). The
+arithmetic is spelled out in the test itself; keep it there when the count moves.
 
 **Validation messages live in `lang/es/validation.php`.** `APP_LOCALE=es` with no
 translations published makes Laravel print the raw key (`validation.required`), so a
