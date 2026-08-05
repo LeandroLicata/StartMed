@@ -399,6 +399,14 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
 - **Patients cannot authenticate.** `Usuario` hangs off `Personal`, and a patient is a
   `Persona` with no staff record. `cirugias/portal-paciente` is a preview the staff
   opens; a real patient login needs a schema decision first.
+  A **half-built patient portal** sits behind that decision: `PacientePortalController`,
+  the `paciente.portal` view with its sections and `PortalPacienteMock` all exist, but
+  the routes were never registered (the controller's name has never appeared in
+  `routes/web.php` in any commit) and `rutaInicial()` has no `Paciente` branch. Do not
+  just wire the routes — the portal serves session-backed fake data, and reaching it
+  still requires inventing a `Personal` row for the patient, which is the very decision
+  being deferred. `PacientePortalTest` specifies the intended behaviour and is
+  `markTestSkipped` until then; unskip it when the decision is made.
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.
 - **Surgery duration** (`Cirugia.fechaHoraFinCirugia`, nullable) is used for
