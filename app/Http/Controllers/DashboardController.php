@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\FiltraCirugias;
 use App\Models\Cirugia;
 use App\Models\Quirofano;
+use App\Support\Paginador;
 use App\Support\ResumenCirugia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,12 @@ use Illuminate\View\View;
 class DashboardController extends Controller
 {
     use FiltraCirugias;
+
+    /**
+     * Cirugias por pagina en "Cirugias de la semana". El rango arranca en la
+     * semana actual, pero el gestor lo puede ampliar a un año.
+     */
+    private const POR_PAGINA = 15;
 
     /**
      * Tablero del gestor de quirofano: el estado de las cirugias proximas y
@@ -52,7 +59,11 @@ class DashboardController extends Controller
             'hoy' => $hoy,
             'cirugias' => $cirugias,
             'cirugiasDeHoy' => $cirugiasDeHoy,
-            'cirugiasFiltradas' => $this->aplicarFiltros($query, $request),
+            'cirugiasFiltradas' => Paginador::deColeccion(
+                $this->aplicarFiltros($query, $request),
+                $request,
+                self::POR_PAGINA,
+            ),
             'enRiesgoCount' => $cirugias->filter(fn (ResumenCirugia $r) => $r->enRiesgo())->count(),
             'quirofanosActivos' => Quirofano::whereNull('fechaBajaQuirofano')->count(),
             'agenda' => $this->agenda($cirugias),

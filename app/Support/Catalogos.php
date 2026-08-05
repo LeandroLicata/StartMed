@@ -106,10 +106,11 @@ final class Catalogos
             'rol' => [
                 ...self::simple(Rol::class, 'Rol', 'Roles', 'Personas y acceso', 120),
                 'baja' => 'fechaHoraBajaRol',
-                'protegidos' => ['Administrador'],
-                'motivoProteccion' => 'Usuario::tieneRol() lo busca por este nombre exacto. Si se
-                                       renombra, nadie entra más a Administración; si se da de baja,
-                                       no se le puede dar permiso de administración a nadie nuevo.',
+                'protegidos' => ['Administrador', 'Paciente'],
+                'motivoProteccion' => 'Usuario::tieneRol() y las rutas del portal los buscan por este
+                                       nombre exacto. Si se renombra, nadie entra más a Administración
+                                       ni a su portal; si se da de baja, no se le puede dar ese
+                                       permiso a nadie nuevo.',
             ],
 
             // --- Cirugías ---

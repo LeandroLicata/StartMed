@@ -227,6 +227,8 @@ class DemoSeeder extends Seeder
     /** @return array<string, Personal> */
     private function equipo(): array
     {
+        $this->crearPacienteDemo();
+
         $definiciones = [
             'perez' => ['Pérez', 'Daniel', '17223456', 'Cirujano', 'MP 4821', 'd.perez@hospital.uncuyo.edu.ar'],
             'lopez' => ['López', 'Silvia', '19887432', 'Cirujano', 'MP 5109', 's.lopez@hospital.uncuyo.edu.ar'],
@@ -265,6 +267,32 @@ class DemoSeeder extends Seeder
         }
 
         return $equipo;
+    }
+
+    /**
+     * Usuario de demo para el portal del paciente: María García, que ademas es
+     * la paciente de una de las cirugias sembradas.
+     *
+     * Le crea una fila en Personal sin legajo, porque Usuario cuelga de ahi y
+     * un paciente es una Persona sin legajo. Es el atajo que hace navegable el
+     * portal, no la solucion: como se autentica un paciente de verdad sigue
+     * siendo una decision de esquema pendiente.
+     */
+    private function crearPacienteDemo(): void
+    {
+        $persona = $this->persona('García', 'María', '28456789');
+        $personal = Personal::firstOrCreate(['idPersona' => $persona->idPersona]);
+
+        $personal->roles()->syncWithoutDetaching([
+            Rol::where('nombreRol', 'Paciente')->value('idRol') => [
+                'fechaHoraAsignacionRolPersonal' => now(),
+            ],
+        ]);
+
+        Usuario::firstOrCreate(
+            ['nombreUsuario' => 'mgarcia'],
+            ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => 'paciente1234'],
+        );
     }
 
     /** @return array<string, MaterialProveedor> */

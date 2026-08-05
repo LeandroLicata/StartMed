@@ -91,7 +91,7 @@
     {{-- Cirugías de la semana --}}
     <x-tarjeta titulo="Cirugías de la semana" icono="event" class="mt-6">
         <x-slot:acciones>
-            <x-estado tono="info">{{ $cirugiasFiltradas->count() }}</x-estado>
+            <x-estado tono="info">{{ $cirugiasFiltradas->total() }}</x-estado>
         </x-slot:acciones>
 
         <x-filtro-cirugias
@@ -104,6 +104,10 @@
         />
 
         <x-tabla-cirugias :cirugias="$cirugiasFiltradas" />
+
+        @if ($cirugiasFiltradas->hasPages())
+            <div class="pt-4">{{ $cirugiasFiltradas->links() }}</div>
+        @endif
     </x-tarjeta>
 
     {{-- Dónde se traban los casos --}}

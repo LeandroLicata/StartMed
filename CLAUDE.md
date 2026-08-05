@@ -396,17 +396,20 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
 
 ### Known gaps — do not assume these work
 
-- **Patients cannot authenticate.** `Usuario` hangs off `Personal`, and a patient is a
-  `Persona` with no staff record. `cirugias/portal-paciente` is a preview the staff
-  opens; a real patient login needs a schema decision first.
-  A **half-built patient portal** sits behind that decision: `PacientePortalController`,
-  the `paciente.portal` view with its sections and `PortalPacienteMock` all exist, but
-  the routes were never registered (the controller's name has never appeared in
-  `routes/web.php` in any commit) and `rutaInicial()` has no `Paciente` branch. Do not
-  just wire the routes — the portal serves session-backed fake data, and reaching it
-  still requires inventing a `Personal` row for the patient, which is the very decision
-  being deferred. `PacientePortalTest` specifies the intended behaviour and is
-  `markTestSkipped` until then; unskip it when the decision is made.
+- **The patient portal is routed, but it is a mock, and patient login is faked.**
+  `/mi-salud` (`rol:Paciente` → `PacientePortalController`, view `paciente.portal`) is
+  navigable and `rutaInicial()` sends a `Paciente` there, but `PortalPacienteMock`
+  keeps its state in the session and returns invented data — nothing behind those
+  screens reads the real case file. **Do not build on top of it as if it were wired
+  to the domain.**
+  The way in is a shortcut, not a solution: `Usuario` hangs off `Personal` and a
+  patient is a `Persona` with no staff record, so `DemoSeeder::crearPacienteDemo()`
+  invents a legajo-less `Personal` row for María García (`mgarcia` / `paciente1234`)
+  just to be able to create her user. **How a patient really authenticates is still
+  an open schema decision** — that is what has to be resolved before any of this is
+  real. `PacientePortalTest` covers navigation only, for the same reason.
+  `cirugias/portal-paciente` is a different screen: a preview the staff opens, and it
+  does read the real case file.
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.
 - **Surgery duration** (`Cirugia.fechaHoraFinCirugia`, nullable) is used for

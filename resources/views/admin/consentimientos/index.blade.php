@@ -14,7 +14,7 @@
 
     <x-tarjeta titulo="Plantillas por procedimiento" icono="draw">
         <x-slot:acciones>
-            <x-estado tono="info">{{ $tipos->count() }}</x-estado>
+            <x-estado tono="info">{{ $tipos->total() }}</x-estado>
         </x-slot:acciones>
 
         <div class="-mx-5 overflow-x-auto">
@@ -90,6 +90,10 @@
                 </tbody>
             </table>
         </div>
+
+        @if ($tipos->hasPages())
+            <div class="pt-4">{{ $tipos->links() }}</div>
+        @endif
     </x-tarjeta>
 
 @endsection

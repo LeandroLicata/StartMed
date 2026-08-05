@@ -11,6 +11,7 @@ use App\Models\EvaluacionTipoAsa;
 use App\Models\Personal;
 use App\Models\TipoAnestesia;
 use App\Models\TipoASA;
+use App\Support\Paginador;
 use App\Support\ResumenCirugia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,9 @@ use Illuminate\View\View;
 
 class AnestesistaController extends Controller
 {
+    /** Evaluaciones por pagina: la bandeja crece con la agenda del anestesista. */
+    private const POR_PAGINA = 10;
+
     /**
      * Bandeja del anestesista: las evaluaciones que tiene asignadas, separadas
      * por lo que le falta hacer a cada una.
@@ -41,7 +45,9 @@ class AnestesistaController extends Controller
 
         return view('paneles.anestesista', [
             'personal' => $personal,
-            'evaluaciones' => $evaluaciones,
+            // Solo el listado se recorta; los indicadores y el cuestionario del
+            // proximo paciente siguen mirando la bandeja entera.
+            'evaluaciones' => Paginador::deColeccion($evaluaciones, $request, self::POR_PAGINA),
             'pendientes' => $evaluaciones->reject(fn (ResumenCirugia $r) => $r->evaluacionCompleta())->values(),
             'indicadores' => [
                 'total' => $evaluaciones->count(),

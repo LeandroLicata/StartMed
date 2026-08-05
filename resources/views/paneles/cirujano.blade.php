@@ -115,11 +115,13 @@
                 No tenes cirugias programadas.
             </p>
         @endforelse
+
+        @if ($proximas->hasPages())
+            <div class="pt-4">{{ $proximas->links() }}</div>
+        @endif
     </x-tarjeta>
 
-    @php($conPendientes = $proximas->reject(fn ($c) => $c->estaLista()))
-
-    @if ($conPendientes->isNotEmpty())
+    @if ($conPendientes->total() > 0)
         <x-tarjeta titulo="Que falta resolver" icono="warning" class="mt-6">
             <ul class="divide-y divide-hu-gris-suave/60">
                 @foreach ($conPendientes as $caso)
@@ -142,6 +144,10 @@
                     </li>
                 @endforeach
             </ul>
+
+            @if ($conPendientes->hasPages())
+                <div class="pt-4">{{ $conPendientes->links() }}</div>
+            @endif
         </x-tarjeta>
     @endif
 
@@ -169,6 +175,10 @@
                 </div>
             @endforeach
         </div>
+
+        @if ($procedimientos->hasPages())
+            <div class="pt-4">{{ $procedimientos->links() }}</div>
+        @endif
     </x-tarjeta>
             {{-- Tarjeta de Historial de Cirugías --}}
 

@@ -39,7 +39,9 @@ class CuestionarioController extends Controller
                 ->orderByRaw('fechaFinVigeConfigTipoExamenPreAnestesico IS NULL DESC')
                 ->orderByDesc('fechaInicioVigeConfigTipoExamenPreAnestesico')
                 ->orderByDesc('idConfigTipoExamenPreAnestesico')
-                ->get(),
+                // La vigente queda siempre en la primera pagina: la ordena
+                // primero el orderByRaw de arriba.
+                ->paginate(25),
         ]);
     }
 
