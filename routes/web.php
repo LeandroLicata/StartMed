@@ -16,6 +16,7 @@ use App\Http\Controllers\CirujanoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
 use App\Http\Controllers\PacienteController;
+use App\Http\Controllers\PacientePortalController;
 use App\Http\Controllers\PortalPacienteController;
 use Illuminate\Support\Facades\Route;
 
@@ -51,22 +52,22 @@ Route::middleware('auth')->group(function () {
         ->only(['index', 'show'])
         ->middleware('rol:Gestor de quirófano,Cirujano,Anestesista');
 
-        Route::get('/cirujano', CirujanoController::class)
+    Route::get('/cirujano', CirujanoController::class)
         ->middleware('rol:Cirujano')
         ->name('cirujano');
 
-        // >>> NUEVA RUTA PARA EL HISTORIAL <<<
-        Route::get('/cirujano/historial', [CirujanoController::class, 'historial'])
-            ->middleware('rol:Cirujano')
-            ->name('cirujano.historial');
+    // >>> NUEVA RUTA PARA EL HISTORIAL <<<
+    Route::get('/cirujano/historial', [CirujanoController::class, 'historial'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.historial');
 
-        Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
-            ->middleware('rol:Cirujano')
-            ->name('cirujano.agenda');
+    Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.agenda');
 
-        Route::get('/anestesista', [AnestesistaController::class, 'index'])
-            ->middleware('rol:Anestesista')
-            ->name('anestesista');
+    Route::get('/anestesista', [AnestesistaController::class, 'index'])
+        ->middleware('rol:Anestesista')
+        ->name('anestesista');
 
     /*
      * CRUD de la evaluación pre-anestésica. La cirugía se resuelve por ruta y
@@ -83,6 +84,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/direccion', DireccionController::class)
         ->middleware('rol:Dirección médica')
         ->name('direccion');
+
+    /*
+     * Portal del paciente. Ojo: lo que hay detras es una maqueta. El estado lo
+     * guarda PortalPacienteMock en la sesion y los datos son inventados, asi
+     * que estas rutas dejan navegarlo, no lo ponen en produccion.
+     *
+     * Y para que un paciente pueda entrar hace falta inventarle una fila en
+     * Personal, porque Usuario cuelga de ahi (lo hace DemoSeeder). Esa es la
+     * decision de esquema que sigue pendiente: como se autentica un paciente.
+     */
+    Route::middleware('rol:Paciente')->prefix('mi-salud')->name('paciente.')->group(function () {
+        Route::get('/{seccion?}', PacientePortalController::class)
+            ->where('seccion', 'resumen|turnos|estudios|preanestesica|preparacion|consentimiento|contacto')
+            ->name('portal');
+        Route::post('/accion/{accion}', [PacientePortalController::class, 'accion'])
+            ->where('accion', 'confirmar|reprogramar|estudio|cuestionario|firmar|contacto')
+            ->name('accion');
+    });
 
     // Alta de una cirugia nueva: buscar/dar de alta al paciente por DNI y
     // completar quirofano, equipo y cobertura. Exclusivo del gestor. Va antes
