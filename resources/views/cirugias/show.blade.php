@@ -737,22 +737,30 @@
                         </x-estado>
                         
                         @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano', 'Anestesista'))
-                            {{-- Botón Subir Archivo --}}
-                            <form 
-                                action="{{ route('cirugias.estudios.update', [$caso->cirugia, $estudio]) }}" 
-                                method="POST" 
-                                enctype="multipart/form-data" 
+                            {{-- Botón Subir Archivo. Elegir el archivo dispara el envío sin
+                                 ningún paso intermedio, así que si ya hay uno subido pedimos
+                                 confirmación antes de reemplazarlo: no se puede volver a ver
+                                 desde esta pantalla una vez sobreescrito. --}}
+                            <form
+                                action="{{ route('cirugias.estudios.update', [$caso->cirugia, $estudio]) }}"
+                                method="POST"
+                                enctype="multipart/form-data"
                                 class="inline-flex"
+                                @if ($estudio->urlArchivoCirugiaTipoEstudio)
+                                    data-confirmar-titulo="Reemplazar el resultado de «{{ $estudio->tipoEstudio?->nombreTipoEstudio }}»"
+                                    data-confirmar="El archivo actual deja de estar disponible desde esta pantalla; sólo va a quedar el que subas ahora."
+                                    data-confirmar-accion="Reemplazar"
+                                @endif
                             >
                                 @csrf
                                 @method('PATCH')
-                                <input 
-                                    type="file" 
-                                    name="archivoResultadoEstudio" 
-                                    id="file-upload-{{ $estudio->idCirugiaTipoEstudio }}" 
-                                    class="hidden" 
+                                <input
+                                    type="file"
+                                    name="archivoResultadoEstudio"
+                                    id="file-upload-{{ $estudio->idCirugiaTipoEstudio }}"
+                                    class="hidden"
                                     accept=".pdf,image/jpeg,image/png"
-                                    onchange="this.form.submit()"
+                                    onchange="this.form.requestSubmit()"
                                 >
                                 <button
                                     type="button"
