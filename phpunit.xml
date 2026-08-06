@@ -21,6 +21,12 @@
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
+        <!--
+            Vacia a proposito: los tests corren contra GestorDocumentalLocal y no
+            salen a la red. Sin esta linea heredan la CLOUDINARY_URL del .env y
+            cada corrida sube archivos de prueba a la cuenta real.
+        -->
+        <env name="CLOUDINARY_URL" value=""/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="sqlite"/>

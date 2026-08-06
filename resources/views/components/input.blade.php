@@ -22,6 +22,13 @@
     $valorActual = $enviado ? old($nombre, $valor) : $valor;
     $hayError = $enviado && $errors->has($nombre);
     $idCampo = $id ?? $nombre;
+
+    /*
+     * Un input file no lleva value: el navegador lo ignora y el atributo es
+     * invalido. Tampoco hay old() que recuperar --el archivo no vuelve en el
+     * request fallido--, asi que el usuario tiene que elegirlo de nuevo.
+     */
+    $llevaValor = $tipo !== 'file';
 @endphp
 
 <div class="space-y-1.5">
@@ -38,7 +45,7 @@
         id="{{ $idCampo }}"
         name="{{ $nombre }}"
         type="{{ $tipo }}"
-        value="{{ $valorActual }}"
+        @if ($llevaValor) value="{{ $valorActual }}" @endif
         @if ($placeholder) placeholder="{{ $placeholder }}" @endif
         @if ($requerido) required @endif
         @if ($hayError) aria-invalid="true" aria-describedby="{{ $nombre }}-error" @endif

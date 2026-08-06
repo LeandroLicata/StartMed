@@ -45,6 +45,8 @@ use App\Models\TipoHemoderivado;
 use App\Models\TipoIndicacion;
 use App\Models\TipoPreparacion;
 use App\Services\ReprogramarCirugiaService;
+use App\Support\DocumentoNoDisponible;
+use App\Support\GestorDocumental;
 use App\Support\Paginador;
 use App\Support\ResumenCirugia;
 use Illuminate\Http\RedirectResponse;
@@ -60,6 +62,13 @@ class CirugiaController extends Controller
     private const TABS = ['resumen', 'preparacion', 'estudios', 'materiales', 'hemoderivados', 'profilaxis', 'autorizacion', 'evaluacion', 'asa'];
 
     private const POR_PAGINA = 20;
+
+    /**
+     * Adjuntos clínicos del expediente (resultados de estudios y de hisopados).
+     * Un solo juego de reglas para los dos: son el mismo tipo de documento y no
+     * hay razón para que uno acepte lo que el otro rechaza.
+     */
+    private const REGLAS_ARCHIVO = ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'];
 
     /**
      * Listado de todas las cirugias (pasadas y futuras), con los mismos
@@ -226,21 +235,37 @@ class CirugiaController extends Controller
      * Actualiza el laboratorio, la fecha estimada de resultados y las
      * observaciones del hisopado SAMR de una cirugía.
      */
-    public function actualizarHisopado(Request $request, Cirugia $cirugia): RedirectResponse
+    public function actualizarHisopado(Request $request, Cirugia $cirugia, GestorDocumental $gestor): RedirectResponse
     {
         $datos = $request->validate([
             'idEstablecimiento' => ['nullable', 'exists:Establecimiento,idEstablecimiento'],
             'fechaEstimadaResultadosHisopadoSarm' => ['nullable', 'date'],
             'observacionesHisopadoSarm' => ['nullable', 'string', 'max:255'],
+            'archivoHisopadoSarm' => self::REGLAS_ARCHIVO,
         ]);
 
         $hisopado = HisopadoSarm::where('idCirugia', $cirugia->idCirugia)->firstOrFail();
+        $subioArchivo = $request->hasFile('archivoHisopadoSarm');
+
+        unset($datos['archivoHisopadoSarm']);
+
+        try {
+            $datos += $this->punteroDelArchivo($request, $cirugia, $gestor);
+        } catch (DocumentoNoDisponible $e) {
+            report($e);
+
+            return back()->with('error', 'No se pudo guardar el archivo en el gestor documental. Probá de nuevo en unos minutos.');
+        }
 
         $hisopado->update($datos);
 
+        $mensaje = $subioArchivo
+            ? 'Datos del hisopado actualizados y archivo subido correctamente.'
+            : 'Datos del hisopado actualizados.';
+
         return redirect()
             ->route('cirugias.show', [$cirugia, 'tab' => 'profilaxis'])
-            ->with('exito', 'Datos del hisopado actualizados.');
+            ->with('exito', $mensaje);
     }
 
     /**
@@ -249,14 +274,28 @@ class CirugiaController extends Controller
      * Cierra el estado vigente (fechaFin = now()) y abre uno nuevo,
      * siguiendo el patron de date-ranges del sistema.
      */
-    public function actualizarEstadoHisopado(Request $request, Cirugia $cirugia): RedirectResponse
+    public function actualizarEstadoHisopado(Request $request, Cirugia $cirugia, GestorDocumental $gestor): RedirectResponse
     {
         $datos = $request->validate([
             'estado' => ['required', 'in:Negativo,Positivo'],
             'observacionesHisopadoSarm' => ['nullable', 'string', 'max:255'],
+            'archivoHisopadoSarm' => self::REGLAS_ARCHIVO,
         ]);
 
         $hisopado = HisopadoSarm::where('idCirugia', $cirugia->idCirugia)->firstOrFail();
+
+        /*
+         * El archivo se sube antes de tocar los estados: si el gestor falla, el
+         * hisopado no puede quedar registrado como Negativo con el adjunto
+         * perdido. Un resultado de SAMR decide el protocolo antibiótico.
+         */
+        try {
+            $adjunto = $this->punteroDelArchivo($request, $cirugia, $gestor);
+        } catch (DocumentoNoDisponible $e) {
+            report($e);
+
+            return back()->with('error', 'No se pudo guardar el archivo en el gestor documental. El resultado no se registró.');
+        }
 
         // Cerrar el estado vigente.
         HisopadoSarmEstado::where('idHisopadoSarm', $hisopado->idHisopadoSarm)
@@ -271,14 +310,72 @@ class CirugiaController extends Controller
             'fechaInicioAsignacionHisopadoSarmEstado' => now(),
         ]);
 
-        // Guardar observaciones si vienen.
+        // Guardar observaciones y adjunto si vienen.
+        $cambios = $adjunto;
+
         if (! empty($datos['observacionesHisopadoSarm'])) {
-            $hisopado->update(['observacionesHisopadoSarm' => $datos['observacionesHisopadoSarm']]);
+            $cambios['observacionesHisopadoSarm'] = $datos['observacionesHisopadoSarm'];
         }
+
+        if ($cambios !== []) {
+            $hisopado->update($cambios);
+        }
+
+        $mensaje = $adjunto !== []
+            ? 'Resultado del hisopado registrado y archivo subido correctamente.'
+            : 'Resultado del hisopado registrado correctamente.';
 
         return redirect()
             ->route('cirugias.show', [$cirugia, 'tab' => 'profilaxis'])
-            ->with('exito', 'Resultado del hisopado registrado correctamente.');
+            ->with('exito', $mensaje);
+    }
+
+    /**
+     * Redirige al adjunto del hisopado en el gestor documental.
+     *
+     * Mismo criterio que verArchivoEstudio(): la URL se firma acá y vence.
+     */
+    public function verArchivoHisopado(Cirugia $cirugia, GestorDocumental $gestor): RedirectResponse
+    {
+        $hisopado = HisopadoSarm::where('idCirugia', $cirugia->idCirugia)->firstOrFail();
+
+        if (blank($hisopado->urlHisopadoSarm)) {
+            abort(404);
+        }
+
+        try {
+            return redirect()->away($gestor->urlTemporal($hisopado->urlHisopadoSarm));
+        } catch (DocumentoNoDisponible $e) {
+            report($e);
+
+            return redirect()
+                ->route('cirugias.show', [$cirugia, 'tab' => 'profilaxis'])
+                ->with('error', 'El archivo no está disponible en el gestor documental.');
+        }
+    }
+
+    /**
+     * Sube el adjunto del hisopado, si el formulario lo trajo.
+     *
+     * Devuelve los campos a mergear en el update — vacío cuando no vino archivo,
+     * para que guardar el formulario sin adjuntar nada no borre el que ya estaba.
+     *
+     * @return array{urlHisopadoSarm?: string}
+     *
+     * @throws DocumentoNoDisponible
+     */
+    private function punteroDelArchivo(Request $request, Cirugia $cirugia, GestorDocumental $gestor): array
+    {
+        if (! $request->hasFile('archivoHisopadoSarm')) {
+            return [];
+        }
+
+        return [
+            'urlHisopadoSarm' => $gestor->guardar(
+                $request->file('archivoHisopadoSarm'),
+                'hisopados/'.$cirugia->idCirugia,
+            ),
+        ];
     }
 
     public function agregarProfilaxis(Request $request, Cirugia $cirugia): RedirectResponse
@@ -372,7 +469,7 @@ class CirugiaController extends Controller
     /**
      * Actualiza los datos de un estudio prequirúrgico existente (fecha esperada, resultado, archivo).
      */
-    public function actualizarEstudio(Request $request, Cirugia $cirugia, CirugiaTipoEstudio $estudio): RedirectResponse
+    public function actualizarEstudio(Request $request, Cirugia $cirugia, CirugiaTipoEstudio $estudio, GestorDocumental $gestor): RedirectResponse
     {
         // Validar que el estudio pertenece a la cirugía
         if ($estudio->idCirugia !== $cirugia->idCirugia) {
@@ -382,25 +479,78 @@ class CirugiaController extends Controller
         $datos = $request->validate([
             'fechaEsperadaResultadoCirugiaTipoEstudio' => ['nullable', 'date'],
             'resultadoCirugiaTipoEstudio' => ['nullable', 'string'],
-            'archivoResultadoEstudio' => ['nullable', 'file'], // MOCK: solo validamos que sea archivo si viene
+            'archivoResultadoEstudio' => self::REGLAS_ARCHIVO,
         ]);
 
-        $updateData = [
-            'fechaEsperadaResultadoCirugiaTipoEstudio' => $datos['fechaEsperadaResultadoCirugiaTipoEstudio'] ?? null,
-            'resultadoCirugiaTipoEstudio' => $datos['resultadoCirugiaTipoEstudio'] ?? null,
-        ];
+        /*
+         * Dos formularios distintos pegan acá: el de subir archivo manda solo el
+         * archivo, y el modal de gestionar manda solo fecha y resultado. Así que
+         * se toca únicamente lo que vino — un `?? null` de arriba abajo hacía que
+         * subir el resultado borrara la fecha esperada y el texto del estudio.
+         */
+        $cambios = array_intersect_key($datos, array_flip([
+            'fechaEsperadaResultadoCirugiaTipoEstudio',
+            'resultadoCirugiaTipoEstudio',
+        ]));
 
-        // MOCK: Si se sube un archivo, marcamos como subido hoy. En el futuro, se guarda en el gestor documental.
-        if ($request->hasFile('archivoResultadoEstudio')) {
-            $updateData['fechaSubidaCirugiaTipoEstudio'] = now();
-            // $updateData['urlArchivoCirugiaTipoEstudio'] = ...; // Guardar URL provista por el gestor
+        $subioArchivo = $request->hasFile('archivoResultadoEstudio');
+
+        if ($subioArchivo) {
+            /*
+             * El puntero al documento y la fecha de subida se escriben juntos: si
+             * el gestor falla no queremos el estudio marcado como «Subido» sin
+             * archivo detrás, que es lo que hacía la versión anterior.
+             */
+            try {
+                $cambios['urlArchivoCirugiaTipoEstudio'] = $gestor->guardar(
+                    $request->file('archivoResultadoEstudio'),
+                    'estudios/'.$cirugia->idCirugia,
+                );
+            } catch (DocumentoNoDisponible $e) {
+                report($e);
+
+                return back()->with('error', 'No se pudo guardar el archivo en el gestor documental. Probá de nuevo en unos minutos.');
+            }
+
+            $cambios['fechaSubidaCirugiaTipoEstudio'] = now();
         }
 
-        $estudio->update($updateData);
+        $estudio->update($cambios);
+
+        // El botón de subida manda un solo campo y dispara este mismo endpoint:
+        // el mensaje tiene que confirmar el archivo, no un genérico "actualizado"
+        // que no dice si lo que se guardó fue el PDF o sólo la fecha.
+        $mensaje = $subioArchivo
+            ? 'Archivo subido correctamente al gestor documental.'
+            : 'Estudio actualizado correctamente.';
 
         return redirect()
             ->route('cirugias.show', [$cirugia, 'tab' => 'estudios'])
-            ->with('exito', 'Estudio actualizado correctamente.');
+            ->with('exito', $mensaje);
+    }
+
+    /**
+     * Redirige al resultado del estudio en el gestor documental.
+     *
+     * El puntero que guarda la base nunca sale al HTML: la URL se firma acá, con
+     * la sesión y el rol ya verificados por el middleware, y vence en minutos.
+     * Es lo que hace que copiar el link de un hemograma no lo deje público.
+     */
+    public function verArchivoEstudio(Cirugia $cirugia, CirugiaTipoEstudio $estudio, GestorDocumental $gestor): RedirectResponse
+    {
+        if ($estudio->idCirugia !== $cirugia->idCirugia || blank($estudio->urlArchivoCirugiaTipoEstudio)) {
+            abort(404);
+        }
+
+        try {
+            return redirect()->away($gestor->urlTemporal($estudio->urlArchivoCirugiaTipoEstudio));
+        } catch (DocumentoNoDisponible $e) {
+            report($e);
+
+            return redirect()
+                ->route('cirugias.show', [$cirugia, 'tab' => 'estudios'])
+                ->with('error', 'El archivo no está disponible en el gestor documental.');
+        }
     }
 
     public function storePedidoHemoderivado(Request $request, Cirugia $cirugia): RedirectResponse

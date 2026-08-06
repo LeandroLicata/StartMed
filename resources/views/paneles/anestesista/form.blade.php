@@ -74,7 +74,184 @@
         </div>
 
         {{-- Formulario --}}
-        @include('paneles.anestesista.formulario')
+        <x-tarjeta
+            :titulo="$evaluacion ? 'Datos de la evaluación' : 'Nueva evaluación pre-anestésica'"
+            icono="stethoscope"
+            class="lg:col-span-2"
+        >
+            <form
+                method="POST"
+                action="{{ $evaluacion ? route('anestesista.update', $cirugia) : route('anestesista.store', $cirugia) }}"
+                class="space-y-5"
+            >
+                @csrf
+                @if ($evaluacion)
+                    @method('PUT')
+                @endif
+
+                <div class="grid gap-5 sm:grid-cols-2">
+                    <div class="space-y-1.5">
+                        <label for="idTipoAsa" class="block text-sm font-semibold text-hu-azul">
+                            Clasificación ASA <span class="text-red-700" aria-hidden="true">*</span>
+                        </label>
+
+                        <select
+                            id="idTipoAsa"
+                            name="idTipoAsa"
+                            required
+                            @if ($errors->has('idTipoAsa'))
+                                aria-invalid="true" aria-describedby="idTipoAsa-error"
+                            @endif
+                            @class([
+                                'block w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-hu-gris
+                                 focus:border-hu-azul focus:ring-0',
+                                'border-hu-gris-suave' => ! $errors->has('idTipoAsa'),
+                                'border-red-600' => $errors->has('idTipoAsa'),
+                            ])
+                        >
+                            <option value="" disabled @selected($asaSeleccion === '')>Seleccioná una clasificación…</option>
+                            @foreach ($tiposAsa as $asa)
+                                <option value="{{ $asa->idTipoAsa }}" @selected($asaSeleccion === (string) $asa->idTipoAsa)>
+                                    {{ $asa->aliasTipoAsa }} — {{ $asa->descripcionTipoAsa }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        @error('idTipoAsa')
+                            <p id="idTipoAsa-error" class="flex items-center gap-1 text-xs font-semibold text-red-700">
+                                <x-icono nombre="error" class="text-sm" relleno />
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="idTipoAnestesia" class="block text-sm font-semibold text-hu-azul">
+                            Tipo de anestesia <span class="text-red-700" aria-hidden="true">*</span>
+                        </label>
+
+                        <select
+                            id="idTipoAnestesia"
+                            name="idTipoAnestesia"
+                            required
+                            @if ($errors->has('idTipoAnestesia'))
+                                aria-invalid="true" aria-describedby="idTipoAnestesia-error"
+                            @endif
+                            @class([
+                                'block w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-hu-gris
+                                 focus:border-hu-azul focus:ring-0',
+                                'border-hu-gris-suave' => ! $errors->has('idTipoAnestesia'),
+                                'border-red-600' => $errors->has('idTipoAnestesia'),
+                            ])
+                        >
+                            <option value="" disabled @selected($anestesiaSeleccion === '')>Seleccioná un tipo…</option>
+                            @foreach ($tiposAnestesia as $anestesia)
+                                <option
+                                    value="{{ $anestesia->idTipoAnestesia }}"
+                                    @selected($anestesiaSeleccion === (string) $anestesia->idTipoAnestesia)
+                                >
+                                    {{ $anestesia->nombreTipoAnestesia }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        @error('idTipoAnestesia')
+                            <p id="idTipoAnestesia-error" class="flex items-center gap-1 text-xs font-semibold text-red-700">
+                                <x-icono nombre="error" class="text-sm" relleno />
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="observacionesEquipoEvaluacion" class="block text-sm font-semibold text-hu-azul">
+                        Observaciones del equipo
+                    </label>
+                    <textarea
+                        id="observacionesEquipoEvaluacion"
+                        name="observacionesEquipoEvaluacion"
+                        rows="3"
+                        placeholder="Por ejemplo: indicaciones del acto, riesgos detectados…"
+                        @if ($errors->has('observacionesEquipoEvaluacion'))
+                            aria-invalid="true" aria-describedby="observacionesEquipoEvaluacion-error"
+                        @endif
+                        @class([
+                            'block w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-hu-gris
+                             placeholder:text-hu-gris-medio focus:border-hu-azul focus:ring-0',
+                            'border-hu-gris-suave' => ! $errors->has('observacionesEquipoEvaluacion'),
+                            'border-red-600' => $errors->has('observacionesEquipoEvaluacion'),
+                        ])
+                    >{{ old('observacionesEquipoEvaluacion', $evaluacion?->observacionesEquipoEvaluacion) }}</textarea>
+
+                    @error('observacionesEquipoEvaluacion')
+                        <p id="observacionesEquipoEvaluacion-error" class="flex items-center gap-1 text-xs font-semibold text-red-700">
+                            <x-icono nombre="error" class="text-sm" relleno />
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="observacionesPacienteEvaluacion" class="block text-sm font-semibold text-hu-azul">
+                        Observaciones del paciente
+                    </label>
+                    <textarea
+                        id="observacionesPacienteEvaluacion"
+                        name="observacionesPacienteEvaluacion"
+                        rows="3"
+                        placeholder="Antecedentes que aporta el paciente en la entrevista…"
+                        @if ($errors->has('observacionesPacienteEvaluacion'))
+                            aria-invalid="true" aria-describedby="observacionesPacienteEvaluacion-error"
+                        @endif
+                        @class([
+                            'block w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-hu-gris
+                             placeholder:text-hu-gris-medio focus:border-hu-azul focus:ring-0',
+                            'border-hu-gris-suave' => ! $errors->has('observacionesPacienteEvaluacion'),
+                            'border-red-600' => $errors->has('observacionesPacienteEvaluacion'),
+                        ])
+                    >{{ old('observacionesPacienteEvaluacion', $evaluacion?->observacionesPacienteEvaluacion) }}</textarea>
+
+                    @error('observacionesPacienteEvaluacion')
+                        <p id="observacionesPacienteEvaluacion-error" class="flex items-center gap-1 text-xs font-semibold text-red-700">
+                            <x-icono nombre="error" class="text-sm" relleno />
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                {{-- La decisión de aptitud es el resultado de la evaluación, no un
+                     paso aparte: el mismo botón que registra los datos define si
+                     queda «Completada» o «Diferida» (App\Http\Controllers\
+                     AnestesistaController::completar()). Mismo par de botones que
+                     la pestaña «Evaluación anestésica» del expediente. --}}
+                <div class="flex flex-wrap items-center justify-end gap-3 border-t border-hu-gris-suave/70 pt-5">
+                    <x-boton
+                        variante="contorno"
+                        forma="grupo"
+                        tipo="submit"
+                        name="decision"
+                        value="no_apto"
+                        icono="cancel"
+                        class="!border-red-700 !text-red-700 hover:!bg-red-50"
+                    >
+                        No apto
+                    </x-boton>
+
+                    <x-boton
+                        variante="primario"
+                        forma="grupo"
+                        tipo="submit"
+                        name="decision"
+                        value="apto"
+                        icono="check_circle"
+                        class="!bg-green-700 hover:!bg-green-800"
+                    >
+                        Apto
+                    </x-boton>
+                </div>
+            </form>
+        </x-tarjeta>
     </div>
 
 @endsection

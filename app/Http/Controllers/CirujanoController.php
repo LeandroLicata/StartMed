@@ -60,14 +60,14 @@ class CirujanoController extends Controller
             ->get()
             ->map(fn (Cirugia $c) => new ResumenCirugia($c));
 
-        // Los indicadores y "que falta resolver" salen de la colecciÃ³n entera:
+        // Los indicadores y "que falta resolver" salen de la colección entera:
         // lo que se pagina es lo que se dibuja, no lo que se cuenta.
         $conPendientes = $proximas->reject(fn (ResumenCirugia $r) => $r->estaLista())->values();
 
         return view('paneles.cirujano', [
             'personal' => $personal,
             'hoy' => $hoy,
-'proximas' => Paginador::deColeccion($proximas, $request, self::POR_PAGINA, 'proximas'),
+            'proximas' => Paginador::deColeccion($proximas, $request, self::POR_PAGINA, 'proximas'),
             'conPendientes' => Paginador::deColeccion($conPendientes, $request, self::POR_PAGINA, 'pendientes'),
             'ultimasCirugias' => $ultimasCirugias,
             'conImplante' => $proximas->filter(fn (ResumenCirugia $r) => $r->cirugia->requiereImplante)->count(),
@@ -106,7 +106,6 @@ class CirujanoController extends Controller
             'historial' => $historialResumen,
         ]);
     }
-
 
     public function detalle(Request $request, Cirugia $cirugia): View
     {

@@ -198,7 +198,7 @@ class AnestesistaCrudTest extends TestCase
                 'idTipoAnestesia' => TipoAnestesia::where('nombreTipoAnestesia', 'Sedación + local')->value('idTipoAnestesia'),
                 'observacionesEquipoEvaluacion' => 'Primera evaluación',
             ])
-            ->assertRedirect(route('anestesista'));
+            ->assertRedirect(route('cirugias.show', [$cirugia, 'tab' => 'evaluacion']));
 
         $evaluacion = $cirugia->evaluacionAnestesicas()->first();
         $this->assertNotNull($evaluacion);
@@ -209,7 +209,7 @@ class AnestesistaCrudTest extends TestCase
                 'idTipoAnestesia' => TipoAnestesia::where('nombreTipoAnestesia', 'General')->value('idTipoAnestesia'),
                 'observacionesEquipoEvaluacion' => 'Actualizada tras el cuestionario',
             ])
-            ->assertRedirect(route('cirugias.show', [$vidal, 'tab' => 'evaluacion']));
+            ->assertRedirect(route('cirugias.show', [$cirugia, 'tab' => 'evaluacion']));
 
         $this->assertSame('Actualizada tras el cuestionario', $evaluacion->fresh()->observacionesEquipoEvaluacion);
 

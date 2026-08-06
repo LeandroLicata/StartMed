@@ -89,19 +89,17 @@
             'roles' => ['Administrador'],
         ],
         /*
-         * El cuestionario preanestesico es una herramienta clinica del
-         * anestesista, pero el acceso al modulo se decide por ruta y estado
-         * (congelado al responder), no por la barra lateral. En la barra queda
-         * solo para el administrador: el anestesista ve su propio bloque
-         * (Evaluaciones, Pacientes, Agenda, Historial), sin duplicar
-         * administracion ni cuestionarios sueltos.
+         * El unico item de este bloque que no es solo del administrador. Para
+         * el anestesista no aparece bajo el rotulo 'Administración' —cuelga del
+         * item Usuarios, que el no ve— sino al final de su propia lista, que es
+         * donde corresponde: el cuestionario es su herramienta de trabajo.
          */
         [
             'etiqueta' => 'Cuestionario preanestésico',
             'icono' => 'assignment',
             'ruta' => 'admin.cuestionario.index',
             'activaEn' => 'admin.cuestionario.*',
-            'roles' => ['Administrador'],
+            'roles' => ['Administrador', 'Anestesista'],
         ],
         [
             'etiqueta' => 'Proveedores y precios',

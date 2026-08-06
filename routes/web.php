@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditoriaController;
@@ -45,12 +45,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     Route::get('/dashboard', DashboardController::class)
-        ->middleware('rol:Gestor de quirÃ³fano,DirecciÃ³n mÃ©dica')
+        ->middleware('rol:Gestor de quirófano,Dirección médica')
         ->name('dashboard');
 
     Route::resource('pacientes', PacienteController::class)
         ->only(['index', 'show'])
-        ->middleware('rol:Gestor de quirÃ³fano,Cirujano,Anestesista');
+        ->middleware('rol:Gestor de quirófano,Cirujano,Anestesista');
 
     Route::get('/cirujano', CirujanoController::class)
         ->middleware('rol:Cirujano')
@@ -61,23 +61,23 @@ Route::middleware('auth')->group(function () {
         ->middleware('rol:Cirujano')
         ->name('cirujano.historial');
 
-        Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
-            ->middleware('rol:Cirujano')
-            ->name('cirujano.agenda');
-        Route::get('/cirujano/agenda/{fecha}', [CirujanoController::class, 'agendaDia'])
-            ->middleware('rol:Cirujano')
-            ->name('cirujano.agenda.dia');
-            // >>> NUEVA RUTA PARA VER EL DETALLE DE UNA CIRUGÃA <<<
-        Route::get('/cirujano/cirugias/{cirugia}', [CirujanoController::class, 'detalle'])
-            ->middleware('rol:Cirujano')
-            ->name('cirujano.cirugias.detalle');
+    Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.agenda');
+    Route::get('/cirujano/agenda/{fecha}', [CirujanoController::class, 'agendaDia'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.agenda.dia');
+    // >>> NUEVA RUTA PARA VER EL DETALLE DE UNA CIRUGÍA <<<
+    Route::get('/cirujano/cirugias/{cirugia}', [CirujanoController::class, 'detalle'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.cirugias.detalle');
 
     Route::get('/anestesista', [AnestesistaController::class, 'index'])
         ->middleware('rol:Anestesista')
         ->name('anestesista');
 
     /*
-     * CRUD de la evaluaciÃ³n pre-anestÃ©sica. La cirugÃ­a se resuelve por ruta y
+     * CRUD de la evaluación pre-anestésica. La cirugía se resuelve por ruta y
      * el controlador valida que sea del anestesista que entra.
      */
     Route::middleware('rol:Anestesista')->prefix('anestesista')->name('anestesista.')->group(function () {
@@ -89,7 +89,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::get('/direccion', DireccionController::class)
-        ->middleware('rol:DirecciÃ³n mÃ©dica')
+        ->middleware('rol:Dirección médica')
         ->name('direccion');
 
     /*
@@ -113,7 +113,7 @@ Route::middleware('auth')->group(function () {
     // Alta de una cirugia nueva: buscar/dar de alta al paciente por DNI y
     // completar quirofano, equipo y cobertura. Exclusivo del gestor. Va antes
     // de '/cirugias/{cirugia}' para que 'nueva' no se interprete como un id.
-    Route::middleware('rol:Gestor de quirÃ³fano')->group(function () {
+    Route::middleware('rol:Gestor de quirófano')->group(function () {
         Route::get('/cirugias', [CirugiaController::class, 'index'])->name('cirugias.index');
 
         Route::get('/cirugias/nueva', [CirugiaCreacionController::class, 'buscar'])
@@ -140,12 +140,17 @@ Route::middleware('auth')->group(function () {
             ->name('agenda.dia');
     });
 
-    Route::middleware('rol:Gestor de quirÃ³fano,Cirujano')->group(function () {
+    Route::middleware('rol:Gestor de quirófano,Cirujano')->group(function () {
         Route::patch('/cirugias/{cirugia}/hisopado', [CirugiaController::class, 'actualizarHisopado'])
             ->name('cirugias.hisopado.actualizar');
 
         Route::patch('/cirugias/{cirugia}/hisopado/estado', [CirugiaController::class, 'actualizarEstadoHisopado'])
             ->name('cirugias.hisopado.estado');
+
+        // Firma la descarga del adjunto recien al pedirla, igual que la de los
+        // estudios. Ver App\Support\GestorDocumental.
+        Route::get('/cirugias/{cirugia}/hisopado/archivo', [CirugiaController::class, 'verArchivoHisopado'])
+            ->name('cirugias.hisopado.archivo');
 
         Route::post('/cirugias/{cirugia}/profilaxis', [CirugiaController::class, 'agregarProfilaxis'])
             ->name('cirugias.profilaxis.store');
@@ -163,12 +168,18 @@ Route::middleware('auth')->group(function () {
             ->name('cirugias.personal.reasignar');
     });
 
-    Route::middleware('rol:Gestor de quirÃ³fano,Cirujano,Anestesista')->group(function () {
+    Route::middleware('rol:Gestor de quirófano,Cirujano,Anestesista')->group(function () {
         Route::post('/cirugias/{cirugia}/estudios', [CirugiaController::class, 'agregarEstudio'])
             ->name('cirugias.estudios.store');
 
         Route::patch('/cirugias/{cirugia}/estudios/{estudio}', [CirugiaController::class, 'actualizarEstudio'])
             ->name('cirugias.estudios.update');
+
+        // El resultado no se linkea directo al gestor documental: son datos de
+        // salud, y una URL de Cloudinary en el HTML se comparte sin sesion. Esta
+        // ruta firma la descarga recien al pedirla. Ver App\Support\GestorDocumental.
+        Route::get('/cirugias/{cirugia}/estudios/{estudio}/archivo', [CirugiaController::class, 'verArchivoEstudio'])
+            ->name('cirugias.estudios.archivo');
 
         Route::post('/cirugias/{cirugia}/hemoderivados', [CirugiaController::class, 'storePedidoHemoderivado'])
             ->name('cirugias.hemoderivados.store');

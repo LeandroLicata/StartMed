@@ -18,8 +18,10 @@ return [
     'different' => 'Los campos :attribute y :other tienen que ser distintos.',
     'email' => 'El campo :attribute tiene que ser una dirección de correo válida.',
     'exists' => 'El valor elegido en :attribute no es válido.',
+    'file' => 'El campo :attribute tiene que ser un archivo.',
     'in' => 'El valor elegido en :attribute no es válido.',
     'integer' => 'El campo :attribute tiene que ser un número entero.',
+    'mimes' => 'El campo :attribute tiene que ser un archivo de tipo: :values.',
     'max' => [
         'array' => 'El campo :attribute no puede tener más de :max elementos.',
         'file' => 'El campo :attribute no puede pesar más de :max kilobytes.',
@@ -38,5 +40,14 @@ return [
     'string' => 'El campo :attribute tiene que ser texto.',
     'unique' => 'Ese :attribute ya está en uso.',
 
-    'attributes' => [],
+    /*
+     * Casi todas las pantallas validan con un FormRequest y nombran sus campos
+     * ahi. Estos son los de los `$request->validate()` sueltos, donde no hay
+     * metodo attributes() donde ponerlos y el nombre crudo de la columna
+     * quedaria a la vista del usuario.
+     */
+    'attributes' => [
+        'archivoResultadoEstudio' => 'archivo del resultado',
+        'archivoHisopadoSarm' => 'archivo del hisopado',
+    ],
 ];
