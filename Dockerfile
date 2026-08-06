@@ -23,6 +23,12 @@ FROM php:8.3-fpm-alpine
 
 RUN apk add --no-cache nginx supervisor bash gettext
 
+# Las librerías de runtime (no las -dev) se instalan aparte, como paquetes
+# "explícitos" — si quedaran solo como dependencia del virtual .build-deps de
+# abajo, "apk del .build-deps" las borra en cascada por huérfanas y las
+# extensiones quedan compiladas pero sin la .so que necesitan para cargar.
+RUN apk add --no-cache icu-libs libzip libpng freetype libjpeg-turbo oniguruma
+
 RUN apk add --no-cache --virtual .build-deps \
         icu-dev oniguruma-dev libzip-dev libpng-dev freetype-dev libjpeg-turbo-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
