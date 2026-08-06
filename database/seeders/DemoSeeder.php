@@ -51,6 +51,7 @@ use App\Models\Usuario;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Datos de demostracion: una semana de quirofano con casos en distintos
@@ -477,6 +478,8 @@ class DemoSeeder extends Seeder
     /** @param  list<array{0:string,1:int|null}>  $estudios */
     private function estudios(Cirugia $cirugia, array $estudios): void
     {
+        $puntero = $this->archivoDemostracion();
+
         foreach ($estudios as [$nombre, $diasAtras]) {
             CirugiaTipoEstudio::firstOrCreate(
                 [
@@ -489,10 +492,35 @@ class DemoSeeder extends Seeder
                     'fechaSubidaCirugiaTipoEstudio' => $diasAtras ? now()->addDays($diasAtras) : null,
                     'fechaEsperadaResultadoCirugiaTipoEstudio' => $cirugia->fechaHoraCirugia?->copy()->subDays(2),
                     'resultadoCirugiaTipoEstudio' => $diasAtras ? 'Sin particularidades' : null,
-                    'urlArchivoCirugiaTipoEstudio' => $diasAtras ? 'estudios/demo.pdf' : null,
+                    'urlArchivoCirugiaTipoEstudio' => $diasAtras ? $puntero : null,
                 ],
             );
         }
+    }
+
+    /**
+     * Deja un archivo real en el disco local y devuelve su puntero.
+     *
+     * Antes acá había un `'estudios/demo.pdf'` que no apuntaba a nada: alcanzaba
+     * cuando el botón «Ver» era un alert(), pero ahora abre el documento. Un PNG
+     * de 1x1 (el archivo válido más corto que existe) es suficiente para que el
+     * circuito completo se pueda demostrar sin meter un binario en el repo.
+     *
+     * Lleva el prefijo `local:` a propósito: si la instalación tiene Cloudinary
+     * configurado, este puntero no le pertenece y la pantalla avisa que el
+     * archivo no está, en vez de resolverlo contra la cuenta equivocada.
+     */
+    private function archivoDemostracion(): string
+    {
+        $ruta = 'estudios/demo.png';
+
+        if (! Storage::disk('local')->exists($ruta)) {
+            Storage::disk('local')->put($ruta, base64_decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+            ));
+        }
+
+        return 'local:'.$ruta;
     }
 
     private function evaluacion(Cirugia $cirugia, string $asa, string $anestesia, string $estado): void

@@ -764,16 +764,29 @@
                                 </button>
                             </form>
 
-                            {{-- Botón Ver Archivo --}}
-                            <button
-                                type="button"
-                                class="flex h-8 w-8 items-center justify-center rounded-full transition-colors {{ $estudio->fechaSubidaCirugiaTipoEstudio ? 'text-hu-azul hover:bg-hu-azul-tenue' : 'text-hu-gris-suave cursor-not-allowed' }}"
-                                title="{{ $estudio->fechaSubidaCirugiaTipoEstudio ? 'Ver resultado' : 'Resultado no subido' }}"
-                                @if(! $estudio->fechaSubidaCirugiaTipoEstudio) disabled @endif
-                                onclick="alert('Se abrirá el visor del gestor documental externo.')"
-                            >
-                                <x-icono nombre="visibility" class="text-[18px]" />
-                            </button>
+                            {{-- Botón Ver Archivo. Mira el puntero al documento y no la
+                                 fecha de subida: la fecha sin puntero es un estudio cargado
+                                 antes de que existiera el gestor documental, y ahí no hay
+                                 nada que abrir. --}}
+                            @if ($estudio->urlArchivoCirugiaTipoEstudio)
+                                <a
+                                    href="{{ route('cirugias.estudios.archivo', [$caso->cirugia, $estudio]) }}"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="flex h-8 w-8 items-center justify-center rounded-full text-hu-azul transition-colors hover:bg-hu-azul-tenue"
+                                    title="Ver resultado"
+                                >
+                                    <x-icono nombre="visibility" class="text-[18px]" />
+                                </a>
+                            @else
+                                <span
+                                    class="flex h-8 w-8 items-center justify-center rounded-full text-hu-gris-suave"
+                                    title="Resultado no subido"
+                                    aria-hidden="true"
+                                >
+                                    <x-icono nombre="visibility" class="text-[18px]" />
+                                </span>
+                            @endif
 
                             {{-- Botón Gestionar / Editar datos --}}
                             <button
@@ -1140,6 +1153,22 @@
                                 <dd class="max-w-[60%] text-right text-hu-azul">{{ $hisopado['observaciones'] }}</dd>
                             </div>
                         @endif
+                        @if ($hisopado['archivo'])
+                            <div class="flex items-center justify-between gap-3 py-2.5 last:pb-0">
+                                <dt class="text-hu-gris-medio">Adjunto</dt>
+                                <dd>
+                                    <a
+                                        href="{{ route('cirugias.hisopado.archivo', $caso->cirugia) }}"
+                                        target="_blank"
+                                        rel="noopener"
+                                        class="inline-flex items-center gap-1 font-semibold text-hu-azul hover:underline"
+                                    >
+                                        <x-icono nombre="visibility" class="text-base" />
+                                        Ver resultado
+                                    </a>
+                                </dd>
+                            </div>
+                        @endif
                     </dl>
 
                     {{-- Botones de resultado: solo visibles si está Pendiente y el usuario puede registrar --}}
@@ -1319,7 +1348,7 @@
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('cirugias.hisopado.actualizar', $caso->cirugia) }}" class="space-y-4">
+            <form method="POST" action="{{ route('cirugias.hisopado.actualizar', $caso->cirugia) }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 @method('PATCH')
 
@@ -1350,7 +1379,7 @@
                         tipo="file"
                         nombre="archivoHisopadoSarm"
                         etiqueta="Archivo adjunto (PDF, JPG, PNG)"
-                        ayuda="El archivo se guardará en el gestor documental externo."
+                        ayuda="Reemplaza el archivo que haya cargado antes."
                         accept=".pdf,image/jpeg,image/png"
                     />
                 </div>
@@ -1374,7 +1403,7 @@
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('cirugias.hisopado.estado', $caso->cirugia) }}" class="space-y-4">
+            <form method="POST" action="{{ route('cirugias.hisopado.estado', $caso->cirugia) }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 @method('PATCH')
 
@@ -1393,11 +1422,15 @@
                 />
 
                 <div class="border-t border-hu-gris-suave/60 pt-4">
+                    {{-- Mismo nombre de campo que el modal de edición: los dos
+                         formularios escriben el único archivo del hisopado, y dos
+                         nombres para el mismo destino era una trampa a futuro. --}}
                     <x-input
                         tipo="file"
-                        nombre="archivoResultado"
+                        nombre="archivoHisopadoSarm"
+                        id="archivo-resultado-hisopado"
                         etiqueta="Adjuntar resultado (PDF, JPG, PNG)"
-                        ayuda="El archivo se guardará en el gestor documental externo."
+                        ayuda="Queda guardado en el gestor documental."
                         accept=".pdf,image/jpeg,image/png"
                     />
                 </div>

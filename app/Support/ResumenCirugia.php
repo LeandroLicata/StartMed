@@ -409,6 +409,9 @@ class ResumenCirugia
             'fechaEstimada' => $hisopado->fechaEstimadaResultadosHisopadoSarm,
             'establecimiento' => $hisopado->establecimiento?->nombreEstablecimiento,
             'observaciones' => $hisopado->observacionesHisopadoSarm,
+            // Puntero al adjunto en el gestor documental, no una URL: la vista
+            // lo usa sólo para saber si hay algo que mostrar.
+            'archivo' => $hisopado->urlHisopadoSarm,
         ];
     }
 

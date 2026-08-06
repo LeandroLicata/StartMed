@@ -122,6 +122,57 @@ for the full case file). The class assumes everything is loaded and never querie
 `DashboardTest` and `PanelesTest` assert the query count does not grow with the number
 of surgeries, so a missing relation surfaces as a failing test, not a slow page.
 
+### Clinical files — `App\Support\GestorDocumental`
+
+Where the expediente's attachments live: study results
+(`CirugiaTipoEstudio.urlArchivoCirugiaTipoEstudio`) and swab results
+(`HisopadoSarm.urlHisopadoSarm`). Backed by Cloudinary
+(`GestorDocumentalCloudinary`), falling back to the `local` disk
+(`GestorDocumentalLocal`) when `CLOUDINARY_URL` is unset — so a fresh clone can
+`migrate:fresh --seed` and demo the whole thing without an account, and the suite
+never hits the network.
+
+It is an **interface resolved from the container**, unlike the static support
+classes around it (`Auditor::foto()`, `Catalogos::buscar()`). That is deliberate:
+it does network I/O, so tests and credential-less installs have to be able to swap
+it. The binding is in `AppServiceProvider::register()`.
+
+**A hemograma or a SARM result is identifiable health data, so nothing is ever
+stored publicly.** That single fact drives the whole shape of the class:
+
+- Uploads use Cloudinary's `type: authenticated`. A public asset is served to
+  anyone holding the link, with no session — that is the difference between a lab
+  result that leaks by copy-pasting a URL and one that does not.
+- `guardar()` returns an **opaque puntero, never a URL**, and that is what goes in
+  the column. Delivery URLs are built by `urlTemporal()`, signed and expiring, at
+  the moment of display — persisting one is pointless because it expires.
+- The columns are named `urlXxx` because the original data model named them that;
+  what they hold is a pointer to the document in the gestor, which is what they
+  were for. **Do not "fix" them to hold a URL.**
+- Punteros carry a backend prefix (`cloudinary:…` / `local:…`) so a DB seeded
+  against one backend and served by the other surfaces as a "file not available"
+  notice instead of resolving against the wrong account.
+
+Delivery goes through the app, never a direct link: `cirugias.estudios.archivo` and
+`cirugias.hisopado.archivo` check the role and the record's ownership, then redirect
+to a freshly signed URL. Cloudinary's side uses `privateDownloadUrl()`, which
+expires and does not go through the delivery CDN — so the account setting that
+blocks PDF delivery does not apply, and study results are mostly PDFs.
+
+Two rules when extending it:
+
+- **Write the puntero and the "uploaded" marker together.** Marking a study
+  `fechaSubidaCirugiaTipoEstudio` when the upload failed is what the old mock did —
+  it showed "Subido" with nothing behind it. `DocumentoNoDisponible` exists so the
+  controllers can flash a message instead of a 500.
+- **Never delete the remote asset on the write path.** `ReprogramarCirugiaService`
+  clones `CirugiaTipoEstudio` rows pointing at the same puntero, so two rows can share
+  one file — same reason every other deletion in this app is logical.
+
+Validation for both attachments is one constant, `CirugiaController::REGLAS_ARCHIVO`
+(pdf/jpg/png, 20 MB). `GestorDocumentalTest` covers the round trip, the rejections,
+the failure path and the signing.
+
 ### Seeders
 
 `DatabaseSeeder` → `CatalogosSeeder` (reference tables) + admin user, then, **only in
@@ -410,6 +461,11 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   real. `PacientePortalTest` covers navigation only, for the same reason.
   `cirugias/portal-paciente` is a different screen: a preview the staff opens, and it
   does read the real case file.
+  Its "subir estudio" form is **still a mock** and is the one upload in the app that
+  does not go through `App\Support\GestorDocumental`: `PacientePortalController::accion()`
+  validates the file and then throws it away, writing a boolean into the session. It was
+  left that way on purpose — wiring real patient uploads means writing clinical files
+  against a faked identity, so the login decision above has to come first.
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.
 - **Surgery duration** (`Cirugia.fechaHoraFinCirugia`, nullable) is used for
@@ -427,7 +483,9 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   Today the gestor can only request it from the create-surgery form (a checkbox, same
   "header only" pattern as hemoderivados); there's no screen yet to load the result,
   the lab (`Establecimiento`), or the resulting profilaxis — that's the gestor's/
-  cirujano's job later, undecided which panel it belongs in.
+  cirujano's job later, undecided which panel it belongs in. The **attachment** on
+  both hisopado modals is real (`App\Support\GestorDocumental`); the profilaxis that
+  should follow from a positive result is still not derived from it.
 - **Four master tables sit outside the generic catalog ABM, each with its own screen.**
   `ConfigConsentimiento` (`/admin/consentimientos`), `ConfigTipoExamenPreAnestesico*`
   (`/admin/cuestionario`) and `MaterialProveedor` / `MaterialProveedorTipoMedida`

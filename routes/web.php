@@ -147,6 +147,11 @@ Route::middleware('auth')->group(function () {
         Route::patch('/cirugias/{cirugia}/hisopado/estado', [CirugiaController::class, 'actualizarEstadoHisopado'])
             ->name('cirugias.hisopado.estado');
 
+        // Firma la descarga del adjunto recien al pedirla, igual que la de los
+        // estudios. Ver App\Support\GestorDocumental.
+        Route::get('/cirugias/{cirugia}/hisopado/archivo', [CirugiaController::class, 'verArchivoHisopado'])
+            ->name('cirugias.hisopado.archivo');
+
         Route::post('/cirugias/{cirugia}/profilaxis', [CirugiaController::class, 'agregarProfilaxis'])
             ->name('cirugias.profilaxis.store');
 
@@ -169,6 +174,12 @@ Route::middleware('auth')->group(function () {
 
         Route::patch('/cirugias/{cirugia}/estudios/{estudio}', [CirugiaController::class, 'actualizarEstudio'])
             ->name('cirugias.estudios.update');
+
+        // El resultado no se linkea directo al gestor documental: son datos de
+        // salud, y una URL de Cloudinary en el HTML se comparte sin sesion. Esta
+        // ruta firma la descarga recien al pedirla. Ver App\Support\GestorDocumental.
+        Route::get('/cirugias/{cirugia}/estudios/{estudio}/archivo', [CirugiaController::class, 'verArchivoEstudio'])
+            ->name('cirugias.estudios.archivo');
 
         Route::post('/cirugias/{cirugia}/hemoderivados', [CirugiaController::class, 'storePedidoHemoderivado'])
             ->name('cirugias.hemoderivados.store');
