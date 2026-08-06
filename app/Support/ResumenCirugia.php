@@ -2,13 +2,15 @@
 
 namespace App\Support;
 
+use App\Models\AutoCirugiaEstado;
 use App\Models\Cirugia;
 use App\Models\CirugiaPersonal;
 use App\Models\ConsentimientoPaciente;
-use App\Models\PedidoTipoHemoderivado;
+use App\Models\HisopadoSarm;
+use App\Models\PedidoHemoderivado;
 use App\Models\Persona;
 use App\Models\Plan;
-use App\Models\ProfilaxisAtbCirugiaProfilaxis;
+use App\Models\ProfilaxisAtbHisopadoSarmProfilaxis;
 use App\Models\Quirofano;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -48,6 +50,10 @@ class ResumenCirugia
         'evaluacionAnestesicas.evaluacionAnestesicaEstados.estadoEvaluacionAnestesica',
         'evaluacionAnestesicas.evaluacionTipoAsas.tipoAsa',
         'evaluacionAnestesicas.evaluacionTipoAnestesias.tipoAnestesia',
+        // pendientes()/estaLista() la necesitan, asi que va en la base y no en
+        // RELACIONES_EXPEDIENTE (si no, cada cirugia del tablero dispara una
+        // consulta aparte al leer consentimientoFirmado()).
+        'consentimientoPacientes.configConsentimiento',
     ];
 
     /** Relaciones adicionales que solo hacen falta en el expediente completo. */
@@ -56,9 +62,10 @@ class ResumenCirugia
         'cirugiaPersonales.rol',
         'pedidoHemoderivados.pedidoTipoHemoderivados.tipoHemoderivado',
         'pedidoHemoderivados.pedidoTipoHemoderivados.establecimiento',
-        'profilaxisAtbCirugias.profilaxisAtbCirugiaProfilaxis.profilaxis',
-        'profilaxisAtbCirugias.profilaxisAtbCirugiaProfilaxis.profilaxisRol',
-        'consentimientoPacientes.configConsentimiento',
+        'hisopadoSarms.establecimiento',
+        'hisopadoSarms.hisopadoSarmEstados.estadoHisopadoSarm',
+        'hisopadoSarms.profilaxisAtbHisopadoSarms.profilaxisAtbHisopadoSarmProfilaxis.profilaxis',
+        'hisopadoSarms.profilaxisAtbHisopadoSarms.profilaxisAtbHisopadoSarmProfilaxis.profilaxisRol',
         'preparacionPacientes.preparacionPacienteTipoPreparaciones.tipoPreparacion',
         'preparacionPacientes.preparacionPacienteTipoPreparaciones.preparacionPacienteTipoPreparacionTipoIndicaciones.tipoIndicacion',
         'examenCirugiaPreAnestesicas.examenPreAnestesicoConfiges.examenPreAnestesicoConfigPreguntas.configTipoExamenPreAnestesicoPregunta',
@@ -70,6 +77,10 @@ class ResumenCirugia
     public readonly ?Persona $paciente;
 
     public readonly ?Plan $plan;
+
+    public int $overlapCol = 0;
+
+    public int $overlapTotal = 1;
 
     public function __construct(public readonly Cirugia $cirugia)
     {
@@ -85,6 +96,32 @@ class ResumenCirugia
     public function cuando(): ?Carbon
     {
         return $this->cirugia->fechaHoraCirugia;
+    }
+
+    public function fin(): ?Carbon
+    {
+        return $this->cirugia->fechaHoraFinCirugia;
+    }
+
+    public function minutosDesdeMedianoche(): int
+    {
+        if (! $this->cuando()) {
+            return 0;
+        }
+
+        return ($this->cuando()->hour * 60) + $this->cuando()->minute;
+    }
+
+    public function duracionEnMinutos(): int
+    {
+        if (! $this->cuando()) {
+            return 120; // Default 2 hours if no start
+        }
+        if (! $this->fin()) {
+            return 120; // Default 2 hours
+        }
+
+        return $this->cuando()->diffInMinutes($this->fin());
     }
 
     public function esDeHoy(): bool
@@ -150,6 +187,22 @@ class ResumenCirugia
     public function nroAutorizacion(): ?string
     {
         return $this->cirugia->autCirugias->first()?->nroAprobacionAutCirugia;
+    }
+
+    /**
+     * @return Collection<int, AutoCirugiaEstado>
+     */
+    public function historialAutorizacion(): Collection
+    {
+        $autorizacion = $this->cirugia->autCirugias->first();
+        if (! $autorizacion) {
+            return collect();
+        }
+
+        return $autorizacion->autoCirugiaEstados()
+            ->with('estadoAutCirugia')
+            ->orderByDesc('fechaInicioAutoCirugiaEstado')
+            ->get();
     }
 
     // --- Estudios prequirurgicos --------------------------------------------
@@ -279,6 +332,10 @@ class ResumenCirugia
             $pendientes->push('Materiales: '.mb_strtolower($this->materiales()));
         }
 
+        if (! $this->consentimientoFirmado()) {
+            $pendientes->push('Consentimiento sin firmar');
+        }
+
         return $pendientes;
     }
 
@@ -321,19 +378,52 @@ class ResumenCirugia
 
     public function alertaProfilaxis(): ?string
     {
-        return $this->cirugia->profilaxisAtbCirugias->first()?->alertaProfilaxisAtbCirugia;
+        return $this->hisopadoSarmVigente()?->profilaxisAtbHisopadoSarms->first()?->alertaProfilaxisAtbHisopadoSarm;
     }
 
-    /** @return Collection<int, ProfilaxisAtbCirugiaProfilaxis> */
+    /** @return Collection<int, ProfilaxisAtbHisopadoSarmProfilaxis> */
     public function profilaxis(): Collection
     {
-        return $this->cirugia->profilaxisAtbCirugias->first()?->profilaxisAtbCirugiaProfilaxis ?? collect();
+        return $this->hisopadoSarmVigente()?->profilaxisAtbHisopadoSarms->first()?->profilaxisAtbHisopadoSarmProfilaxis ?? collect();
     }
 
-    /** @return Collection<int, PedidoTipoHemoderivado> */
-    public function hemoderivados(): Collection
+    /**
+     * Estado y datos del hisopado SAMR pedido para esta cirugía, aplanados
+     * para mostrarlos. `null` si todavía no se pidió.
+     *
+     * @return ?array{estado: string, fechaSolicitacion: ?Carbon, fechaEstimada: ?Carbon, establecimiento: ?string, observaciones: ?string}
+     */
+    public function hisopadoSarm(): ?array
     {
-        return $this->cirugia->pedidoHemoderivados->first()?->pedidoTipoHemoderivados ?? collect();
+        $hisopado = $this->hisopadoSarmVigente();
+
+        if (! $hisopado) {
+            return null;
+        }
+
+        return [
+            'estado' => $hisopado->hisopadoSarmEstados
+                ->firstWhere('fechaFinAsignacionHisopadoSarmEstado', null)
+                ?->estadoHisopadoSarm?->nombreEstadoHisopadoSarm ?? 'Sin estado',
+            'fechaSolicitacion' => $hisopado->fechaSolicitacionHisopadoSarm,
+            'fechaEstimada' => $hisopado->fechaEstimadaResultadosHisopadoSarm,
+            'establecimiento' => $hisopado->establecimiento?->nombreEstablecimiento,
+            'observaciones' => $hisopado->observacionesHisopadoSarm,
+        ];
+    }
+
+    private function hisopadoSarmVigente(): ?HisopadoSarm
+    {
+        return $this->cirugia->hisopadoSarms->first();
+    }
+
+    /** @return Collection<int, PedidoHemoderivado> */
+    public function pedidosHemoderivados(): Collection
+    {
+        return $this->cirugia->pedidoHemoderivados()
+            ->with(['pedidoTipoHemoderivados.tipoHemoderivado', 'pedidoTipoHemoderivados.establecimiento'])
+            ->orderByDesc('fechaPedidoHemoderivado')
+            ->get();
     }
 
     public function consentimiento(): ?ConsentimientoPaciente

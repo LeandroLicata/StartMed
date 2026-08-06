@@ -74,7 +74,7 @@ php artisan migrate --seed
 npm run build
 ```
 
-Esto crea las 65 tablas, carga los catálogos y genera datos de demostración: seis
+Esto crea las 69 tablas, carga los catálogos y genera datos de demostración: seis
 cirugías en distintos estados más seis meses de historial.
 
 ### 6. Levantarlo
@@ -112,9 +112,15 @@ Los crea el seeder. Cada uno aterriza en el panel que le corresponde a su rol.
 | `perez` | `demo1234` | Cirujano | `/cirujano` |
 | `lopez` | `demo1234` | Cirujano | `/cirujano` |
 | `ramos` | `demo1234` | Anestesista | `/anestesista` |
+| `mgarcia` | `paciente1234` | Paciente | `/mi-salud` |
 
 Un **403** al entrar a una sección no es un error: es el middleware `rol`
 haciendo su trabajo. Probá con `admin`, que ve todo.
+
+`mgarcia` es la paciente de una de las cirugías sembradas y entra a su portal,
+pero **ese login es un atajo de demo**: el seeder le inventa una fila en
+`Personal` sin legajo, porque `Usuario` cuelga de ahí. Ver *Pendientes
+conocidos*.
 
 ---
 
@@ -272,6 +278,12 @@ en pantallas chicas.
 | `/direccion` | Dirección médica | Serie de 6 meses, suspensiones, uso de quirófanos |
 | `/cirugias/{id}` | Autenticados | Expediente completo de una cirugía |
 | `/cirugias/{id}/portal-paciente` | Autenticados | Vista previa de lo que ve el paciente |
+| `/mi-salud` | Paciente | Su portal — **maqueta**, ver *Pendientes conocidos* |
+
+Los listados que crecen sin techo están paginados: cirugías de la semana del
+tablero, la agenda del cirujano, la bandeja del anestesista y las pantallas de
+`/admin`. Los indicadores de cada panel siguen contando sobre el total, no
+sobre la página que se está viendo.
 
 El acceso lo controla el middleware `rol`, que lee `RolPersonal` contando solo
 las asignaciones vigentes. El Administrador entra a todo.
@@ -319,7 +331,7 @@ ver: la hoja de estilos viene subseteada para que pese poco.
 
 ## Base de datos
 
-**65 tablas** de dominio y **75 foreign keys**, en 13 migraciones por módulo.
+**69 tablas** de dominio y **80 foreign keys**, en 15 migraciones por módulo.
 Cada una crea sus tablas en orden de dependencia y las borra en orden inverso,
 así que `migrate:rollback` funciona limpio.
 
@@ -336,8 +348,10 @@ así que `migrate:rollback` funciona limpio.
 | `..._100900_create_evaluacion_anestesica_tables` | TipoASA, TipoAnestesia, EvaluacionAnestesica |
 | `..._101000_create_preparacion_paciente_tables` | TipoPreparacion, TipoIndicacion, PreparacionPaciente |
 | `..._101100_create_examen_preanestesico_tables` | config de preguntas/respuestas y examen del paciente |
-| `..._101200_create_profilaxis_tables` | Profilaxis, ProfilaxisRol, ProfilaxisAtbCirugia |
+| `..._101200_create_profilaxis_tables` | Profilaxis, ProfilaxisRol |
 | `..._101300_create_consentimiento_tables` | ConfigConsentimiento, ConsentimientoPaciente |
+| `..._101400_create_hisopado_sarm_tables` | HisopadoSarm, sus estados y la profilaxis que depende del resultado |
+| `..._101400_create_auditoria_table` | Auditoria (la única tabla que no viene del modelo de datos) |
 
 ### Convenciones del esquema
 
@@ -392,8 +406,8 @@ En Laragon, el botón **Database** abre HeidiSQL ya conectado.
 
 ## Modelos
 
-**65 modelos** en [`app/Models/`](app/Models/), uno por tabla, con **153
-relaciones** (75 `belongsTo`, 75 `hasMany`/`hasOne`, 3 `belongsToMany`).
+**69 modelos** en [`app/Models/`](app/Models/), uno por tabla, con **162
+relaciones** (80 `belongsTo`, 78 `hasMany`/`hasOne`, 3 `belongsToMany`).
 
 Los nombres de relación derivan de **la columna, no de la tabla**, para que
 varias FK a la misma tabla no colisionen:
@@ -444,7 +458,7 @@ desarrollo**.
 
 | Archivo | Qué cubre |
 |---|---|
-| [`ModelosTest`](tests/Feature/ModelosTest.php) | Recorre por reflexión los 65 modelos y sus 153 relaciones: que la tabla y la PK existan, que cada relación compile a SQL y que todas sus columnas existan |
+| [`ModelosTest`](tests/Feature/ModelosTest.php) | Recorre por reflexión los 69 modelos y sus 162 relaciones: que la tabla y la PK existan, que cada relación compile a SQL y que todas sus columnas existan |
 | [`Auth/LoginTest`](tests/Feature/Auth/LoginTest.php) | Login, contraseña incorrecta, hasheo, usuario dado de baja, ruta inicial por rol |
 | [`DashboardTest`](tests/Feature/DashboardTest.php) | Semáforo de cada cirugía y que las consultas no crezcan con el número de filas |
 | [`PanelesTest`](tests/Feature/PanelesTest.php) | Que cada rol vea lo suyo y no lo ajeno, y el cálculo de horas de ayuno |
@@ -477,10 +491,16 @@ Se entra por `nombreUsuario`, con `throttle:6,1`, y se rechaza a los usuarios co
 
 Tres cosas que **no** están hechas y conviene saber antes de asumir que se puede:
 
-**El paciente no puede autenticarse.** `Usuario` cuelga de `Personal`, y un
-paciente es una `Persona` sin legajo: el esquema no tiene por dónde. El portal
-del paciente existe como vista previa que abre el equipo desde el expediente.
-Habilitarlo de verdad requiere decidir el mecanismo (link firmado, login propio).
+**El portal del paciente es una maqueta y su login es falso.** `/mi-salud` se
+navega y `mgarcia` entra, pero `PortalPacienteMock` guarda el estado en la
+sesión y devuelve datos inventados: **ninguna de esas pantallas lee el
+expediente real**. No construyas encima como si estuviera conectado al dominio.
+Y el paciente entra porque el seeder le inventa una fila en `Personal` sin
+legajo — `Usuario` cuelga de ahí y un paciente es una `Persona` sin legajo.
+Cómo se autentica un paciente de verdad (link firmado, login propio, otra
+tabla) sigue sin decidirse, y es lo que hay que resolver antes de que esto sea
+real. Distinto es `/cirugias/{id}/portal-paciente`, que sí lee el expediente:
+es la vista previa que abre el equipo.
 
 **No hay reseteo de contraseña por email.** `config/auth.php` tiene
 `'passwords' => []` porque `Usuario` no tiene columna de email — el correo vive

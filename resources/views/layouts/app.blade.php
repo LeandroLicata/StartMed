@@ -14,7 +14,7 @@
     --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add_circle,arrow_back,assignment,badge,bloodtype,cancel,check_circle,close,delete,description,draw,edit_note,error,event,folder_open,groups,home,info,inventory_2,logout,manage_accounts,meeting_room,menu,monitoring,no_food,pending,person,personal_injury,save,schedule,science,shield,stethoscope,vaccines,warning&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=accessible,add,add_circle,arrow_back,arrow_forward,assignment,badge,bloodtype,call,cancel,check_circle,chevron_right,close,delete,description,draw,edit,edit_note,error,event,event_busy,folder_open,groups,history,home,info,inventory_2,key,lock,logout,mail,manage_accounts,medical_services,meeting_room,menu,monitoring,more_vert,no_food,pending,person,personal_injury,restore,save,schedule,science,search,search_off,settings,shield,stethoscope,swap_horiz,today,upload_file,vaccines,visibility,warning&display=block">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -26,10 +26,11 @@
     <aside
         id="barra-lateral"
         class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col bg-hu-azul
-               transition-transform lg:static lg:translate-x-0"
+               transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
     >
         <div class="flex items-center justify-between border-b border-white/10 px-5 py-5">
-            <a href="{{ route('dashboard') }}" class="block">
+            {{-- `inicio` resuelve el panel de cada rol; `dashboard` daba 403 a varios. --}}
+            <a href="{{ route('inicio') }}" class="block">
                 <img
                     src="{{ asset('img/logo-hu-blanco.svg') }}"
                     alt="Hospital Universitario"
@@ -126,6 +127,11 @@
 
     </div>
 </div>
+
+{{-- Uno solo para toda la pagina; lo usa cualquier form con data-confirmar. --}}
+<x-confirmar />
+
+@stack('scripts')
 
 </body>
 </html>

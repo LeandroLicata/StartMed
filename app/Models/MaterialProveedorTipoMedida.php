@@ -19,6 +19,9 @@ class MaterialProveedorTipoMedida extends Model
         'fechaAsignacionMaterialTipoMedida',
         'fechaFinAsignacionMaterialTipoMedida',
         'disponibleMaterialTipoMedida',
+        'codExternoMaterialProveedorTipoMedida',
+        'precioExternoMaterialProveedorTipoMedida',
+        'fechaActualizacionPrecioMaterialProveedorTipoMedida',
     ];
 
     protected function casts(): array
@@ -27,6 +30,8 @@ class MaterialProveedorTipoMedida extends Model
             'fechaAsignacionMaterialTipoMedida' => 'datetime',
             'fechaFinAsignacionMaterialTipoMedida' => 'datetime',
             'disponibleMaterialTipoMedida' => 'boolean',
+            'precioExternoMaterialProveedorTipoMedida' => 'decimal:2',
+            'fechaActualizacionPrecioMaterialProveedorTipoMedida' => 'datetime',
         ];
     }
 

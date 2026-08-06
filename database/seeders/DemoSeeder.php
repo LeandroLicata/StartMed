@@ -12,14 +12,18 @@ use App\Models\CirugiaTipoEstudio;
 use App\Models\EstadoAutCirugia;
 use App\Models\EstadoCirugia;
 use App\Models\EstadoEvaluacionAnestesica;
+use App\Models\EstadoHisopadoSarm;
 use App\Models\EstadoPedidoMaterial;
 use App\Models\EvaluacionAnestesica;
 use App\Models\EvaluacionAnestesicaEstado;
 use App\Models\EvaluacionTipoAnestesia;
 use App\Models\EvaluacionTipoAsa;
 use App\Models\GrupoSanguineo;
+use App\Models\HisopadoSarm;
+use App\Models\HisopadoSarmEstado;
 use App\Models\Material;
 use App\Models\MaterialProveedor;
+use App\Models\MaterialProveedorTipoMedida;
 use App\Models\ObraSocial;
 use App\Models\PedidoHemoderivado;
 use App\Models\PedidoMaterial;
@@ -30,8 +34,8 @@ use App\Models\Personal;
 use App\Models\Plan;
 use App\Models\PlanObraSocial;
 use App\Models\Profilaxis;
-use App\Models\ProfilaxisAtbCirugia;
-use App\Models\ProfilaxisAtbCirugiaProfilaxis;
+use App\Models\ProfilaxisAtbHisopadoSarm;
+use App\Models\ProfilaxisAtbHisopadoSarmProfilaxis;
 use App\Models\ProfilaxisRol;
 use App\Models\Proveedor;
 use App\Models\Quirofano;
@@ -125,13 +129,13 @@ class DemoSeeder extends Seeder
                 'estado' => 'En riesgo',
                 'implante' => true,
                 'autorizacion' => 'En auditoría médica',
-                'estudios' => [['Hemograma', -5], ['Hisopado SAMR', null], ['Radiografía de tórax', -5]],
+                'estudios' => [['Hemograma', -5], ['Radiografía de tórax', -5]],
                 'evaluacion' => ['ASA III', 'Regional / peridural', 'Completada'],
                 'profilaxis' => [['Vancomicina 1g IV', 'Alternativa por alergia'], ['Cefazolina 2g IV', 'Complementaria']],
                 'materiales' => [
-                    ['Sistema tibial de rodilla', 1, 3200.00],
-                    ['Componente femoral de rodilla', 1, 2800.00],
-                    ['Inserto de polietileno 10mm', 1, 1100.00],
+                    ['Sistema tibial de rodilla', 1],
+                    ['Componente femoral de rodilla', 1],
+                    ['Inserto de polietileno 10mm', 1],
                 ],
                 'hemoderivados' => [['Glóbulos rojos desplasmatizados', 2]],
                 'observaciones' => 'HTA + diabetes tipo 2. Alergia a penicilina documentada.',
@@ -201,10 +205,8 @@ class DemoSeeder extends Seeder
             ['telefonoObraSocial' => '08003333828', 'emailObraSocial' => 'autorizaciones@swissmedical.com.ar', 'diasVigenciaOrden' => 30],
         );
 
-        $sinCobertura = ObraSocial::firstOrCreate(
-            ['nombreObraSocial' => 'Sin obra social'],
-            ['diasVigenciaOrden' => 0],
-        );
+        // 'Sin obra social' / Plan 'Particular' ya los crea CatalogosSeeder.
+        $sinCobertura = ObraSocial::where('nombreObraSocial', 'Sin obra social')->firstOrFail();
 
         return [
             'OSDE 410' => Plan::firstOrCreate(
@@ -225,11 +227,14 @@ class DemoSeeder extends Seeder
     /** @return array<string, Personal> */
     private function equipo(): array
     {
+        $this->crearPacienteDemo();
+
         $definiciones = [
             'perez' => ['Pérez', 'Daniel', '17223456', 'Cirujano', 'MP 4821', 'd.perez@hospital.uncuyo.edu.ar'],
             'lopez' => ['López', 'Silvia', '19887432', 'Cirujano', 'MP 5109', 's.lopez@hospital.uncuyo.edu.ar'],
             'ramos' => ['Ramos', 'Hernán', '18554120', 'Anestesista', 'MP 4677', 'h.ramos@hospital.uncuyo.edu.ar'],
             'gonzalez' => ['González', 'Romina', '30112987', 'Gestor de quirófano', null, 'r.gonzalez@hospital.uncuyo.edu.ar'],
+            'panel' => ['Gestión', 'Panel', '00000001', 'Gestor de quirófano', null, 'L390585@gmail.com'],
         ];
 
         $equipo = [];
@@ -248,15 +253,46 @@ class DemoSeeder extends Seeder
                 ],
             ]);
 
+            // 'panel' es una cuenta real (no demo): el login es el email, en
+            // minusculas para que coincida sin importar como lo tipeen.
+            $nombreUsuario = $clave === 'panel' ? mb_strtolower($mail) : $clave;
+            $password = $clave === 'panel' ? $mail : 'demo1234';
+
             Usuario::firstOrCreate(
-                ['nombreUsuario' => $clave],
-                ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => 'demo1234'],
+                ['nombreUsuario' => $nombreUsuario],
+                ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => $password],
             );
 
             $equipo[$clave] = $personal;
         }
 
         return $equipo;
+    }
+
+    /**
+     * Usuario de demo para el portal del paciente: María García, que ademas es
+     * la paciente de una de las cirugias sembradas.
+     *
+     * Le crea una fila en Personal sin legajo, porque Usuario cuelga de ahi y
+     * un paciente es una Persona sin legajo. Es el atajo que hace navegable el
+     * portal, no la solucion: como se autentica un paciente de verdad sigue
+     * siendo una decision de esquema pendiente.
+     */
+    private function crearPacienteDemo(): void
+    {
+        $persona = $this->persona('García', 'María', '28456789');
+        $personal = Personal::firstOrCreate(['idPersona' => $persona->idPersona]);
+
+        $personal->roles()->syncWithoutDetaching([
+            Rol::where('nombreRol', 'Paciente')->value('idRol') => [
+                'fechaHoraAsignacionRolPersonal' => now(),
+            ],
+        ]);
+
+        Usuario::firstOrCreate(
+            ['nombreUsuario' => 'mgarcia'],
+            ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => 'paciente1234'],
+        );
     }
 
     /** @return array<string, MaterialProveedor> */
@@ -267,25 +303,47 @@ class DemoSeeder extends Seeder
             ['cuitProveedor' => '30712345678', 'telefonoProveedor' => '2614567890'],
         );
 
+        // Cada material se vende en una o mas unidades, y cada una tiene su
+        // precio y su codigo en el catalogo del proveedor: la malla suelta y
+        // la caja de nueve no son el mismo articulo facturable.
         $catalogo = [
-            'Sistema tibial de rodilla' => ['7.02.01', 3200.00],
-            'Componente femoral de rodilla' => ['7.02.02', 2800.00],
-            'Inserto de polietileno 10mm' => ['7.02.03', 1100.00],
-            'Malla de polipropileno' => ['5.01.04', 180.00],
+            'Sistema tibial de rodilla' => ['7.02.01', ['Unidad' => 3200.00, 'Set' => 8900.00]],
+            'Componente femoral de rodilla' => ['7.02.02', ['Unidad' => 2800.00]],
+            'Inserto de polietileno 10mm' => ['7.02.03', ['Unidad' => 1100.00]],
+            'Malla de polipropileno' => ['5.01.04', ['Unidad' => 180.00, 'Caja' => 1620.00]],
         ];
 
+        $unidades = TipoMedida::pluck('idTipoMedida', 'nombreTipoMedida');
         $materiales = [];
 
-        foreach ($catalogo as $nombre => [$codigo, $precio]) {
+        foreach ($catalogo as $nombre => [$codigo, $precios]) {
             $material = Material::firstOrCreate(
                 ['nombreMaterial' => $nombre],
                 ['codMaterial' => $codigo],
             );
 
-            $materiales[$nombre] = MaterialProveedor::firstOrCreate(
-                ['idMaterial' => $material->idMaterial, 'idProveedor' => $proveedor->idProveedor],
-                ['codExternoMaterialProveedor' => $codigo, 'precioExternoMaterialProveedor' => $precio, 'fechaActualizacionPrecio' => now()],
-            );
+            $vinculo = MaterialProveedor::firstOrCreate([
+                'idMaterial' => $material->idMaterial,
+                'idProveedor' => $proveedor->idProveedor,
+            ]);
+
+            foreach ($precios as $unidad => $precio) {
+                MaterialProveedorTipoMedida::firstOrCreate(
+                    [
+                        'idMaterialProveedor' => $vinculo->idMaterialProveedor,
+                        'idTipoMedida' => $unidades[$unidad],
+                    ],
+                    [
+                        'fechaAsignacionMaterialTipoMedida' => now()->subMonths(3),
+                        'disponibleMaterialTipoMedida' => true,
+                        'codExternoMaterialProveedorTipoMedida' => $codigo.'-'.mb_substr($unidad, 0, 1),
+                        'precioExternoMaterialProveedorTipoMedida' => $precio,
+                        'fechaActualizacionPrecioMaterialProveedorTipoMedida' => now()->subMonths(3),
+                    ],
+                );
+            }
+
+            $materiales[$nombre] = $vinculo;
         }
 
         return $materiales;
@@ -473,39 +531,61 @@ class DemoSeeder extends Seeder
         );
     }
 
-    /** @param  list<array{0:string,1:string}>  $profilaxis */
+    /**
+     * Todas las cirugías piden Hisopado SAMR. Los casos que ya traían una
+     * profilaxis antibiótica cargada quedan con resultado "Positivo" (es lo
+     * que dispara esa profilaxis); el resto queda "Pendiente", sin resultado
+     * todavía.
+     *
+     * @param  list<array{0:string,1:string}>  $profilaxis
+     */
     private function profilaxis(Cirugia $cirugia, array $profilaxis, ?string $alerta): void
     {
+        $hisopado = HisopadoSarm::firstOrCreate(
+            ['idCirugia' => $cirugia->idCirugia],
+            ['fechaSolicitacionHisopadoSarm' => now()->subDays(6)],
+        );
+
+        $estadoNombre = $profilaxis === [] ? 'Pendiente' : 'Positivo';
+
+        HisopadoSarmEstado::firstOrCreate(
+            ['idHisopadoSarm' => $hisopado->idHisopadoSarm, 'fechaFinAsignacionHisopadoSarmEstado' => null],
+            [
+                'idEstadoHisopadoSarm' => EstadoHisopadoSarm::where('nombreEstadoHisopadoSarm', $estadoNombre)->value('idEstadoHisopadoSarm'),
+                'fechaInicioAsignacionHisopadoSarmEstado' => now()->subDays($profilaxis === [] ? 2 : 4),
+            ],
+        );
+
         if ($profilaxis === []) {
             return;
         }
 
-        $cabecera = ProfilaxisAtbCirugia::firstOrCreate(
-            ['idCirugia' => $cirugia->idCirugia],
+        $cabecera = ProfilaxisAtbHisopadoSarm::firstOrCreate(
+            ['idHisopadoSarm' => $hisopado->idHisopadoSarm],
             [
-                'alertaProfilaxisAtbCirugia' => $alerta && str_contains($alerta, 'penicilina')
+                'alertaProfilaxisAtbHisopadoSarm' => $alerta && str_contains($alerta, 'penicilina')
                     ? 'NO administrar ampicilina ni amoxicilina — alergia a penicilina documentada'
                     : null,
-                'motivoProfilaxisAtbCirugia' => 'Profilaxis prequirúrgica estándar',
+                'motivoProfilaxisAtbHisopadoSarm' => 'Profilaxis prequirúrgica estándar',
             ],
         );
 
         foreach ($profilaxis as [$droga, $rol]) {
-            ProfilaxisAtbCirugiaProfilaxis::firstOrCreate(
+            ProfilaxisAtbHisopadoSarmProfilaxis::firstOrCreate(
                 [
-                    'idProfilaxisAtbCirugia' => $cabecera->idProfilaxisAtbCirugia,
+                    'idProfilaxisAtbHisopadoSarm' => $cabecera->idProfilaxisAtbHisopadoSarm,
                     'idProfilaxis' => Profilaxis::where('nombreProfilaxis', $droga)->value('idProfilaxis'),
                 ],
                 [
                     'idProfilaxisRol' => ProfilaxisRol::where('nombreProfilaxisRol', $rol)->value('idProfilaxisRol'),
-                    'indicacionesProfilaxisAtbCirugiaProfilaxis' => 'Administrar 30-60 min antes de la incisión.',
+                    'indicacionesProfilaxisAtbHisopadoSarmProfilaxis' => 'Administrar 30-60 min antes de la incisión.',
                 ],
             );
         }
     }
 
     /**
-     * @param  list<array{0:string,1:int,2:float}>  $items
+     * @param  list<array{0:string,1:int}>  $items
      * @param  array<string, MaterialProveedor>  $materiales
      */
     private function materialesDelCaso(Cirugia $cirugia, Plan $plan, array $items, array $materiales): void
@@ -513,8 +593,15 @@ class DemoSeeder extends Seeder
         $unidad = TipoMedida::where('nombreTipoMedida', 'Unidad')->value('idTipoMedida');
         $enAuditoria = EstadoPedidoMaterial::where('nombreEstadoPedidoMaterial', 'En auditoría')->value('idEstadoPedidoMaterial');
 
-        foreach ($items as [$nombre, $cantidad, $precio]) {
+        foreach ($items as [$nombre, $cantidad]) {
             $materialProveedor = $materiales[$nombre];
+
+            // El precio sale de la unidad pedida, no del proveedor, y queda
+            // copiado en el pedido: es lo que se cotizo ese dia.
+            $precio = MaterialProveedorTipoMedida::query()
+                ->where('idMaterialProveedor', $materialProveedor->idMaterialProveedor)
+                ->where('idTipoMedida', $unidad)
+                ->value('precioExternoMaterialProveedorTipoMedida');
 
             $pedido = PedidoMaterial::firstOrCreate(
                 [
@@ -526,6 +613,7 @@ class DemoSeeder extends Seeder
                     'idProveedor' => $materialProveedor->idProveedor,
                     'idTipoMedida' => $unidad,
                     'cantidadPedidoMaterial' => $cantidad,
+                    'precioUnitarioPedidoMaterial' => $precio,
                     'subtotalPedidoMaterial' => $precio * $cantidad,
                     'fechaPedidoMaterial' => now()->subDays(5),
                 ],

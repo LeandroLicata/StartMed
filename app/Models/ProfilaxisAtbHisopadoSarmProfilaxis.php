@@ -5,19 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ProfilaxisAtbCirugiaProfilaxis extends Model
+class ProfilaxisAtbHisopadoSarmProfilaxis extends Model
 {
-    protected $table = 'ProfilaxisAtbCirugiaProfilaxis';
+    protected $table = 'ProfilaxisAtbHisopadoSarmProfilaxis';
 
-    protected $primaryKey = 'idProfilaxisAtbCirugiaProfilaxis';
+    protected $primaryKey = 'idProfilaxisAtbHisopadoSarmProfilaxis';
 
     public $timestamps = false;
 
     protected $fillable = [
-        'idProfilaxisAtbCirugia',
+        'idProfilaxisAtbHisopadoSarm',
         'idProfilaxisRol',
         'idProfilaxis',
-        'indicacionesProfilaxisAtbCirugiaProfilaxis',
+        'indicacionesProfilaxisAtbHisopadoSarmProfilaxis',
     ];
 
     public function profilaxis(): BelongsTo
@@ -25,9 +25,9 @@ class ProfilaxisAtbCirugiaProfilaxis extends Model
         return $this->belongsTo(Profilaxis::class, 'idProfilaxis', 'idProfilaxis');
     }
 
-    public function profilaxisAtbCirugia(): BelongsTo
+    public function profilaxisAtbHisopadoSarm(): BelongsTo
     {
-        return $this->belongsTo(ProfilaxisAtbCirugia::class, 'idProfilaxisAtbCirugia', 'idProfilaxisAtbCirugia');
+        return $this->belongsTo(ProfilaxisAtbHisopadoSarm::class, 'idProfilaxisAtbHisopadoSarm', 'idProfilaxisAtbHisopadoSarm');
     }
 
     public function profilaxisRol(): BelongsTo

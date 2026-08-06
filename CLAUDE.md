@@ -85,13 +85,13 @@ survives** (the DB session driver needs it); the `users` table was removed on pu
 
 ### Models
 
-65 models in `app/Models/`, one per domain table, ~153 relations. **Relation names
+69 models in `app/Models/`, one per domain table, ~162 relations. **Relation names
 derive from the FK column, not the target table**, so multiple FKs to the same table
 don't collide — e.g. in `Cirugia`: `paciente()` (idPersonaPaciente→Persona),
 `cirujano()` / `anestesista()` (idPersonal\*→Personal). When adding relations, follow
 this column-based naming.
 
-`tests/Feature/ModelosTest.php` reflects over all 65 models and their relations,
+`tests/Feature/ModelosTest.php` reflects over all 69 models and their relations,
 asserting each table + PK exists, each relation compiles to SQL, and every referenced
 column (FK, owner/local key, pivot) exists. **Adding a table without its model, or
 renaming a column without updating the model, breaks this test** — it is the guardrail
@@ -158,6 +158,15 @@ check without holding each functional role.
 Route::get('/cirujano', CirujanoController::class)->middleware('rol:Cirujano');
 ```
 
+**Permission and membership are two different questions.** `Usuario::tieneRol()` answers
+*can they enter* — it carries the `Administrador` wildcard, and it is what the middleware
+uses. `Usuario::tieneRolPropio()` answers *is this their work* — same check without the
+wildcard. The sidebar uses the second one: an admin who is not also a gestor has no
+business seeing the OR panels listed as if they were theirs, even though typing the URL
+still works. An admin who *does* hold a functional role sees both blocks. Anything that
+decides visibility (menus, empty states) wants `tieneRolPropio`; anything that decides
+access wants `tieneRol`.
+
 `Usuario::rutaInicial()` decides where a user lands after login — panels differ per
 role, so sending everyone to `/dashboard` produced a 403 right after a correct login.
 `/` (route name `inicio`) resolves it; users with no role get the `sin-acceso` view
@@ -168,17 +177,184 @@ instead of a bare 403.
 Server-rendered Blade — there is no React and no JSON API. The only app JavaScript is
 the mobile sidebar toggle in `resources/js/app.js`.
 
-| route                                 | role                                  | view                       |
-| ------------------------------------- | ------------------------------------- | -------------------------- |
-| `/dashboard`                          | Gestor de quirófano, Dirección médica | `dashboard`                |
-| `/cirujano`                           | Cirujano                              | `paneles/cirujano`         |
-| `/anestesista`                        | Anestesista                           | `paneles/anestesista`      |
-| `/direccion`                          | Dirección médica                      | `paneles/direccion`        |
-| `/cirugias/{cirugia}`                 | any authenticated                     | `cirugias/show`            |
-| `/cirugias/{cirugia}/portal-paciente` | any authenticated                     | `cirugias/portal-paciente` |
+| route | role | view |
+|---|---|---|
+| `/dashboard` | Gestor de quirófano, Dirección médica | `dashboard` |
+| `/cirujano` | Cirujano | `paneles/cirujano` |
+| `/anestesista` | Anestesista | `paneles/anestesista` |
+| `/direccion` | Dirección médica | `paneles/direccion` |
+| `/cirugias/{cirugia}` | any authenticated | `cirugias/show` |
+| `/cirugias/{cirugia}/portal-paciente` | any authenticated | `cirugias/portal-paciente` |
+| `/admin` (índice de catálogos), `/admin/catalogos/…` | Administrador | `admin/inicio`, `admin/catalogos/*` |
+| `/admin/usuarios/…`, `/admin/consentimientos/…`, `/admin/precios/…`, `/admin/auditoria` | Administrador | `admin/*` |
+| `/admin/cuestionario/…` | Administrador, **Anestesista** | `admin/cuestionario/*` |
 
 Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
 `layouts/guest` (login). Views use `@extends` / `@section('contenido')`.
+
+### Administración — the only write side of the app
+
+`/admin` is where the master data the other sections consume gets loaded, and where
+users are created. It is no longer the *only* place that writes — creating and
+rescheduling surgeries writes too (`CirugiaCreacionController`,
+`ReprogramarCirugiaService`) — but those paths do **not** go through `Auditor`, so the
+audit trail currently covers administration only.
+
+**One door for the catalogs, a section for each module.** The sidebar carries an
+`Administración` group (`partials/nav.blade.php`, opened by the `titulo` key) with one
+item per module — Usuarios, Consentimientos, Cuestionario preanestésico, Proveedores y
+precios, Auditoría — plus `Catálogos`, which points at `/admin`. Each item stays marked
+across its own screens through `activaEn` (`admin.usuarios.*`, …); `Catálogos` takes an
+array of patterns because its index and its tables live under different route names.
+
+`/admin` is now *only* that index: the hub that groups the 27 master tables. **Resist
+adding per-catalog shortcuts to the sidebar** — that is the part of the old "one door"
+rule that still holds. They would duplicate the index, and a label like "Materiales"
+promises a module while delivering one table out of the four in its group. A module,
+on the other hand, is a screen of its own and earns its row.
+
+**Inside a module, `<x-catalogos-relacionados :slugs="[…]" />` links the catalogs that
+feed it** — Materiales/Proveedores/Tipos de medida on `/admin/precios`, Roles/Tipos de
+documento on `/admin/usuarios`, Tipos de cirugía on `/admin/consentimientos`. That last
+one is not a convenience: the consent listing *is* the active `TipoCirugia` rows, so a
+procedure missing from the catalog does not show up as "Sin plantilla" — it does not show
+up at all, and nothing on the screen reveals the gap. Its empty state links the catalog
+for the same reason. A second door, not a move: the catalog still lives in
+`/admin`, which is the only thing guaranteeing all 27 are reachable
+(`CatalogosTest::test_el_indice_lleva_a_todos_los_catalogos`). Labels come from the map
+and `Catalogos::buscar()` aborts on an unknown slug, so a typo fails on render instead
+of shipping a dead link. Only catalogs the screen actually consumes belong there —
+this is not a place to relocate the ones that have no module yet.
+
+**Catalogs are driven by a map, not by 26 controllers.** `App\Support\Catalogos`
+declares the 27 master tables (slug → model, labels, group, soft-delete column, fields);
+`Admin\CatalogoController` + `CatalogoRequest` + two Blade views serve all of them.
+**To add a catalog, add an entry to that map — do not write a controller.** Most tables
+fit `Catalogos::simple()`, which derives `nombre<X>` / `fechaBaja<X>` from the model's
+PK. Declare the odd ones explicitly: `Rol` uses `fechaHoraBajaRol` and `Establecimiento`
+uses `fechaEstablecimiento`. Field types come from `Catalogos::TIPOS`.
+
+`CatalogosTest::test_el_mapa_coincide_con_el_esquema` is to the map what `ModelosTest`
+is to the models: it checks every declared column exists, is fillable, and uses a known
+type. It also renders the index and the create form of every one.
+
+**Deleting is always logical** — write `now()` into the `fechaBaja*` column, offer
+reactivation, never `DELETE`.
+
+**Some catalog rows are code, not data.** The app matches catalog names as literal
+strings — `Usuario::tieneRol()` looks for `'Administrador'`; the panels look for
+`'Realizada'`, `'Suspendida'`, `'Aprobada'`, `'Completada'` and the six material states
+*in precedence order*; the create-surgery and rescheduling flows look for
+`'En espera de confirmación'`, `'En espera'`, `'A reprogramar'`, `'Reprogramada'` and the
+three `EstadoHisopadoSarm` values. Renaming one of those rows from the ABM breaks the
+app **without raising anything**: indicators silently go to zero. So each catalog declares
+its load-bearing rows in the map, and `CatalogoController::protegerFilaDelSistema()`
+blocks both `update` and `destroy` for them (the listing marks them "Del sistema" and
+drops the deactivate button; the edit form explains why and hides its submit).
+
+```php
+'protegidos' => ['Realizada', 'Suspendida', 'En riesgo'],
+'motivoProteccion' => 'Los paneles cuentan las cirugías buscando estos estados…',
+```
+
+**Adding a new literal comparison against a catalog name means adding that name to
+`protegidos`.** `CatalogosTest::test_toda_fila_protegida_existe_en_el_catalogo` keeps the
+declared list from drifting away from what is actually seeded.
+
+An admin also cannot remove their own `Administrador` role or deactivate their own user,
+which together with the above makes a zero-admin state unreachable through the UI.
+
+**Creating a user writes four tables** in one transaction: `Persona` → `Personal` →
+`Usuario` → `RolPersonal`. Roles go through `Personal::sincronizarRoles()`, **not
+`sync()`** — `RolPersonal` is history, so dropping a role sets
+`fechaHoraBajaAsignacionRolPersonal` and leaves the row. Passwords are assigned in plain
+text (the `hashed` cast on `Usuario` does the rest); there is no email reset, so
+`/admin/usuarios/{usuario}/clave` is the only way to replace one.
+
+**Consent templates are versioned, not edited** (`Admin\ConsentimientoController`,
+`/admin/consentimientos`). They are deliberately outside the catalog map: one longText
+per `TipoCirugia` with a validity range, so publishing closes the current version
+(`fechaFinConfigConsentimiento = now()`) and opens a new one, the same way the schema
+models every other history. A version that nobody signed can still be corrected in
+place; once `ConsentimientoPaciente` rows point at it, only a new version is allowed —
+otherwise the audit trail would claim a signed consent came from text that has since
+changed. What patients signed is never at risk either way: `ConsentimientoPaciente`
+keeps its own immutable `textoRenderizadoConsentimiento` plus a SHA-256.
+
+`App\Support\Consentimiento` owns the `{{paciente}}` / `{{dni}}` / `{{procedimiento}}` /
+`{{cirujano}}` markers and resolves them — for the real document, for the admin preview,
+and for `ExpedienteSeeder`, which used to carry its own copy. **An unknown marker is a
+validation error, not a warning**: it would survive into the document the patient signs
+and nobody would notice until after the signature.
+
+**The pre-anaesthesia questionnaire freezes once answered** (`Admin\CuestionarioController`,
+`/admin/cuestionario`). Same versioning idea as consents, but the rule is stricter and for
+a different reason: `ResumenCirugia::cuestionario()` reads the question and option text
+**live** from `ConfigTipoExamenPreAnestesicoPregunta` — there is no snapshot here. Editing
+a question after somebody answered it would retroactively change what that patient was
+asked. So a version is editable only while it is current *and* unanswered; publishing a
+new one clones the whole tree so it can be tweaked. The three levels (version → questions
+→ options) live on **one screen with many small forms**, which keeps the project's
+near-zero JavaScript.
+
+It is also **the one `/admin` module that is not the administrator's alone**: an
+`Anestesista` has full access, because what a patient is asked before being anaesthetised
+is a clinical decision and they are the one who knows it. Nothing in the controller checks
+roles — the guards that matter (frozen once answered, `Auditor` recording who did what
+from `auth()->id()`) are state-based and apply to both. Its routes therefore sit in
+**their own group** in `routes/web.php` with `rol:Administrador,Anestesista`: nested group
+middleware is merged, not replaced, so leaving them inside the `rol:Administrador` block
+would still bounce an anaesthetist. The sidebar item carries both roles, and since the
+`Administración` label hangs off the Usuarios item, an anaesthetist sees the entry in
+their own list instead of under a heading that is not theirs.
+
+**Supplier pricing hangs off the unit of sale, not off the supplier**
+(`Admin\PrecioController`, `/admin/precios`). `MaterialProveedor` says only *who sells
+what*: `idMaterial` + `idProveedor` and nothing else. Price
+(`precioExternoMaterialProveedorTipoMedida`), the supplier's catalog code and the
+last-updated date all live one level down, on `MaterialProveedorTipoMedida` — a femoral
+implant of 0.5 m and one of 1 m are two different billable articles from the same
+supplier, with two prices and usually two SKUs. **Do not put a price back on
+`MaterialProveedor`**: that is what this schema used to do, and it silently made every
+presentation of a material cost the same. Neither table is a catalog (one is a relation
+with attributes, the other a relation with a validity range), hence the dedicated screen.
+
+Four rules the schema dictates: `fechaActualizacionPrecioMaterialProveedorTipoMedida` is
+written by the controller whenever the price actually changes (nobody keeps it current by
+hand); removing a unit **closes** `fechaFinAsignacionMaterialTipoMedida` instead of
+deleting, so the history keeps what it used to sell for, and is different from
+`disponibleMaterialTipoMedida`, which is "we sell it that way but have no stock";
+unlinking a supplier **does delete** — that table has no baja column; and ordering a
+material reads the price of the **unit being ordered** and copies it into
+`PedidoMaterial.precioUnitarioPedidoMaterial`, so editing the quantity of an old order
+never pulls in today's price list. `PedidoMaterial` keeps its own `idMaterial` /
+`idProveedor` / `idTipoMedida` / unit price / subtotal, so no order history is lost when
+the price list moves.
+
+**Every write is audited.** No domain table has `created_at`, so there was no way to tell
+who created a user or deactivated a catalog. `App\Support\Auditor` writes one `Auditoria`
+row per admin action — who, when, which action, which record, and a JSON diff of the
+fields that actually changed. `/admin/auditoria` reads it back, filterable by author,
+action and table.
+
+It is called **explicitly from the controllers**, not wired to Eloquent events: the point
+is to record what an administrator did, not what a seeder or a test did. Three rules when
+extending it:
+
+- Capture `Auditor::foto($modelo)` **before** the save — saving resyncs the model's
+  originals, so a diff taken afterwards is empty.
+- Nothing is recorded when `getChanges()` is empty, so pressing save without editing
+  doesn't pollute the log.
+- `Auditor::RESERVADOS` keeps passwords out. Never add a credential field to a diff.
+
+`Auditoria` is the one table that does **not** come from the original data model. It is
+part of why `ModelosTest` expects 69 models and not the original 65 — the rest is the
+Hisopado SARM module (+5) minus the `ProfilaxisAtbCirugia` pair it replaced (−2). The
+arithmetic is spelled out in the test itself; keep it there when the count moves.
+
+**Validation messages live in `lang/es/validation.php`.** `APP_LOCALE=es` with no
+translations published makes Laravel print the raw key (`validation.required`), so a
+new rule used in a form needs its line there.
 
 ### Brand and UI components
 
@@ -190,10 +366,29 @@ for hover, active state and backgrounds. Typeface is Montserrat (400/600/900),
 self-hosted at build time.
 
 Reusable components in `resources/views/components/` — prefer them over ad-hoc markup:
-`boton`, `input`, `alerta`, `tarjeta`, `estado`, `metrica`, `icono`. Per the manual,
-`<x-boton>` defaults to a fully rounded confirmation button and `forma="grupo"` gives
-the 12px radius used for button groups. `<x-input>` handles its own validation error
-and `old()` value.
+`boton`, `input`, `select`, `textarea`, `checkbox`, `alerta`, `tarjeta`, `estado`,
+`metrica`, `icono`. Per the manual, `<x-boton>` defaults to a fully rounded confirmation
+button and `forma="grupo"` gives the 12px radius used for button groups. The four form
+components share one API (`nombre`, `etiqueta`, `valor`, `ayuda`, `requerido`) and each
+handles its own `old()` value and validation error — keep that shape if you add another.
+
+Flash messages: redirect `->with('exito' | 'error' | 'aviso' | 'info', '…')` and
+`partials/flash.blade.php`, already included by `layouts/app`, renders it as `<x-alerta>`.
+
+Destructive actions confirm through a native `<dialog>` (`components/confirmar.blade.php`,
+rendered **once** by `layouts/app`), never `confirm()`. A form opts in by declaring its
+copy — no JavaScript at the call site:
+
+```blade
+<form method="POST" action="…"
+      data-confirmar-titulo="Dar de baja «Hemograma»"
+      data-confirmar="No se borra: se puede reactivar cuando haga falta."
+      data-confirmar-accion="Dar de baja">
+```
+
+The handler in `resources/js/app.js` is delegated, so it covers forms added later. That
+file is still the app's entire JavaScript — keep it that way; a confirmation library
+would outweigh the whole bundle and fight the brand tokens.
 
 Icons are Material Symbols, loaded from a **subsetted** stylesheet. **A new icon must
 be added to the `icon_names` list in `layouts/app.blade.php` or it silently will not
@@ -201,9 +396,43 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
 
 ### Known gaps — do not assume these work
 
-- **Patients cannot authenticate.** `Usuario` hangs off `Personal`, and a patient is a
-  `Persona` with no staff record. `cirugias/portal-paciente` is a preview the staff
-  opens; a real patient login needs a schema decision first.
-- **No suspension reason.** `CirugiaEstado` records _that_ a surgery was suspended, not
-  _why_, so the Dirección panel cannot break suspensions down by cause.
-- **No surgery duration** on `Cirugia`, so the OR agenda shows start times only.
+- **The patient portal is routed, but it is a mock, and patient login is faked.**
+  `/mi-salud` (`rol:Paciente` → `PacientePortalController`, view `paciente.portal`) is
+  navigable and `rutaInicial()` sends a `Paciente` there, but `PortalPacienteMock`
+  keeps its state in the session and returns invented data — nothing behind those
+  screens reads the real case file. **Do not build on top of it as if it were wired
+  to the domain.**
+  The way in is a shortcut, not a solution: `Usuario` hangs off `Personal` and a
+  patient is a `Persona` with no staff record, so `DemoSeeder::crearPacienteDemo()`
+  invents a legajo-less `Personal` row for María García (`mgarcia` / `paciente1234`)
+  just to be able to create her user. **How a patient really authenticates is still
+  an open schema decision** — that is what has to be resolved before any of this is
+  real. `PacientePortalTest` covers navigation only, for the same reason.
+  `cirugias/portal-paciente` is a different screen: a preview the staff opens, and it
+  does read the real case file.
+- **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
+  *why*, so the Dirección panel cannot break suspensions down by cause.
+- **Surgery duration** (`Cirugia.fechaHoraFinCirugia`, nullable) is used for
+  quirófano/cirujano/anestesista overlap checks on the create-surgery form, but the OR
+  agenda/calendar views still only display start times.
+- **Preparación del paciente (ayuno, etc.) is not loaded from the create-surgery form.**
+  The catalogs (`TipoPreparacion`/`TipoIndicacion`) exist and `ResumenCirugia::preparacion()`
+  already knows how to read them (see `cirugias/portal-paciente.blade.php`), but loading
+  them is the gestor's/cirujano's job on a separate management screen that doesn't exist
+  yet — it was deliberately left out of the create form (too many steps for one alta).
+- **Hisopado SAMR: only the request exists, not the result.** `HisopadoSarm` is its own
+  module (not a `TipoEstudio` row anymore) with a date-range history in
+  `HisopadoSarmEstado` (`Pendiente`/`Negativo`/`Positivo`), and `ProfilaxisAtbHisopadoSarm`
+  hangs off it (not off `Cirugia` — the antibiotic protocol depends on the swab result).
+  Today the gestor can only request it from the create-surgery form (a checkbox, same
+  "header only" pattern as hemoderivados); there's no screen yet to load the result,
+  the lab (`Establecimiento`), or the resulting profilaxis — that's the gestor's/
+  cirujano's job later, undecided which panel it belongs in.
+- **Four master tables sit outside the generic catalog ABM, each with its own screen.**
+  `ConfigConsentimiento` (`/admin/consentimientos`), `ConfigTipoExamenPreAnestesico*`
+  (`/admin/cuestionario`) and `MaterialProveedor` / `MaterialProveedorTipoMedida`
+  (`/admin/precios`) are date-ranged or nested, so the map would have flattened them.
+  `PlanObraSocial` is the one still without a screen — it is a patient's coverage, so it
+  belongs to a Pacientes section that does not exist yet.
+- **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
+  disabled; a `Persona` who is not staff has no screen of its own.

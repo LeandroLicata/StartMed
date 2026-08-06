@@ -22,6 +22,7 @@ class PedidoMaterial extends Model
         'idTipoMedida',
         'cantidadPedidoMaterial',
         'observacionesPedidoMaterial',
+        'precioUnitarioPedidoMaterial',
         'subtotalPedidoMaterial',
         'fechaPedidoMaterial',
     ];
@@ -29,6 +30,7 @@ class PedidoMaterial extends Model
     protected function casts(): array
     {
         return [
+            'precioUnitarioPedidoMaterial' => 'decimal:2',
             'subtotalPedidoMaterial' => 'decimal:2',
             'fechaPedidoMaterial' => 'datetime',
         ];

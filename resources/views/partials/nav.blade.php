@@ -1,8 +1,19 @@
 @php
     /*
-     * Cada item declara los roles que lo ven. El administrador ve todo
-     * (lo resuelve Usuario::tieneRol). Los que todavia no tienen pantalla
-     * quedan atenuados y no navegan.
+     * Cada item declara los roles que lo ven, y se resuelven con
+     * Usuario::tieneRolPropio: el comodin del administrador es para *entrar*
+     * a una ruta, no para llenarle el menu con el trabajo de los demas. Un
+     * administrador ve su bloque; si ademas es gestor, ve tambien el de
+     * gestor. Los items sin pantalla todavia quedan atenuados y no navegan.
+     *
+     * El menu es lo que el usuario *hace*, y administrar tambien es hacer:
+     * cada modulo de administracion es su propia seccion. Lo que sigue
+     * entrando por una sola puerta son los 27 catalogos, agrupados en
+     * /admin; no sumar atajos sueltos aca, duplicarian ese indice.
+     *
+     * 'activaEn' permite marcar el item con un patron de rutas (admin.*)
+     * cuando la seccion abarca mas de una pantalla; por defecto es su ruta.
+     * 'titulo' abre un grupo: dibuja una linea y un rotulo encima del item.
      */
     $secciones = [
         [
@@ -10,6 +21,18 @@
             'icono' => 'home',
             'ruta' => 'dashboard',
             'roles' => ['Gestor de quirófano', 'Dirección médica'],
+        ],
+        [
+            'etiqueta' => 'Cirugías',
+            'icono' => 'event',
+            'ruta' => 'cirugias.index',
+            'roles' => ['Gestor de quirófano'],
+        ],
+        [
+            'etiqueta' => 'Agenda',
+            'icono' => 'schedule',
+            'ruta' => 'agenda',
+            'roles' => ['Gestor de quirófano'],
         ],
         [
             'etiqueta' => 'Mis cirugías',
@@ -23,18 +46,84 @@
             'ruta' => 'anestesista',
             'roles' => ['Anestesista'],
         ],
+        // Pacientes, disponible para Gestor, Cirujano y Anestesista
+        ['etiqueta' => 'Pacientes', 'icono' => 'groups', 'ruta' => 'pacientes.index', 'roles' => ['Gestor de quirófano', 'Cirujano', 'Anestesista']],
+        [
+            'etiqueta' => 'Agenda',
+            'icono' => 'schedule',
+            'ruta' => 'cirujano.agenda',
+            'roles' => ['Cirujano', 'Anestesista'],
+        ],
+        [
+            'etiqueta' => 'Historial de cirugías',
+            'icono' => 'history',
+            'ruta' => 'cirujano.historial',
+            'activaEn' => 'cirujano.historial',
+            'roles' => ['Cirujano', 'Anestesista'],
+        ],
         [
             'etiqueta' => 'Dirección',
             'icono' => 'monitoring',
             'ruta' => 'direccion',
             'roles' => ['Dirección médica'],
         ],
-        ['etiqueta' => 'Quirófanos', 'icono' => 'meeting_room', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Pacientes', 'icono' => 'groups', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Materiales', 'icono' => 'inventory_2', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Hemoderivados', 'icono' => 'bloodtype', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Obras sociales', 'icono' => 'shield', 'ruta' => null, 'roles' => []],
-        ['etiqueta' => 'Personal', 'icono' => 'badge', 'ruta' => null, 'roles' => []],
+
+        /*
+         * Administracion. Cada item queda marcado en todas las pantallas de
+         * su modulo, no solo en el indice. 'Catálogos' va ultimo y apunta a
+         * /admin, que quedo siendo eso: el indice de las tablas maestras.
+         */
+        [
+            'etiqueta' => 'Usuarios',
+            'icono' => 'manage_accounts',
+            'ruta' => 'admin.usuarios.index',
+            'activaEn' => 'admin.usuarios.*',
+            'titulo' => 'Administración',
+            'roles' => ['Administrador'],
+        ],
+        [
+            'etiqueta' => 'Consentimientos',
+            'icono' => 'draw',
+            'ruta' => 'admin.consentimientos.index',
+            'activaEn' => 'admin.consentimientos.*',
+            'roles' => ['Administrador'],
+        ],
+        /*
+         * El cuestionario preanestesico es una herramienta clinica del
+         * anestesista, pero el acceso al modulo se decide por ruta y estado
+         * (congelado al responder), no por la barra lateral. En la barra queda
+         * solo para el administrador: el anestesista ve su propio bloque
+         * (Evaluaciones, Pacientes, Agenda, Historial), sin duplicar
+         * administracion ni cuestionarios sueltos.
+         */
+        [
+            'etiqueta' => 'Cuestionario preanestésico',
+            'icono' => 'assignment',
+            'ruta' => 'admin.cuestionario.index',
+            'activaEn' => 'admin.cuestionario.*',
+            'roles' => ['Administrador'],
+        ],
+        [
+            'etiqueta' => 'Proveedores y precios',
+            'icono' => 'inventory_2',
+            'ruta' => 'admin.precios.index',
+            'activaEn' => 'admin.precios.*',
+            'roles' => ['Administrador'],
+        ],
+        [
+            'etiqueta' => 'Auditoría',
+            'icono' => 'description',
+            'ruta' => 'admin.auditoria',
+            'roles' => ['Administrador'],
+        ],
+        [
+            'etiqueta' => 'Catálogos',
+            'icono' => 'folder_open',
+            'ruta' => 'admin.inicio',
+            // El indice y las pantallas de cada tabla, que cuelgan de el.
+            'activaEn' => ['admin.inicio', 'admin.catalogos.*'],
+            'roles' => ['Administrador'],
+        ],
     ];
 
     $usuario = auth()->user();
@@ -42,14 +131,29 @@
 
 <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Secciones">
     @foreach ($secciones as $seccion)
-        @continue($seccion['roles'] !== [] && ! $usuario->tieneRol(...$seccion['roles']))
+        @continue($seccion['roles'] !== [] && ! $usuario->tieneRolPropio(...$seccion['roles']))
 
         @php
             $habilitada = (bool) $seccion['ruta'];
-            // El asterisco deja activa la sección en sus subrutas, p. ej. el
-            // formulario de evaluación anestésica sigue resaltando "Evaluaciones".
-            $activa = $habilitada && request()->routeIs($seccion['ruta'], $seccion['ruta'].'.*');
+            
+            // Si tiene activaEn se evalúa esa lista/patrón (ej. admin.*).
+            // Si no tiene activaEn, exige coincidencia exacta con su nombre de ruta.
+            if (isset($seccion['activaEn'])) {
+                $patronesActivos = (array) $seccion['activaEn'];
+                $activa = $habilitada && request()->routeIs(...$patronesActivos);
+            } else {
+                $activa = $habilitada && request()->routeIs($seccion['ruta']);
+            }
         @endphp
+
+        {{-- El rotulo se dibuja con el item, asi no queda suelto si el rol no lo ve. --}}
+        @if ($seccion['titulo'] ?? false)
+            <hr class="my-3 border-white/10" aria-hidden="true">
+
+            <p class="px-3 pb-1 text-[0.6875rem] font-semibold uppercase tracking-widest text-white/40">
+                {{ $seccion['titulo'] }}
+            </p>
+        @endif
 
         @if ($habilitada)
             <a

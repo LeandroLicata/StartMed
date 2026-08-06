@@ -91,36 +91,15 @@
                         </p>
                     @endif
 
-                    @php
-                        $tieneEvaluacion = $caso->cirugia->evaluacionAnestesicas->isNotEmpty();
-                        $evaluacionEtiqueta = match (true) {
-                            ! $tieneEvaluacion => 'Iniciar evaluación',
-                            ! $caso->evaluacionCompleta() => 'Continuar evaluación',
-                            default => 'Editar evaluación',
-                        };
-                        $evaluacionIcono = ! $tieneEvaluacion ? 'add_circle' : 'edit_note';
-                        $evaluacionRuta = $tieneEvaluacion ? 'anestesista.editar' : 'anestesista.evaluar';
-                    @endphp
-
-                    <div class="mt-auto grid grid-cols-2 gap-2 pt-1">
-                        <x-boton
-                            variante="contorno"
-                            forma="grupo"
-                            icono="folder_open"
-                            :href="route('cirugias.show', $caso->cirugia)"
-                            class="w-full"
-                        >
-                            Expediente
-                        </x-boton>
-
+                    <div class="mt-auto grid grid-cols-1 gap-2 pt-1">
                         <x-boton
                             variante="primario"
                             forma="grupo"
-                            :icono="$evaluacionIcono"
-                            :href="route($evaluacionRuta, $caso->cirugia)"
+                            icono="folder_open"
+                            :href="route('cirugias.show', [$caso->cirugia, 'tab' => 'evaluacion'])"
                             class="w-full"
                         >
-                            {{ $evaluacionEtiqueta }}
+                            Cargar evaluación
                         </x-boton>
                     </div>
                 </div>
@@ -132,41 +111,8 @@
         @endforelse
     </div>
 
-    {{-- Cuestionario del primer caso pendiente, que es el que hay que resolver --}}
-    @php($proximo = $pendientes->first(fn ($c) => $c->cuestionario()->isNotEmpty()))
-
-    @if ($proximo)
-        <x-tarjeta
-            titulo="Cuestionario de {{ $proximo->nombrePaciente() }}"
-            icono="assignment"
-            class="mt-6"
-        >
-            <x-slot:acciones>
-                <x-boton
-                    variante="contorno"
-                    forma="grupo"
-                    :href="route('cirugias.show', $proximo->cirugia)"
-                    class="px-3 py-1.5 text-xs"
-                >
-                    Ver expediente
-                </x-boton>
-            </x-slot:acciones>
-
-            <dl class="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-                @foreach ($proximo->cuestionario() as $fila)
-                    <div class="border-b border-hu-gris-suave/60 pb-2">
-                        <dt class="text-xs text-hu-gris-medio">{{ $fila['pregunta'] }}</dt>
-                        <dd class="mt-0.5 text-sm font-semibold text-hu-azul">{{ $fila['respuesta'] }}</dd>
-                    </div>
-                @endforeach
-            </dl>
-
-            @if ($proximo->alertaProfilaxis())
-                <x-alerta tipo="error" titulo="Alerta de profilaxis" class="mt-4">
-                    {{ $proximo->alertaProfilaxis() }}
-                </x-alerta>
-            @endif
-        </x-tarjeta>
+@if ($evaluaciones->hasPages())
+        <div class="mt-4">{{ $evaluaciones->links() }}</div>
     @endif
 
-@endsection
+    @endsection

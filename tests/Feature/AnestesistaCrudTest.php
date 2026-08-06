@@ -115,7 +115,8 @@ class AnestesistaCrudTest extends TestCase
             ->assertOk()
             ->assertSee('Clasificación ASA')
             ->assertSee('Tipo de anestesia')
-            ->assertSee('Registrar evaluación');
+            ->assertSee('Apto')
+            ->assertSee('No apto');
     }
 
     public function test_si_la_cirugia_ya_tiene_evaluacion_se_deriva_a_editar(): void
@@ -139,7 +140,7 @@ class AnestesistaCrudTest extends TestCase
                 'observacionesEquipoEvaluacion' => 'Sin novedades',
                 'observacionesPacienteEvaluacion' => 'Paciente colaborador',
             ])
-            ->assertRedirect(route('anestesista'));
+            ->assertRedirect(route('cirugias.show', [$cirugia, 'tab' => 'evaluacion']));
 
         $evaluacion = EvaluacionAnestesica::where('idCirugia', $cirugia->idCirugia)->first();
         $this->assertNotNull($evaluacion);
@@ -170,24 +171,45 @@ class AnestesistaCrudTest extends TestCase
         $this->actingAs($this->usuario('ramos'))
             ->get(route('anestesista.editar', $garcia))
             ->assertOk()
-            ->assertSee('Guardar cambios')
-            ->assertSee('Eliminar evaluación');
+            ->assertSee('Apto')
+            ->assertSee('No apto')
+            ->assertDontSee('Eliminar evaluación');
     }
 
+    /**
+     * La reevaluación: se evalúa con un ASA y después se corrige.
+     *
+     * La premisa la arma el test evaluando primero, y no un caso del seeder,
+     * por dos motivos. Uno, así prueba la transición entera —evaluar y volver
+     * a evaluar— y no solo el segundo paso. Dos, un caso con ASA cargado es
+     * por definición uno Completado: el formulario exige ASA y tipo de
+     * anestesia, y guardar llama a completar(). No existe en la aplicación una
+     * evaluación Pendiente con ASA, así que apoyarse en los datos de demo para
+     * conseguir una era apoyarse en algo que el seeder no puede darle.
+     */
     public function test_el_anestesista_puede_actualizar_la_evaluacion(): void
     {
-        // El caso Vidal arranca Pendiente con ASA II y Sedación + local.
-        $vidal = $this->cirugiaDe('Vidal');
-        $evaluacion = $vidal->evaluacionAnestesicas()->first();
+        [$usuario, $personal] = $this->nuevoAnestesista();
+        $cirugia = $this->cirugiaPara($personal);
+
+        $this->actingAs($usuario)
+            ->post(route('anestesista.store', $cirugia), [
+                'idTipoAsa' => TipoASA::where('aliasTipoAsa', 'ASA II')->value('idTipoAsa'),
+                'idTipoAnestesia' => TipoAnestesia::where('nombreTipoAnestesia', 'Sedación + local')->value('idTipoAnestesia'),
+                'observacionesEquipoEvaluacion' => 'Primera evaluación',
+            ])
+            ->assertRedirect(route('anestesista'));
+
+        $evaluacion = $cirugia->evaluacionAnestesicas()->first();
         $this->assertNotNull($evaluacion);
 
-        $this->actingAs($this->usuario('ramos'))
-            ->put(route('anestesista.update', $vidal), [
+        $this->actingAs($usuario)
+            ->put(route('anestesista.update', $cirugia), [
                 'idTipoAsa' => TipoASA::where('aliasTipoAsa', 'ASA III')->value('idTipoAsa'),
                 'idTipoAnestesia' => TipoAnestesia::where('nombreTipoAnestesia', 'General')->value('idTipoAnestesia'),
                 'observacionesEquipoEvaluacion' => 'Actualizada tras el cuestionario',
             ])
-            ->assertRedirect(route('anestesista'));
+            ->assertRedirect(route('cirugias.show', [$vidal, 'tab' => 'evaluacion']));
 
         $this->assertSame('Actualizada tras el cuestionario', $evaluacion->fresh()->observacionesEquipoEvaluacion);
 
@@ -198,9 +220,14 @@ class AnestesistaCrudTest extends TestCase
         $this->assertSame('ASA III', $evaluacion->evaluacionTipoAsas()->whereNull('fechaFinTipoAsa')->first()->tipoAsa->aliasTipoAsa);
         $this->assertSame('General', $evaluacion->evaluacionTipoAnestesias()->whereNull('fechaFinTipoAnestesia')->first()->tipoAnestesia->nombreTipoAnestesia);
 
-        // El ASA anterior quedó cerrado en el historial.
-        $cerrado = $evaluacion->evaluacionTipoAsas()->whereNotNull('fechaFinTipoAsa')->first();
-        $this->assertSame('ASA II', $cerrado->tipoAsa->aliasTipoAsa);
+        // Lo anterior no se pisa: queda cerrado en el historial, que es como el
+        // esquema guarda todos sus cambios de estado.
+        $cerradas = $evaluacion->evaluacionTipoAsas()->whereNotNull('fechaFinTipoAsa')->get();
+        $this->assertCount(1, $cerradas);
+        $this->assertSame('ASA II', $cerradas->first()->tipoAsa->aliasTipoAsa);
+
+        $anestesiaCerrada = $evaluacion->evaluacionTipoAnestesias()->whereNotNull('fechaFinTipoAnestesia')->first();
+        $this->assertSame('Sedación + local', $anestesiaCerrada->tipoAnestesia->nombreTipoAnestesia);
     }
 
     public function test_el_anestesista_puede_eliminar_la_evaluacion(): void
@@ -210,7 +237,7 @@ class AnestesistaCrudTest extends TestCase
 
         $this->actingAs($this->usuario('ramos'))
             ->delete(route('anestesista.destroy', $garcia))
-            ->assertRedirect(route('anestesista'));
+            ->assertRedirect(route('cirugias.show', [$garcia, 'tab' => 'evaluacion']));
 
         $this->assertNull($garcia->evaluacionAnestesicas()->first());
     }
