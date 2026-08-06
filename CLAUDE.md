@@ -173,6 +173,40 @@ Validation for both attachments is one constant, `CirugiaController::REGLAS_ARCH
 (pdf/jpg/png, 20 MB). `GestorDocumentalTest` covers the round trip, the rejections,
 the failure path and the signing.
 
+**Replacing a file orphans the old one, and nothing on the write path cleans it up**
+— re-uploading a study result or a hisopado adjunto overwrites the puntero column;
+the previous Cloudinary asset stays in the account with nothing pointing at it,
+forever, unless something removes it. `App\Console\Commands\LimpiarDocumentosHuerfanos`
+(`documentos:limpiar-huerfanos`) is that something: it lists Cloudinary assets under
+the configured folder, diffs them against every puntero still referenced by
+`CirugiaTipoEstudio`/`HisopadoSarm`, and reports what nothing points to anymore.
+
+Two decisions there are deliberate, not oversights:
+
+- **It only reports by default.** `--borrar` is required to actually delete, and
+  `routes/console.php` schedules the command **without** that flag — weekly, output
+  appended to `storage/logs/documentos-huerfanos.log` (its own file, so a printed
+  table doesn't clutter `laravel.log`). Deleting clinical files unattended is exactly
+  the kind of hard-to-reverse action that should not run on a cron with nobody
+  looking; the reasoning behind that call lives in the command's own docblock, not
+  just here.
+- **The folder is scoped per environment on purpose.** `config('cloudinary.carpeta')`
+  defaults to `startmed-{APP_ENV}`, not a fixed `startmed`. If two environments ever
+  share one Cloudinary account (e.g. testing a deploy with a personal account before
+  a proper org one exists) but have separate databases, running this command from
+  either one against a shared, unscoped folder would flag the *other* environment's
+  still-referenced files as orphans — they don't appear in **this** database. Folder
+  isolation makes that impossible structurally instead of relying on whoever runs the
+  command to be careful. Overriding `CLOUDINARY_CARPETA` by hand opts back into a
+  shared folder, so only do that when two environments are meant to share one.
+
+The Cloudinary listing/deletion path itself is **not** covered by the automated
+suite — it is real network I/O against a real account, which is exactly what
+`GestorDocumentalTest::test_la_suite_nunca_corre_contra_cloudinary()` guards against.
+`LimpiarDocumentosHuerfanosTest` covers what is network-free instead: the pointer
+parser (`GestorDocumentalCloudinary::referenciaDe()`) and the "what's still
+referenced" query, plus the no-op path when the resolved gestor is the local one.
+
 ### Seeders
 
 `DatabaseSeeder` → `CatalogosSeeder` (reference tables) + admin user, then, **only in
