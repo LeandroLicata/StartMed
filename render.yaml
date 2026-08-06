@@ -1,0 +1,77 @@
+# Blueprint de Render. Importalo desde el dashboard (New > Blueprint) apuntando
+# a este repo. Las variables marcadas "sync: false" no tienen valor acá: Render
+# las deja vacías y las cargás a mano en el dashboard (son secretos o dependen
+# del entorno externo — la base de datos MySQL vive fuera de Render).
+
+envVarGroups:
+  - name: startmed-shared
+    envVars:
+      - key: APP_NAME
+        value: StartMed
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false # https://<tu-servicio>.onrender.com, o el dominio propio
+      - key: APP_LOCALE
+        value: es
+      - key: APP_FALLBACK_LOCALE
+        value: es
+      - key: LOG_CHANNEL
+        value: stack
+      - key: LOG_LEVEL
+        value: error
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: MYSQL_ATTR_SSL_CA
+        sync: false # ruta al CA cert si el proveedor de MySQL exige TLS (p.ej. Aiven); ver guía
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: FILESYSTEM_DISK
+        value: local
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: CLOUDINARY_MINUTOS_URL
+        value: "10"
+      - key: MAIL_MAILER
+        value: log
+
+services:
+  - type: web
+    name: startmed
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: web
+    plan: starter
+    healthCheckPath: /login
+    preDeployCommand: php artisan migrate --force && php artisan db:seed --force
+    envVarGroups:
+      - startmed-shared
+
+  - type: cron
+    name: startmed-scheduler
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: php artisan schedule:run
+    schedule: "* * * * *"
+    envVarGroups:
+      - startmed-shared
