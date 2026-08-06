@@ -21,7 +21,7 @@ envVarGroups:
       - key: APP_FALLBACK_LOCALE
         value: es
       - key: LOG_CHANNEL
-        value: stack
+        value: stderr # storage/logs/laravel.log queda dentro del contenedor y no lo ves en los logs de Render
       - key: LOG_LEVEL
         value: error
       - key: DB_CONNECTION
