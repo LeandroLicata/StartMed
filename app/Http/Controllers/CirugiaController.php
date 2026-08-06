@@ -38,6 +38,8 @@ use App\Models\ProfilaxisAtbHisopadoSarmProfilaxis;
 use App\Models\ProfilaxisRol;
 use App\Models\Quirofano;
 use App\Models\Rol;
+use App\Models\TipoAnestesia;
+use App\Models\TipoASA;
 use App\Models\TipoEstudio;
 use App\Models\TipoHemoderivado;
 use App\Models\TipoIndicacion;
@@ -57,7 +59,7 @@ class CirugiaController extends Controller
 {
     use FiltraCirugias;
 
-    private const TABS = ['resumen', 'preparacion', 'estudios', 'materiales', 'hemoderivados', 'profilaxis', 'autorizacion'];
+    private const TABS = ['resumen', 'preparacion', 'estudios', 'materiales', 'hemoderivados', 'profilaxis', 'autorizacion', 'evaluacion', 'asa'];
 
     private const POR_PAGINA = 20;
 
@@ -160,6 +162,11 @@ class CirugiaController extends Controller
             'tiposIndicacion' => TipoIndicacion::whereNull('fechaBajaTipoIndicacion')
                 ->orderBy('idTipoIndicacion')
                 ->get(),
+            'evaluacion' => $cirugia->evaluacionAnestesicas->first(),
+            'tiposAsa' => TipoASA::whereNull('fechaBajaTipoAsa')->orderBy('nombreTipoAsa')->get(),
+            'tiposAnestesia' => TipoAnestesia::whereNull('fechaBajaTipoAnestesia')->orderBy('nombreTipoAnestesia')->get(),
+            'puedeEditarEvaluacion' => $request->user()->tieneRol('Administrador')
+                || $request->user()->personal?->idPersonal === $cirugia->idPersonalAnestesista,
         ]);
     }
 
