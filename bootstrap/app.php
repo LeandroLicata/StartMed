@@ -16,6 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'rol' => VerificarRol::class,
         ]);
+
+        // Render (y plataformas similares) terminan el TLS en su proxy y
+        // reenvían por HTTP simple. Sin confiar en el proxy, Laravel arma
+        // las URLs de assets como http:// y el navegador las bloquea por
+        // contenido mixto en una página servida por https://. Solo se
+        // recibe tráfico a través del proxy de la plataforma, así que
+        // confiar en cualquier origen acá es seguro.
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
