@@ -2,6 +2,10 @@
 # a este repo. Las variables marcadas "sync: false" no tienen valor acá: Render
 # las deja vacías y las cargás a mano en el dashboard (son secretos o dependen
 # del entorno externo — la base de datos MySQL vive fuera de Render).
+#
+# "sync: false" no funciona dentro de un envVarGroup (Render la ignora), así
+# que el grupo compartido abajo solo tiene valores fijos, no secretos. Los
+# secretos van repetidos en cada servicio que los necesita.
 
 envVarGroups:
   - name: startmed-shared
@@ -12,10 +16,6 @@ envVarGroups:
         value: production
       - key: APP_DEBUG
         value: "false"
-      - key: APP_KEY
-        sync: false
-      - key: APP_URL
-        sync: false # https://<tu-servicio>.onrender.com, o el dominio propio
       - key: APP_LOCALE
         value: es
       - key: APP_FALLBACK_LOCALE
@@ -26,18 +26,8 @@ envVarGroups:
         value: error
       - key: DB_CONNECTION
         value: mysql
-      - key: DB_HOST
-        sync: false
       - key: DB_PORT
         value: "3306"
-      - key: DB_DATABASE
-        sync: false
-      - key: DB_USERNAME
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: MYSQL_ATTR_SSL_CA
-        sync: false # ruta al CA cert si el proveedor de MySQL exige TLS (p.ej. Aiven); ver guía
       - key: SESSION_DRIVER
         value: database
       - key: SESSION_SECURE_COOKIE
@@ -48,8 +38,6 @@ envVarGroups:
         value: database
       - key: FILESYSTEM_DISK
         value: local
-      - key: CLOUDINARY_URL
-        sync: false
       - key: CLOUDINARY_MINUTOS_URL
         value: "10"
       - key: MAIL_MAILER
@@ -64,8 +52,24 @@ services:
     plan: starter
     healthCheckPath: /login
     preDeployCommand: php artisan migrate --force && php artisan db:seed --force
-    envVarGroups:
-      - startmed-shared
+    envVars:
+      - fromGroup: startmed-shared
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false # https://<tu-servicio>.onrender.com, o el dominio propio
+      - key: DB_HOST
+        sync: false
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: MYSQL_ATTR_SSL_CA
+        sync: false # ruta al CA cert si el proveedor de MySQL exige TLS (p.ej. Aiven); ver guía
+      - key: CLOUDINARY_URL
+        sync: false
 
   - type: cron
     name: startmed-scheduler
@@ -73,5 +77,19 @@ services:
     dockerfilePath: ./Dockerfile
     dockerCommand: php artisan schedule:run
     schedule: "* * * * *"
-    envVarGroups:
-      - startmed-shared
+    envVars:
+      - fromGroup: startmed-shared
+      - key: APP_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: MYSQL_ATTR_SSL_CA
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
