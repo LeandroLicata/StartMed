@@ -51,7 +51,9 @@ services:
     dockerCommand: web
     plan: free
     healthCheckPath: /login
-    preDeployCommand: php artisan migrate --force && php artisan db:seed --force
+    # preDeployCommand no está disponible en el plan free; migrate/seed corren
+    # en el arranque del contenedor (ver docker/entrypoint.sh). Si en algún
+    # momento se pasa a un plan pago, se puede volver a mover acá.
     envVars:
       - fromGroup: startmed-shared
       - key: APP_KEY
