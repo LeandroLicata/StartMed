@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditoriaController;
@@ -61,16 +61,16 @@ Route::middleware('auth')->group(function () {
         ->middleware('rol:Cirujano')
         ->name('cirujano.historial');
 
-        Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
-            ->middleware('rol:Cirujano')
-            ->name('cirujano.agenda');
-        Route::get('/cirujano/agenda/{fecha}', [CirujanoController::class, 'agendaDia'])
-            ->middleware('rol:Cirujano')
-            ->name('cirujano.agenda.dia');
-            // >>> NUEVA RUTA PARA VER EL DETALLE DE UNA CIRUGÍA <<<
-        Route::get('/cirujano/cirugias/{cirugia}', [CirujanoController::class, 'detalle'])
-            ->middleware('rol:Cirujano')
-            ->name('cirujano.cirugias.detalle');
+    Route::get('/cirujano/agenda', [CirujanoController::class, 'agenda'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.agenda');
+    Route::get('/cirujano/agenda/{fecha}', [CirujanoController::class, 'agendaDia'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.agenda.dia');
+    // >>> NUEVA RUTA PARA VER EL DETALLE DE UNA CIRUGÍA <<<
+    Route::get('/cirujano/cirugias/{cirugia}', [CirujanoController::class, 'detalle'])
+        ->middleware('rol:Cirujano')
+        ->name('cirujano.cirugias.detalle');
 
     Route::get('/anestesista', [AnestesistaController::class, 'index'])
         ->middleware('rol:Anestesista')
