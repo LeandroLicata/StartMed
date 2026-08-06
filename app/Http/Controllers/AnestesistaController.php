@@ -93,18 +93,21 @@ class AnestesistaController extends Controller
 
         $datos = $this->validar($request);
 
-        DB::transaction(function () use ($cirugia, $datos): void {
+        // La decisión la trae el botón del formulario ('apto' / 'no_apto').
+        $decision = $request->input('decision', 'apto');
+
+        DB::transaction(function () use ($cirugia, $datos, $decision): void {
             $evaluacion = EvaluacionAnestesica::create([
                 'idCirugia' => $cirugia->idCirugia,
                 'observacionesEquipoEvaluacion' => $datos['observacionesEquipoEvaluacion'] ?? null,
                 'observacionesPacienteEvaluacion' => $datos['observacionesPacienteEvaluacion'] ?? null,
             ]);
 
-            $this->completar($evaluacion, $datos);
+            $this->completar($evaluacion, $datos, $decision);
         });
 
         return redirect()
-            ->route('anestesista')
+            ->route('cirugias.show', [$cirugia, 'tab' => 'evaluacion'])
             ->with('exito', 'Evaluación registrada correctamente.');
     }
 
@@ -139,17 +142,20 @@ class AnestesistaController extends Controller
 
         $datos = $this->validar($request);
 
-        DB::transaction(function () use ($evaluacion, $datos): void {
+        // La decisión la trae el botón del formulario ('apto' / 'no_apto').
+        $decision = $request->input('decision', 'apto');
+
+        DB::transaction(function () use ($evaluacion, $datos, $decision): void {
             $evaluacion->update([
                 'observacionesEquipoEvaluacion' => $datos['observacionesEquipoEvaluacion'] ?? null,
                 'observacionesPacienteEvaluacion' => $datos['observacionesPacienteEvaluacion'] ?? null,
             ]);
 
-            $this->completar($evaluacion, $datos);
+            $this->completar($evaluacion, $datos, $decision);
         });
 
         return redirect()
-            ->route('anestesista')
+            ->route('cirugias.show', [$cirugia, 'tab' => 'evaluacion'])
             ->with('exito', 'Evaluación actualizada correctamente.');
     }
 
@@ -164,7 +170,7 @@ class AnestesistaController extends Controller
         $evaluacion = $cirugia->evaluacionAnestesicas()->first();
 
         if ($evaluacion === null) {
-            return redirect()->route('anestesista');
+            return redirect()->route('cirugias.show', [$cirugia, 'tab' => 'evaluacion']);
         }
 
         DB::transaction(function () use ($evaluacion): void {
@@ -175,7 +181,7 @@ class AnestesistaController extends Controller
         });
 
         return redirect()
-            ->route('anestesista')
+            ->route('cirugias.show', [$cirugia, 'tab' => 'evaluacion'])
             ->with('exito', 'La evaluación fue eliminada. La cirugía vuelve a quedar sin evaluar.');
     }
 
@@ -200,8 +206,10 @@ class AnestesistaController extends Controller
     }
 
     /**
-     * Marca la evaluación como Completada y deja vigente el ASA y el tipo de
-     * anestesia recibidos, cerrando los registros que estaban abiertos.
+     * Deja vigente el estado según la decisión del anestesista y el ASA y el
+     * tipo de anestesia recibidos, cerrando los registros que estaban abiertos.
+     *
+     * 'apto' → Completada; 'no_apto' → Diferida.
      *
      * @param  array{
      *     idTipoAsa: int,
@@ -210,21 +218,23 @@ class AnestesistaController extends Controller
      *     observacionesPacienteEvaluacion: ?string,
      * }  $datos
      */
-    private function completar(EvaluacionAnestesica $evaluacion, array $datos): void
+    private function completar(EvaluacionAnestesica $evaluacion, array $datos, string $decision = 'apto'): void
     {
-        $completada = EstadoEvaluacionAnestesica::where('nombreEstadoEvaluacionAnestesica', 'Completada')
+        $nombreEstado = $decision === 'no_apto' ? 'Diferida' : 'Completada';
+
+        $estado = EstadoEvaluacionAnestesica::where('nombreEstadoEvaluacionAnestesica', $nombreEstado)
             ->value('idEstadoEvaluacionAnestesica');
 
         $estadoVigente = $evaluacion->evaluacionAnestesicaEstados()
             ->whereNull('fechaFinEvaluacionAnestesicaEstado')
             ->first();
 
-        if ($estadoVigente?->idEstadoEvaluacionAnestesica !== $completada) {
+        if ($estadoVigente?->idEstadoEvaluacionAnestesica !== $estado) {
             $estadoVigente?->update(['fechaFinEvaluacionAnestesicaEstado' => now()]);
 
             EvaluacionAnestesicaEstado::create([
                 'idEvaluacionAnestesica' => $evaluacion->idEvaluacionAnestesica,
-                'idEstadoEvaluacionAnestesica' => $completada,
+                'idEstadoEvaluacionAnestesica' => $estado,
                 'fechaInicioEvaluacionAnestesicaEstado' => now(),
             ]);
         }

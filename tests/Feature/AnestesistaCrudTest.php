@@ -115,7 +115,8 @@ class AnestesistaCrudTest extends TestCase
             ->assertOk()
             ->assertSee('Clasificación ASA')
             ->assertSee('Tipo de anestesia')
-            ->assertSee('Registrar evaluación');
+            ->assertSee('Apto')
+            ->assertSee('No apto');
     }
 
     public function test_si_la_cirugia_ya_tiene_evaluacion_se_deriva_a_editar(): void
@@ -139,7 +140,7 @@ class AnestesistaCrudTest extends TestCase
                 'observacionesEquipoEvaluacion' => 'Sin novedades',
                 'observacionesPacienteEvaluacion' => 'Paciente colaborador',
             ])
-            ->assertRedirect(route('anestesista'));
+            ->assertRedirect(route('cirugias.show', [$cirugia, 'tab' => 'evaluacion']));
 
         $evaluacion = EvaluacionAnestesica::where('idCirugia', $cirugia->idCirugia)->first();
         $this->assertNotNull($evaluacion);
@@ -170,8 +171,9 @@ class AnestesistaCrudTest extends TestCase
         $this->actingAs($this->usuario('ramos'))
             ->get(route('anestesista.editar', $garcia))
             ->assertOk()
-            ->assertSee('Guardar cambios')
-            ->assertSee('Eliminar evaluación');
+            ->assertSee('Apto')
+            ->assertSee('No apto')
+            ->assertDontSee('Eliminar evaluación');
     }
 
     /**
@@ -207,7 +209,7 @@ class AnestesistaCrudTest extends TestCase
                 'idTipoAnestesia' => TipoAnestesia::where('nombreTipoAnestesia', 'General')->value('idTipoAnestesia'),
                 'observacionesEquipoEvaluacion' => 'Actualizada tras el cuestionario',
             ])
-            ->assertRedirect(route('anestesista'));
+            ->assertRedirect(route('cirugias.show', [$vidal, 'tab' => 'evaluacion']));
 
         $this->assertSame('Actualizada tras el cuestionario', $evaluacion->fresh()->observacionesEquipoEvaluacion);
 
@@ -235,7 +237,7 @@ class AnestesistaCrudTest extends TestCase
 
         $this->actingAs($this->usuario('ramos'))
             ->delete(route('anestesista.destroy', $garcia))
-            ->assertRedirect(route('anestesista'));
+            ->assertRedirect(route('cirugias.show', [$garcia, 'tab' => 'evaluacion']));
 
         $this->assertNull($garcia->evaluacionAnestesicas()->first());
     }
