@@ -49,7 +49,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerCommand: web
-    plan: starter
+    plan: free
     healthCheckPath: /login
     preDeployCommand: php artisan migrate --force && php artisan db:seed --force
     envVars:
@@ -71,25 +71,8 @@ services:
       - key: CLOUDINARY_URL
         sync: false
 
-  - type: cron
-    name: startmed-scheduler
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerCommand: php artisan schedule:run
-    schedule: "* * * * *"
-    envVars:
-      - fromGroup: startmed-shared
-      - key: APP_KEY
-        sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_DATABASE
-        sync: false
-      - key: DB_USERNAME
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: MYSQL_ATTR_SSL_CA
-        sync: false
-      - key: CLOUDINARY_URL
-        sync: false
+# El cron (schedule:run cada minuto, para el chequeo horario de reprogramaciones
+# y la limpieza semanal de huérfanos en Cloudinary) queda afuera a propósito:
+# Render no tiene tier free para cron jobs (mínimo $1 USD/mes). Se agrega acá
+# cuando el web pase a un plan pago. Mientras tanto esas dos tareas de
+# mantenimiento simplemente no corren — no son críticas para probar el sistema.
