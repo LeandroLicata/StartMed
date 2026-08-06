@@ -21,7 +21,7 @@ RUN composer install \
 # --- Runtime: php-fpm + nginx + supervisor -------------------------------
 FROM php:8.3-fpm-alpine
 
-RUN apk add --no-cache nginx supervisor bash
+RUN apk add --no-cache nginx supervisor bash gettext
 
 RUN apk add --no-cache --virtual .build-deps \
         icu-dev oniguruma-dev libzip-dev libpng-dev freetype-dev libjpeg-turbo-dev \

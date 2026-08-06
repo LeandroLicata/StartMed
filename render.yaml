@@ -48,7 +48,9 @@ services:
     name: startmed
     runtime: docker
     dockerfilePath: ./Dockerfile
-    dockerCommand: web
+    # Sin dockerCommand a propósito: el CMD ["web"] del Dockerfile ya hace
+    # exactamente esto, y fijarlo acá agregaba una capa entre Render y el
+    # ENTRYPOINT que sospechamos causaba el "Exited with status 128" sin logs.
     plan: free
     healthCheckPath: /login
     # preDeployCommand no está disponible en el plan free; migrate/seed corren
