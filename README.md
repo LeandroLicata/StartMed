@@ -5,6 +5,10 @@ quirófanos, autorizaciones ante obras sociales, pedidos de materiales y
 hemoderivados, evaluación pre-anestésica, preparación del paciente y
 consentimientos informados.
 
+**🔗 Demo en vivo:** [startmed.onrender.com](https://startmed.onrender.com) — ver
+*[Usuarios de prueba](#usuarios-de-prueba)* para entrar. Corre en el plan free de
+Render, así que la primera carga después de un rato inactivo puede tardar.
+
 ---
 
 ## Puesta en marcha
@@ -263,6 +267,8 @@ gh pr create
 | Base de datos | MySQL 8.4 (`startmed`) |
 | Frontend | Blade + Vite 8 + Tailwind CSS 4 |
 | Tests | PHPUnit 12 |
+| Archivos clínicos | Cloudinary (`authenticated`), con fallback a disco local |
+| Despliegue | Docker + Render (`render.yaml`), MySQL externo (Aiven) |
 
 **No hay React.** El HTML se arma en el servidor con Blade y llega al navegador
 ya terminado. El único JavaScript propio es el que abre y cierra el menú lateral
@@ -279,6 +285,9 @@ en pantallas chicas.
 | `/cirugias/{id}` | Autenticados | Expediente completo de una cirugía |
 | `/cirugias/{id}/portal-paciente` | Autenticados | Vista previa de lo que ve el paciente |
 | `/mi-salud` | Paciente | Su portal — **maqueta**, ver *Pendientes conocidos* |
+| `/admin` | Administrador | Índice de los 27 catálogos maestros |
+| `/admin/usuarios`, `/admin/consentimientos`, `/admin/precios`, `/admin/auditoria` | Administrador | Los módulos que no son catálogo genérico — ver *Administración* |
+| `/admin/cuestionario` | Administrador, **Anestesista** | Cuestionario pre-anestésico (el único módulo de `/admin` que no es solo del administrador) |
 
 Los listados que crecen sin techo están paginados: cirugías de la semana del
 tablero, la agenda del cirujano, la bandeja del anestesista y las pantallas de
@@ -329,6 +338,75 @@ ver: la hoja de estilos viene subseteada para que pese poco.
 
 ---
 
+## Administración
+
+`/admin` es el único lado de escritura de datos maestros de la app (crear/editar
+cirugías también escribe, pero por otro camino). Un solo controlador genérico
+(`Admin\CatalogoController`) sirve los **27 catálogos maestros** a partir de un mapa
+declarado en [`App\Support\Catalogos`](app/Support/Catalogos.php) — agregar un
+catálogo nuevo es agregar una entrada al mapa, no escribir un controlador.
+
+Cuatro cosas no entran en ese mapa genérico porque tienen forma propia y viven cada
+una en su pantalla:
+
+| Módulo | Ruta | Por qué es distinto |
+|---|---|---|
+| Usuarios | `/admin/usuarios` | Crear un usuario escribe 4 tablas (`Persona` → `Personal` → `Usuario` → `RolPersonal`) en una transacción |
+| Consentimientos | `/admin/consentimientos` | Las plantillas se **versionan**, no se editan: publicar cierra la versión vigente y abre una nueva |
+| Cuestionario pre-anestésico | `/admin/cuestionario` | Se congela apenas alguien lo responde; versión → preguntas → opciones en una sola pantalla |
+| Proveedores y precios | `/admin/precios` | El precio cuelga de la unidad de venta (`MaterialProveedorTipoMedida`), no del proveedor |
+
+**Toda acción queda auditada.** Como ninguna tabla tiene `created_at`,
+[`App\Support\Auditor`](app/Support/Auditor.php) escribe una fila en `Auditoria` por
+cada alta/baja/edición desde `/admin` — quién, cuándo, qué acción, sobre qué registro
+y un diff en JSON de los campos que cambiaron. Se consulta en `/admin/auditoria`,
+filtrable por autor, acción y tabla.
+
+**Las bajas son siempre lógicas** (se escribe `fechaBaja*`, nunca `DELETE`) y algunas
+filas de catálogo son "del sistema": la app las busca por nombre literal (`'Realizada'`,
+`'Aprobada'`, los estados de hisopado, etc.), así que renombrarlas rompería paneles
+enteros sin avisar. Esas filas están protegidas contra edición/baja desde el ABM.
+
+---
+
+## Archivos clínicos
+
+Los resultados de estudios (`CirugiaTipoEstudio`) y de hisopados SARM (`HisopadoSarm`)
+son datos de salud identificables, así que nunca se sirven de forma pública.
+[`App\Support\GestorDocumental`](app/Support/GestorDocumental.php) es la interfaz que
+lo garantiza: sube a Cloudinary como `authenticated` (nunca `public`) y la columna en
+la base guarda un **puntero opaco**, no una URL — la URL firmada y con vencimiento se
+genera recién al momento de mostrarla (`urlTemporal()`), nunca se persiste.
+
+Sin `CLOUDINARY_URL` configurada, cae automáticamente al disco local
+(`storage/app`), así que un clon nuevo del repo puede sembrarse y probarse sin cuenta
+de Cloudinary y la suite de tests nunca pega contra la red real
+(`GestorDocumentalTest::test_la_suite_nunca_corre_contra_cloudinary`).
+
+```bash
+php artisan documentos:limpiar-huerfanos          # solo reporta
+php artisan documentos:limpiar-huerfanos --borrar  # borra lo que ya no referencia nadie
+```
+
+Reemplazar un archivo (re-subir un estudio) deja el anterior huérfano en Cloudinary a
+propósito — nada en el camino de escritura borra el archivo viejo. Este comando es lo
+que después lo limpia; corre semanal por cron **solo en modo reporte**, borrar es
+manual.
+
+---
+
+## Despliegue
+
+Hay un `Dockerfile` y un `render.yaml` (Blueprint) para desplegar en
+[Render](https://render.com) — es como corre la demo. La base de datos MySQL vive
+afuera de Render (por ejemplo [Aiven](https://aiven.io)); el Blueprint deja esas
+variables (`DB_HOST`, `DB_PASSWORD`, `CLOUDINARY_URL`, etc.) sin valor a propósito
+para cargarlas a mano en el dashboard. Migraciones y seeders corren en el arranque
+del contenedor (`docker/entrypoint.sh`), porque `preDeployCommand` no está disponible
+en el plan free.
+
+---
+
 ## Base de datos
 
 **69 tablas** de dominio y **80 foreign keys**, en 15 migraciones por módulo.
@@ -352,6 +430,10 @@ así que `migrate:rollback` funciona limpio.
 | `..._101300_create_consentimiento_tables` | ConfigConsentimiento, ConsentimientoPaciente |
 | `..._101400_create_hisopado_sarm_tables` | HisopadoSarm, sus estados y la profilaxis que depende del resultado |
 | `..._101400_create_auditoria_table` | Auditoria (la única tabla que no viene del modelo de datos) |
+
+### Diagrama
+
+![Diagrama entidad-relación de StartMed](docs/diagrama-base-de-datos.png)
 
 ### Convenciones del esquema
 
@@ -489,7 +571,7 @@ Se entra por `nombreUsuario`, con `throttle:6,1`, y se rechaza a los usuarios co
 
 ## Pendientes conocidos
 
-Tres cosas que **no** están hechas y conviene saber antes de asumir que se puede:
+Cosas que **no** están hechas y conviene saber antes de asumir que se puede:
 
 **El portal del paciente es una maqueta y su login es falso.** `/mi-salud` se
 navega y `mgarcia` entra, pero `PortalPacienteMock` guarda el estado en la
@@ -511,6 +593,24 @@ que elegir cuál es el canal oficial.
 *que* se suspendió, no *por qué*. Hasta que exista una tabla de motivos, el panel
 de Dirección no puede desglosar las suspensiones por causa.
 
+**La preparación del paciente (ayuno, indicaciones) no se carga desde el alta de
+cirugía.** Los catálogos existen y `ResumenCirugia` ya sabe leerlos, pero cargarlos
+quedó afuera del formulario de alta a propósito (ya tiene demasiados pasos) — falta
+la pantalla de gestión donde el cirujano/gestor los cargue después.
+
+**El hisopado SARM solo tiene el pedido, no el resultado.** Desde el alta de cirugía
+se puede tildar "pedir hisopado", pero no hay pantalla todavía para cargar el
+resultado, el laboratorio, ni la profilaxis que debería derivar de un positivo.
+
+**Cuatro tablas maestras quedan fuera del ABM genérico de catálogos** —
+`ConfigConsentimiento`, `ConfigTipoExamenPreAnestesico*` y
+`MaterialProveedor`/`MaterialProveedorTipoMedida` tienen su propia pantalla (ver
+*Administración*) porque son historiadas o anidadas. `PlanObraSocial` es la única
+que todavía no tiene pantalla propia.
+
+**Los pacientes no se gestionan desde `/admin`.** El ítem "Pacientes" del menú
+sigue deshabilitado; una `Persona` que no es personal no tiene pantalla propia.
+
 ---
 
 ## Comandos útiles
@@ -523,3 +623,15 @@ php artisan config:clear           # después de tocar el .env
 ./vendor/bin/pint                  # formatear el código (correr antes del PR)
 php artisan test                   # la suite completa
 ```
+
+---
+
+## Equipo
+
+| | LinkedIn | GitHub |
+|---|---|---|
+| Leandro Licata | [linkedin](https://www.linkedin.com/in/leandro-licata/) | [@LeandroLicata](https://github.com/LeandroLicata) |
+| Matías Rodríguez | [linkedin](https://www.linkedin.com/in/matias-rodriguez-156363229/) | [@MatiasRodriguez30](https://github.com/MatiasRodriguez30) |
+| Gonzalo Tapia | [linkedin](https://www.linkedin.com/in/gonzalo-nicolas-tapia/) | [@Gonzalo-Tapia](https://github.com/Gonzalo-Tapia) |
+| Jonatan Cala | [linkedin](https://www.linkedin.com/in/jhonni-cala-196730308/) | [@cala-jhonni1046](https://github.com/cala-jhonni1046) |
+| Federico Calafiore | — | [@Fede1809](https://github.com/Fede1809) |
