@@ -634,4 +634,4 @@ php artisan test                   # la suite completa
 | Matías Rodríguez | [linkedin](https://www.linkedin.com/in/matias-rodriguez-156363229/) | [@MatiasRodriguez30](https://github.com/MatiasRodriguez30) |
 | Gonzalo Tapia | [linkedin](https://www.linkedin.com/in/gonzalo-nicolas-tapia/) | [@Gonzalo-Tapia](https://github.com/Gonzalo-Tapia) |
 | Jonatan Cala | [linkedin](https://www.linkedin.com/in/jhonni-cala-196730308/) | [@cala-jhonni1046](https://github.com/cala-jhonni1046) |
-| Federico Calafiore | — | [@Fede1809](https://github.com/Fede1809) |
+| Federico Calafiore | [linkedin](https://www.linkedin.com/in/federico-calafiore/) | [@Fede1809](https://github.com/Fede1809) |
