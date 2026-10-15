@@ -34,7 +34,9 @@ class CheckCirugiasAReprogramar extends Command
         $en24hs = $ahora->copy()->addHours(24);
 
         $estadoAReprogramar = EstadoCirugia::where('nombreEstadoCirugia', 'A reprogramar')->firstOrFail();
-        $estadoConfirmada = EstadoCirugia::where('nombreEstadoCirugia', 'Listo para la cirugia')->firstOrFail();
+        // Ambos nombres estan en los protegidos de Catalogos: si alguien los
+        // renombrara desde el ABM, este comando fallaria en cada corrida.
+        $estadoConfirmada = EstadoCirugia::where('nombreEstadoCirugia', 'Confirmada')->firstOrFail();
 
         // Obtener cirugías que ocurran en las próximas 24 horas
         $cirugias = Cirugia::with(ResumenCirugia::RELACIONES)
@@ -79,8 +81,10 @@ class CheckCirugiasAReprogramar extends Command
 
                 $countReprogramar++;
             } elseif ($pendientes->isEmpty()) {
-                // Si está lista, y el estado actual no es "Listo para la cirugia", la actualizamos.
-                if ($estadoActual !== 'Listo para la cirugia') {
+                // Si está lista y no figura ya como confirmada, la confirmamos. La
+                // asistencia confirmada por el paciente dice más que "Confirmada",
+                // así que no se pisa.
+                if (! in_array($estadoActual, ['Confirmada', 'Asistencia de paciente confirmada'])) {
                     if ($ultimoEstado) {
                         $ultimoEstado->update(['fechaDesasignacionCirugiaEstado' => $ahora]);
                     }

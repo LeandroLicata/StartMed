@@ -142,6 +142,8 @@ final class Catalogos
                     'Realizada', 'Suspendida', 'En riesgo',
                     // Alta y circuito de reprogramacion.
                     'En espera de confirmación', 'En espera', 'A reprogramar', 'Reprogramada',
+                    // cirugias:check-reprogramar y la confirmacion del paciente.
+                    'Confirmada', 'Asistencia de paciente confirmada',
                 ],
                 'motivoProteccion' => 'El sistema busca estos estados por su nombre exacto: los
                                        paneles para contar cirugías, y el alta y el circuito de

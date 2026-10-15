@@ -52,6 +52,7 @@ use App\Support\ResumenCirugia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -986,27 +987,24 @@ class CirugiaController extends Controller
     public function cancelar(Cirugia $cirugia)
     {
         DB::transaction(function () use ($cirugia) {
-            // Cancelar la cirugia (EstadoCirugia = Cancelado o similar, si no existe Cancelado, buscamos Suspendida o lo creamos, vamos a asumir 'Suspendida' o 'Cancelado'. En otro metodo usaron 'Suspendida')
-            // Voy a usar 'Cancelada' si existe, o 'Suspendida'. Vamos a usar el ID correspondiente.
-            $estadoSuspendida = EstadoCirugia::whereIn('nombreEstadoCirugia', ['Cancelada', 'Cancelado', 'Suspendida'])->first();
+            // El catalogo no tiene "Cancelada": cancelar es suspender. 'Suspendida'
+            // esta en los protegidos de Catalogos, asi que no puede faltar.
+            $estadoSuspendida = EstadoCirugia::where('nombreEstadoCirugia', 'Suspendida')->firstOrFail();
 
-            if ($estadoSuspendida) {
-                // Cerrar estado actual
-                CirugiaEstado::where('idCirugia', $cirugia->idCirugia)
-                    ->whereNull('fechaDesasignacionCirugiaEstado')
-                    ->update(['fechaDesasignacionCirugiaEstado' => now()]);
+            CirugiaEstado::where('idCirugia', $cirugia->idCirugia)
+                ->whereNull('fechaDesasignacionCirugiaEstado')
+                ->update(['fechaDesasignacionCirugiaEstado' => now()]);
 
-                CirugiaEstado::create([
-                    'idCirugia' => $cirugia->idCirugia,
-                    'idEstadoCirugia' => $estadoSuspendida->idEstadoCirugia,
-                    'fechaAsignacionCirugiaEstado' => now(),
-                ]);
-            }
+            CirugiaEstado::create([
+                'idCirugia' => $cirugia->idCirugia,
+                'idEstadoCirugia' => $estadoSuspendida->idEstadoCirugia,
+                'fechaAsignacionCirugiaEstado' => now(),
+            ]);
 
             // Liberar quirófano
             CirugiaQuirofano::where('idCirugia', $cirugia->idCirugia)
-                ->whereNull('fechaDesasignacionCirugiaQuirofano')
-                ->update(['fechaDesasignacionCirugiaQuirofano' => now()]);
+                ->whereNull('fechaHoraDesasignacion')
+                ->update(['fechaHoraDesasignacion' => now()]);
 
             // Liberar personal
             CirugiaPersonal::where('idCirugia', $cirugia->idCirugia)

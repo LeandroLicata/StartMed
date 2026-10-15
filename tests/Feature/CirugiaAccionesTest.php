@@ -3,15 +3,18 @@
 namespace Tests\Feature;
 
 use App\Models\Cirugia;
+use App\Models\CirugiaQuirofano;
 use App\Models\CirugiaTipoEstudio;
 use App\Models\Establecimiento;
 use App\Models\EstadoAutCirugia;
 use App\Models\EstadoPedidoTipoHemoderivado;
 use App\Models\HisopadoSarm;
+use App\Models\PedidoHemoderivado;
 use App\Models\PedidoTipoHemoderivado;
 use App\Models\TipoEstudio;
 use App\Models\TipoHemoderivado;
 use App\Models\Usuario;
+use App\Support\ResumenCirugia;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -232,5 +235,66 @@ class CirugiaAccionesTest extends TestCase
                 ['idEstadoPedidoTipoHemoderivado' => $idReservado],
             )
             ->assertNotFound();
+    }
+
+    // --- Menú ⋮ del expediente ----------------------------------------------
+
+    public function test_cirujano_y_anestesista_pueden_dar_de_alta_un_requerimiento(): void
+    {
+        $cirugia = Cirugia::whereDoesntHave('pedidoHemoderivados')->firstOrFail();
+
+        $this->actingAs($this->usuario('perez'))
+            ->patch("/cirugias/{$cirugia->idCirugia}/requerimientos", ['requerimiento' => 'hemoderivados'])
+            ->assertRedirect();
+        $this->assertTrue(PedidoHemoderivado::where('idCirugia', $cirugia->idCirugia)->exists());
+
+        $this->actingAs($this->usuario('ramos'))
+            ->patch("/cirugias/{$cirugia->idCirugia}/requerimientos", ['requerimiento' => 'implante'])
+            ->assertRedirect();
+        $this->assertTrue($cirugia->fresh()->requiereImplante);
+    }
+
+    public function test_cancelar_y_reprogramar_siguen_siendo_solo_del_gestor(): void
+    {
+        $cirugia = Cirugia::firstOrFail();
+
+        $this->actingAs($this->usuario('perez'))
+            ->patch("/cirugias/{$cirugia->idCirugia}/cancelar")
+            ->assertForbidden();
+        $this->actingAs($this->usuario('ramos'))
+            ->post("/cirugias/{$cirugia->idCirugia}/reprogramar")
+            ->assertForbidden();
+    }
+
+    public function test_el_gestor_cancela_suspendiendo_y_libera_el_quirofano(): void
+    {
+        $cirugia = $this->cirugiaConHemoderivados();
+
+        $this->actingAs($this->usuario('gonzalez'))
+            ->patch("/cirugias/{$cirugia->idCirugia}/cancelar")
+            ->assertRedirect(route('cirugias.show', $cirugia));
+
+        $caso = new ResumenCirugia($cirugia->fresh()->load(ResumenCirugia::RELACIONES));
+        $this->assertSame('Suspendida', $caso->estado());
+        $this->assertSame(0, CirugiaQuirofano::where('idCirugia', $cirugia->idCirugia)
+            ->whereNull('fechaHoraDesasignacion')->count());
+    }
+
+    public function test_el_menu_no_ofrece_lo_que_el_rol_no_puede_ejecutar(): void
+    {
+        $cirugia = $this->cirugiaConHemoderivados();
+
+        $this->actingAs($this->usuario('perez'))
+            ->get("/cirugias/{$cirugia->idCirugia}")
+            ->assertOk()
+            ->assertSee('Requerir Hemoderivados')
+            ->assertDontSee('Cancelar Cirugía')
+            ->assertDontSee(route('cirugias.reprogramar', $cirugia));
+
+        $this->actingAs($this->usuario('gonzalez'))
+            ->get("/cirugias/{$cirugia->idCirugia}")
+            ->assertOk()
+            ->assertSee('Cancelar Cirugía')
+            ->assertSee(route('cirugias.reprogramar', $cirugia));
     }
 }

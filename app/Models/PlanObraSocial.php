@@ -19,6 +19,7 @@ class PlanObraSocial extends Model
         'nroBeneficiaroPlanObraSocial',
         'fechaInicioPlanObraSocial',
         'fechaFinPlanObraSocial',
+        'esPredeterminadaPlanObraSocial',
     ];
 
     protected function casts(): array
@@ -26,6 +27,7 @@ class PlanObraSocial extends Model
         return [
             'fechaInicioPlanObraSocial' => 'datetime',
             'fechaFinPlanObraSocial' => 'datetime',
+            'esPredeterminadaPlanObraSocial' => 'boolean',
         ];
     }
 

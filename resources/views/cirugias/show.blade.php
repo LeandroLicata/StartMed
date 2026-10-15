@@ -32,23 +32,35 @@
             >
                 Ver como el paciente
             </x-boton>
-            <x-boton
-                variante="contorno"
-                forma="grupo"
-                icono="schedule"
-                tipo="button"
-                onclick="document.getElementById('modal-reprogramar').showModal()"
-                class="px-3 py-1.5 text-xs"
-            >
-                Reprogramar
-            </x-boton>
-            
+            @php
+                // El menu solo ofrece lo que la ruta acepta: un boton que
+                // termina en 403 es peor que no mostrarlo.
+                $puedeGestionar = auth()->user()->tieneRol('Gestor de quirófano');
+                $puedeRequerir = auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano', 'Anestesista');
+                $puedeCancelar = $puedeGestionar && $caso->estado() !== 'Suspendida';
+            @endphp
+
+            @if ($puedeGestionar)
+                <x-boton
+                    variante="contorno"
+                    forma="grupo"
+                    icono="schedule"
+                    tipo="button"
+                    onclick="document.getElementById('modal-reprogramar').showModal()"
+                    class="px-3 py-1.5 text-xs"
+                >
+                    Reprogramar
+                </x-boton>
+            @endif
+
+            @if ($puedeRequerir || $puedeCancelar)
             <div class="relative" id="contenedor-menu-cirugia">
                 <button type="button" id="btn-menu-cirugia" class="flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-hu-gris-suave/80 text-hu-gris-medio hover:border-hu-dorado hover:text-hu-azul transition-colors focus:outline-none bg-white">
                     <x-icono nombre="more_vert" class="text-xl" />
                 </button>
                 <div id="dropdown-menu-cirugia" style="display: none;" class="absolute right-0 top-full z-[100] mt-1 w-56 rounded-xl border border-hu-gris-suave/80 bg-white shadow-xl py-1">
-                    {{-- Opción 1: Activar Implante siempre visible --}}
+                    @if ($puedeRequerir)
+                    {{-- Opción 1: Activar Implante --}}
                     <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
                         @csrf @method('PATCH')
                         <input type="hidden" name="requerimiento" value="implante">
@@ -57,7 +69,7 @@
                         </button>
                     </form>
                     
-                    {{-- Opción 2: Requerir Hemoderivados siempre visible --}}
+                    {{-- Opción 2: Requerir Hemoderivados --}}
                     <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
                         @csrf @method('PATCH')
                         <input type="hidden" name="requerimiento" value="hemoderivados">
@@ -66,7 +78,7 @@
                         </button>
                     </form>
                     
-                    {{-- Opción 3: Requerir Hisopado SAMR siempre visible --}}
+                    {{-- Opción 3: Requerir Hisopado SAMR --}}
                     <form method="POST" action="{{ route('cirugias.requerimientos.agregar', $caso->cirugia) }}" class="block">
                         @csrf @method('PATCH')
                         <input type="hidden" name="requerimiento" value="hisopado">
@@ -74,10 +86,13 @@
                             Requerir Hisopado SAMR
                         </button>
                     </form>
+                    @endif
 
-                    {{-- Opción 4: Cancelar Cirugía --}}
-                    @if ($caso->estado() !== 'Cancelada' && $caso->estado() !== 'Cancelado' && $caso->estado() !== 'Suspendida')
-                        <div class="my-1 border-t border-hu-gris-suave/40"></div>
+                    {{-- Opción 4: Cancelar Cirugía, solo el gestor --}}
+                    @if ($puedeCancelar)
+                        @if ($puedeRequerir)
+                            <div class="my-1 border-t border-hu-gris-suave/40"></div>
+                        @endif
                         <form method="POST" action="{{ route('cirugias.cancelar', $caso->cirugia) }}" class="block" data-confirmar="¿Seguro que deseás cancelar esta cirugía? Se liberará el quirófano y el equipo médico." data-confirmar-titulo="Cancelar Cirugía" data-confirmar-accion="Sí, cancelar">
                             @csrf @method('PATCH')
                             <button type="submit" class="w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-red-50 text-red-600">
@@ -87,6 +102,7 @@
                     @endif
                 </div>
             </div>
+            @endif
         </div>
     </div>
     
@@ -109,7 +125,8 @@
         });
     </script>
 
-    {{-- Modal Reprogramar --}}
+    {{-- Modal Reprogramar, solo el gestor --}}
+    @if ($puedeGestionar)
     <dialog id="modal-reprogramar" class="m-auto w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95">
         <div class="mb-4 flex items-center justify-between">
             <h2 class="text-lg font-bold text-hu-azul">Reprogramar Cirugía</h2>
@@ -190,6 +207,7 @@
             </div>
         </form>
     </dialog>
+    @endif
 
     @if ($caso->alertaProfilaxis())
         <x-alerta tipo="error" titulo="Alerta clínica" class="mb-6">
