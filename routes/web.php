@@ -128,9 +128,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/cirugias/{cirugia}/reprogramar', [CirugiaController::class, 'reprogramar'])
             ->name('cirugias.reprogramar');
 
-        Route::patch('/cirugias/{cirugia}/requerimientos', [CirugiaController::class, 'agregarRequerimiento'])
-            ->name('cirugias.requerimientos.agregar');
-
         Route::patch('/cirugias/{cirugia}/cancelar', [CirugiaController::class, 'cancelar'])
             ->name('cirugias.cancelar');
 
@@ -169,6 +166,12 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('rol:Gestor de quirófano,Cirujano,Anestesista')->group(function () {
+        // Dar de alta un requerimiento (implante, hemoderivados, hisopado) lo
+        // puede cualquiera del equipo, igual que cargar lo que cuelga de el.
+        // Cancelar y reprogramar siguen siendo solo del gestor.
+        Route::patch('/cirugias/{cirugia}/requerimientos', [CirugiaController::class, 'agregarRequerimiento'])
+            ->name('cirugias.requerimientos.agregar');
+
         Route::post('/cirugias/{cirugia}/estudios', [CirugiaController::class, 'agregarEstudio'])
             ->name('cirugias.estudios.store');
 
