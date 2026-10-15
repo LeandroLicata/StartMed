@@ -55,6 +55,7 @@ class CatalogosSeeder extends Seeder
         $this->cargar(EstadoCirugia::class, 'nombreEstadoCirugia', [
             'Programada', 'Confirmada', 'En riesgo', 'Suspendida', 'Realizada',
             'En espera de confirmación', 'En espera', 'A reprogramar', 'Reprogramada',
+            'Asistencia de paciente confirmada',
         ]);
 
         $this->cargar(EstadoQuirofano::class, 'nombreEstadoQuirofano', [

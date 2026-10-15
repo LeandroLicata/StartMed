@@ -331,7 +331,9 @@ strings — `Usuario::tieneRol()` looks for `'Administrador'`; the panels look f
 `'Realizada'`, `'Suspendida'`, `'Aprobada'`, `'Completada'` and the six material states
 *in precedence order*; the create-surgery and rescheduling flows look for
 `'En espera de confirmación'`, `'En espera'`, `'A reprogramar'`, `'Reprogramada'` and the
-three `EstadoHisopadoSarm` values. Renaming one of those rows from the ABM breaks the
+three `EstadoHisopadoSarm` values; `cirugias:check-reprogramar` looks for `'Confirmada'`
+and `'Asistencia de paciente confirmada'` (the latter is also what the patient portal
+writes when they confirm attendance). Renaming one of those rows from the ABM breaks the
 app **without raising anything**: indicators silently go to zero. So each catalog declares
 its load-bearing rows in the map, and `CatalogoController::protegerFilaDelSistema()`
 blocks both `update` and `destroy` for them (the listing marks them "Del sistema" and
