@@ -14,11 +14,11 @@
     --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=check_circle,error,event,history,info,logout,pending,person,warning&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=arrow_back,call,check_circle,chevron_right,draw,error,event,history,home,info,logout,no_food,pending,person,stethoscope,upload_file,warning&display=block">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-hu-gris-tenue/40">
+<body class="min-h-screen">
 
 @php($paciente = auth('paciente')->user())
 
@@ -47,7 +47,7 @@
 
     @if ($paciente)
         {{-- Una sola fila; en pantallas angostas se desplaza en vez de cortarse. --}}
-        <nav class="mx-auto max-w-4xl overflow-x-auto px-4 sm:px-6" aria-label="Secciones del portal">
+        <nav class="mx-auto max-w-4xl overflow-x-auto px-4 [scrollbar-width:thin] sm:px-6" aria-label="Secciones del portal">
             <ul class="flex gap-1 whitespace-nowrap">
                 @foreach ([
                     ['portal.inicio', 'Próximas cirugías', 'event', ['portal.inicio', 'portal.cirugias.*']],
@@ -60,7 +60,7 @@
                             href="{{ route($ruta) }}"
                             @class([
                                 'flex items-center gap-2 rounded-t-xl px-4 py-3 text-sm font-semibold transition-colors',
-                                'bg-hu-gris-tenue/40 text-hu-azul' => $activa,
+                                'bg-hu-gris-tenue text-hu-azul' => $activa,
                                 'text-white/75 hover:text-white' => ! $activa,
                             ])
                             @if ($activa) aria-current="page" @endif
