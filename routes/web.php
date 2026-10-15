@@ -17,6 +17,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
 use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\PacientePortalController;
+use App\Http\Controllers\Portal\AccesoController as PortalAccesoController;
+use App\Http\Controllers\Portal\CirugiaController as PortalCirugiaController;
+use App\Http\Controllers\Portal\PerfilController as PortalPerfilController;
 use App\Http\Controllers\PortalPacienteController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,7 +44,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:6,1');
 });
 
-Route::middleware('auth')->group(function () {
+// `auth:web` y no `auth` a secas: con el guard `paciente` en juego, el staff
+// nombra el suyo para no depender de cual quedo como guard por defecto.
+Route::middleware('auth:web')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     Route::get('/dashboard', DashboardController::class)
@@ -293,5 +298,47 @@ Route::middleware('auth')->group(function () {
         Route::delete('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'eliminarPregunta'])->name('cuestionario.preguntas.destroy');
         Route::post('cuestionario/{version}/preguntas/{pregunta}/respuestas', [CuestionarioController::class, 'agregarRespuesta'])->name('cuestionario.respuestas.store');
         Route::delete('cuestionario/{version}/preguntas/{pregunta}/respuestas/{respuesta}', [CuestionarioController::class, 'eliminarRespuesta'])->name('cuestionario.respuestas.destroy');
+    });
+});
+
+/*
+ * Portal del paciente. Externo al sistema interno: layout propio, guard propio
+ * (`paciente`, autentica una Persona) y prefijo propio. Va en /portal y no en
+ * /pacientes porque esa URL ya es el listado de pacientes del staff.
+ *
+ * Reglas para quien agregue rutas aca:
+ *  - Todo lo del paciente logueado va dentro del grupo `auth:paciente`.
+ *  - Todo lo que reciba `{cirugia}` va dentro del subgrupo `cirugias/{cirugia}`,
+ *    que ya verifica que la cirugia sea del paciente (404 si no). No repetir
+ *    esa verificacion en los controladores.
+ *  - Cada uno agrega su bloque con un comentario de que modulo es.
+ */
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::get('/ingresar', [PortalAccesoController::class, 'ingresar'])->name('ingresar');
+
+    // Atajo de desarrollo para ver el portal sin el acceso por email. Solo
+    // existe en local; en produccion la ruta ni se registra.
+    if (app()->environment('local')) {
+        Route::get('/entrar-local/{documento?}', [PortalAccesoController::class, 'entrarLocal'])
+            ->name('entrar-local');
+    }
+
+    Route::middleware('auth:paciente')->group(function () {
+        Route::post('/salir', [PortalAccesoController::class, 'salir'])->name('salir');
+
+        // --- Cirugias: proximas e historial ---------------------------------
+        Route::get('/', [PortalCirugiaController::class, 'proximas'])->name('inicio');
+        Route::get('/historial', [PortalCirugiaController::class, 'historial'])->name('historial');
+
+        // --- Perfil y obras sociales ----------------------------------------
+        Route::get('/perfil', [PortalPerfilController::class, 'show'])->name('perfil');
+
+        // --- Detalle de una cirugia (pertenencia verificada) -----------------
+        Route::prefix('cirugias/{cirugia}')
+            ->middleware('cirugia.del.paciente')
+            ->name('cirugias.')
+            ->group(function () {
+                Route::get('/', [PortalCirugiaController::class, 'show'])->name('show');
+            });
     });
 });

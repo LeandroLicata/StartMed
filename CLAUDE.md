@@ -229,6 +229,19 @@ hashes on assignment; `getRememberTokenName()` returns `null` (no remember_token
 so "remember me" is disabled). Login is by `nombreUsuario` with `throttle:6,1`, and
 `LoginController` rejects users whose `fechaBajaUsuario` is set.
 
+**Patients authenticate through a second guard, `paciente`**, which authenticates a
+`Persona` directly (provider `pacientes`; `Persona` implements `Authenticatable`, no
+password, no remember token). It exists because `Usuario` hangs off `Personal` and a
+patient has no staff record. The portal lives under `/portal` (route names `portal.*`,
+layout `layouts/portal`) — not `/pacientes`, which is the staff's patient list. Staff
+routes use `auth:web` explicitly so they never depend on which guard is the default.
+Inside the portal, every route that takes `{cirugia}` goes in the `cirugias/{cirugia}`
+subgroup, whose `cirugia.del.paciente` middleware returns **404** (not 403) when the
+surgery is someone else's; `PortalContratoTest` fails if a `{cirugia}` route is added
+outside it. The real access flow (DNI → signed one-time link to
+`Persona.contacto_email_direccion`) is still pending; in `local` only,
+`/portal/entrar-local/{documento?}` logs in as a demo patient (María García by default).
+
 Password reset by email is **not** configured (`config/auth.php` `'passwords' => []`) —
 `Usuario` has no email column; the address lives in `Personal.mailInstitucional` /
 `Persona.contacto_email_direccion`, and the official channel hasn't been chosen yet.

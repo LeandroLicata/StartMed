@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Persona;
 use App\Models\Usuario;
 
 return [
@@ -41,6 +42,13 @@ return [
             'driver' => 'session',
             'provider' => 'usuarios',
         ],
+
+        // Portal del paciente (/portal). Guard propio para que la sesion de un
+        // paciente nunca abra las pantallas del staff, ni al reves.
+        'paciente' => [
+            'driver' => 'session',
+            'provider' => 'pacientes',
+        ],
     ],
 
     /*
@@ -64,6 +72,11 @@ return [
         'usuarios' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', Usuario::class),
+        ],
+
+        'pacientes' => [
+            'driver' => 'eloquent',
+            'model' => Persona::class,
         ],
     ],
 
