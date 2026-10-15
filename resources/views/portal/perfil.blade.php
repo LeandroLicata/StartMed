@@ -1,0 +1,43 @@
+@extends('layouts.portal')
+
+@section('titulo', 'Mi perfil')
+
+@section('contenido')
+    <x-tarjeta titulo="Mis obras sociales" icono="shield">
+        @forelse ($vigentes as $cobertura)
+            <div class="flex items-center justify-between gap-3 border-b border-hu-gris-suave/60 py-3 last:border-0">
+                <div>
+                    <p class="font-semibold text-hu-azul">
+                        {{ $cobertura->plan?->obraSocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
+                    </p>
+                    <p class="text-sm text-hu-gris-medio">
+                        Nro. de afiliado: {{ $cobertura->nroBeneficiaroPlanObraSocial }}
+                    </p>
+                </div>
+
+                @if ($cobertura->esPredeterminadaPlanObraSocial)
+                    <x-estado tono="exito" icono="check_circle">Predeterminada</x-estado>
+                @endif
+            </div>
+        @empty
+            <p class="py-6 text-center text-sm text-hu-gris-medio">
+                No tenés obras sociales vigentes.
+            </p>
+        @endforelse
+    </x-tarjeta>
+
+    @if ($historicas->isNotEmpty())
+        <x-tarjeta titulo="Obras sociales anteriores" icono="history" class="mt-6">
+            @foreach ($historicas as $cobertura)
+                <div class="border-b border-hu-gris-suave/60 py-3 last:border-0">
+                    <p class="font-semibold text-hu-gris">
+                        {{ $cobertura->plan?->obraSocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
+                    </p>
+                    <p class="text-sm text-hu-gris-medio">
+                        Dada de baja el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
+                    </p>
+                </div>
+            @endforeach
+        </x-tarjeta>
+    @endif
+@endsection
