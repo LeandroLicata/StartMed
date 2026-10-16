@@ -7,8 +7,6 @@ use Illuminate\View\View;
 
 /**
  * Perfil del paciente: datos personales y obras sociales.
- *
- * Esqueleto del contrato del portal; el contenido real se completa despues.
  */
 class PerfilController extends Controller
 {
@@ -17,11 +15,14 @@ class PerfilController extends Controller
         $persona = auth('paciente')->user();
 
         $coberturas = $persona->planObraSociales()
-            ->with('plan.obraSocial')
+            ->with('plan.obrasocial')
             ->get();
 
-        $vigentes = $coberturas->whereNull('fechaFinPlanObraSocial');
-        $historicas = $coberturas->whereNotNull('fechaFinPlanObraSocial');
+        $esVigente = fn ($cobertura) =>$cobertura->fechaFinPlanObraSocial === null
+            ||  $cobertura->fechaFinPlanObraSocial->isFuture();
+
+        $vigentes = $coberturas->filter($esVigente);
+        $historicas = $coberturas->reject($esVigente);
 
         return view('portal.perfil', [
             'vigentes' => $vigentes,

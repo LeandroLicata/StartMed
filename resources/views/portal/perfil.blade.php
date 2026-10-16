@@ -8,10 +8,15 @@
             <div class="flex items-center justify-between gap-3 border-b border-hu-gris-suave/60 py-3 last:border-0">
                 <div>
                     <p class="font-semibold text-hu-azul">
-                        {{ $cobertura->plan?->obraSocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
+                        {{ $cobertura->plan?->obrasocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
                     </p>
                     <p class="text-sm text-hu-gris-medio">
                         Nro. de afiliado: {{ $cobertura->nroBeneficiaroPlanObraSocial }}
+                        @if ($cobertura->fechaFinPlanObraSocial)
+                        <p class="text-xs text-hu-dorado-oscuro">
+                            Vigente hasta el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y')}}
+                        </p>
+                        @endif
                     </p>
                 </div>
 
@@ -31,7 +36,7 @@
             @foreach ($historicas as $cobertura)
                 <div class="border-b border-hu-gris-suave/60 py-3 last:border-0">
                     <p class="font-semibold text-hu-gris">
-                        {{ $cobertura->plan?->obraSocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
+                        {{ $cobertura->plan?->obrasocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
                     </p>
                     <p class="text-sm text-hu-gris-medio">
                         Dada de baja el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
