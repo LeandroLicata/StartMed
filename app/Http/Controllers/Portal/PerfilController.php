@@ -14,6 +14,18 @@ class PerfilController extends Controller
 {
     public function show(): View
     {
-        return view('portal.pendiente', ['titulo' => 'Mi perfil']);
+        $persona = auth('paciente')->user();
+
+        $coberturas = $persona->planObraSociales()
+            ->with('plan.obraSocial')
+            ->get();
+
+        $vigentes = $coberturas->whereNull('fechaFinPlanObraSocial');
+        $historicas = $coberturas->whereNotNull('fechaFinPlanObraSocial');
+
+        return view('portal.perfil', [
+            'vigentes' => $vigentes,
+            'historicas' => $historicas,
+        ]);
     }
 }
