@@ -282,6 +282,14 @@ class DemoSeeder extends Seeder
     private function crearPacienteDemo(): void
     {
         $persona = $this->persona('García', 'María', '28456789');
+
+        // Direccion de ejemplo (example.com no existe): con MAIL_MAILER=log el
+        // enlace de acceso al portal queda en storage/logs/laravel.log. Solo se
+        // carga si esta vacia, para no pisar un email que alguien le haya puesto.
+        if ($persona->contacto_email_direccion === null) {
+            $persona->update(['contacto_email_direccion' => 'maria.garcia@example.com']);
+        }
+
         $personal = Personal::firstOrCreate(['idPersona' => $persona->idPersona]);
 
         $personal->roles()->syncWithoutDetaching([

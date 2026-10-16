@@ -323,6 +323,21 @@ Route::prefix('portal')->name('portal.')->group(function () {
             ->name('entrar-local');
     }
 
+    // --- Jhonni: acceso por DNI con link firmado de un solo uso -----------
+    // Publicas: es la puerta, el paciente todavia no tiene sesion. El GET del
+    // link solo valida y muestra el boton; el POST es el que consume el nonce
+    // y autentica (un cliente de correo que abre el link no lo quema).
+    Route::post('/ingresar', [PortalAccesoController::class, 'solicitar'])
+        ->middleware('throttle:5,1')
+        ->name('acceso.solicitar');
+    Route::get('/acceso/{persona}/{nonce}', [PortalAccesoController::class, 'entrar'])
+        ->whereNumber('persona')
+        ->name('acceso.entrar');
+    Route::post('/acceso/{persona}/{nonce}', [PortalAccesoController::class, 'confirmar'])
+        ->whereNumber('persona')
+        ->middleware('throttle:10,1')
+        ->name('acceso.confirmar');
+
     Route::middleware('auth:paciente')->group(function () {
         Route::post('/salir', [PortalAccesoController::class, 'salir'])->name('salir');
 

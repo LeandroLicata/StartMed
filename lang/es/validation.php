@@ -16,6 +16,7 @@ return [
     'confirmed' => 'La confirmación de :attribute no coincide.',
     'date' => 'El campo :attribute no es una fecha válida.',
     'different' => 'Los campos :attribute y :other tienen que ser distintos.',
+    'digits_between' => 'El campo :attribute tiene que tener entre :min y :max dígitos.',
     'email' => 'El campo :attribute tiene que ser una dirección de correo válida.',
     'exists' => 'El valor elegido en :attribute no es válido.',
     'file' => 'El campo :attribute tiene que ser un archivo.',
