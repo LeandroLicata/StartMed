@@ -9,10 +9,15 @@ use App\Models\TipoDocumento;
 use App\Models\Usuario;
 use App\Support\EnlaceAccesoPaciente;
 use Database\Seeders\DemoSeeder;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -101,11 +106,20 @@ class PortalAccesoTest extends TestCase
     {
         Mail::fake();
 
+        // Son seis pedidos seguidos desde la misma IP; el limite por IP tiene su propio test.
+        $this->withoutMiddleware(ThrottleRequests::class);
+
         $this->crearPersona('11111111', email: null);                    // existe, sin email
         $this->crearPersona('22222222', email: 'a@example.com');         // duplicado...
         $this->crearPersona('22222222', email: 'b@example.com');         // ...del mismo DNI
         $baja = $this->crearPersona('33333333');                         // dada de baja
         $baja->update(['fechaHoraBajaPersona' => now()]);
+
+        // Existe y tiene email, pero ya gasto sus tres pedidos de la ventana.
+        $this->crearPersona('44444444', email: 'limitado@example.com');
+        foreach (range(1, 3) as $_) {
+            RateLimiter::hit('portal-acceso:dni:44444444', 900);
+        }
 
         $casos = [
             'existe con email' => AccesoController::DOCUMENTO_DEMO,
@@ -113,6 +127,7 @@ class PortalAccesoTest extends TestCase
             'existe sin email' => '11111111',
             'duplicado' => '22222222',
             'dada de baja' => '33333333',
+            'limitado' => '44444444',
         ];
 
         $respuestas = [];
@@ -131,13 +146,16 @@ class PortalAccesoTest extends TestCase
 
         $this->assertSame(302, $esperada[0]);
         $this->assertNotNull($esperada[2]);
+        // La orientacion para quien no recibio el mail va en el texto de todos los casos.
+        $this->assertStringContainsString('consultá en recepción', $esperada[2]);
 
         foreach ($respuestas as $caso => $respuesta) {
             $this->assertSame($esperada, $respuesta, "La respuesta de «{$caso}» se distingue de la de un DNI existente");
         }
 
-        // Y de los cinco, solo el primero mando mail.
+        // Y de los seis, solo el primero mando mail: el limitado tampoco.
         Mail::assertSent(EnlaceAccesoPortal::class, 1);
+        Mail::assertNotSent(EnlaceAccesoPortal::class, fn ($mail) => $mail->hasTo('limitado@example.com'));
     }
 
     public function test_dos_personas_activas_con_el_mismo_dni_no_reciben_nada_y_queda_un_warning(): void
@@ -345,6 +363,197 @@ class PortalAccesoTest extends TestCase
         $this->get($enlace)->assertOk();
         $this->entrar($enlace)->assertRedirect(route('portal.inicio'));
         $this->assertAuthenticatedAs($this->maria, 'paciente');
+    }
+
+    // --- El lock del nonce -------------------------------------------------
+
+    private function claveLock(Persona $persona): string
+    {
+        return "portal:acceso:{$persona->idPersona}:lock";
+    }
+
+    public function test_el_store_de_cache_soporta_locks(): void
+    {
+        $lock = Cache::lock('portal:prueba-lock', 5);
+
+        $this->assertTrue($lock->get());
+        $this->assertFalse(Cache::lock('portal:prueba-lock', 5)->get());
+
+        $lock->release();
+        $this->assertTrue(Cache::lock('portal:prueba-lock', 5)->get());
+    }
+
+    public function test_si_no_se_consigue_el_lock_el_link_se_trata_como_invalido_y_no_toca_el_nonce(): void
+    {
+        $viejo = $this->enlace();
+        $nuevo = $this->enlace();
+
+        // Otro pedido de la misma persona esta a mitad de verificar/emitir.
+        $otro = Cache::lock($this->claveLock($this->maria), 10);
+        $this->assertTrue($otro->get());
+
+        // El link viejo no puede llevarse el nonce del nuevo...
+        $this->entrar($viejo)->assertRedirect(route('portal.ingresar'))->assertSessionHas('error');
+        // ...y ni siquiera el nuevo entra mientras no se pueda verificar con seguridad.
+        $this->entrar($nuevo)->assertRedirect(route('portal.ingresar'))->assertSessionHas('error');
+        $this->assertGuest('paciente');
+
+        // Soltado el lock, el nonce del nuevo seguia intacto.
+        $otro->release();
+        $this->entrar($nuevo)->assertRedirect(route('portal.inicio'));
+        $this->assertAuthenticatedAs($this->maria, 'paciente');
+    }
+
+    public function test_emitir_y_consumir_usan_el_mismo_lock(): void
+    {
+        $enlace = $this->enlace();
+
+        $otro = Cache::lock($this->claveLock($this->maria), 10);
+        $this->assertTrue($otro->get());
+
+        // Emitir espera el mismo lock que consumir: si fuera otra clave, no se
+        // excluirian y el lock no protegeria nada.
+        try {
+            $this->enlace();
+            $this->fail('emitir() debio esperar el lock que consumir() tambien usa');
+        } catch (LockTimeoutException) {
+            $this->addToAssertionCount(1);
+        }
+
+        $otro->release();
+        $this->entrar($enlace)->assertRedirect(route('portal.inicio'));
+    }
+
+    public function test_si_falla_el_lock_al_emitir_no_sale_mail_y_la_respuesta_es_la_de_siempre(): void
+    {
+        Mail::fake();
+        Log::spy();
+
+        $esperada = $this->pedir('99999999');
+        $esperada = [$esperada->getStatusCode(), $esperada->headers->get('Location'), session('info')];
+
+        $otro = Cache::lock($this->claveLock($this->maria), 10);
+        $this->assertTrue($otro->get());
+
+        $respuesta = $this->pedir(AccesoController::DOCUMENTO_DEMO);
+
+        $this->assertSame($esperada, [$respuesta->getStatusCode(), $respuesta->headers->get('Location'), session('info')]);
+        Mail::assertNothingSent();
+        Log::shouldHaveReceived('error')->once();
+
+        $otro->release();
+    }
+
+    // --- Mailer que deja el link legible en el servidor --------------------
+
+    /** Fuera de `testing` Laravel exige el token CSRF, que estos tests no estan probando. */
+    private function simularEntorno(string $entorno, string $mailer): void
+    {
+        $this->app['env'] = $entorno;
+        config(['mail.default' => $mailer]);
+        $this->withoutMiddleware(PreventRequestForgery::class);
+    }
+
+    public static function mailers(): array
+    {
+        return [
+            'produccion con log' => ['production', 'log', true],
+            'produccion con array' => ['production', 'array', true],
+            'staging con log' => ['staging', 'log', true],
+            'failover que incluye log' => ['production', 'failover', true],
+            'roundrobin sin log ni array' => ['production', 'roundrobin', false],
+            'produccion con smtp' => ['production', 'smtp', false],
+            'local con log sigue enviando' => ['local', 'log', false],
+            'testing con log sigue enviando' => ['testing', 'log', false],
+        ];
+    }
+
+    #[DataProvider('mailers')]
+    public function test_detecta_si_el_mailer_deja_el_enlace_legible(string $entorno, string $mailer, bool $expone): void
+    {
+        $this->app['env'] = $entorno;
+        config(['mail.default' => $mailer]);
+
+        $this->assertSame($expone, EnlaceAccesoPaciente::mailerExponeElEnlace());
+    }
+
+    public function test_un_failover_o_roundrobin_se_revisa_mailer_por_mailer(): void
+    {
+        $this->app['env'] = 'production';
+        config([
+            'mail.default' => 'compuesto',
+            'mail.mailers.compuesto' => ['transport' => 'failover', 'mailers' => ['smtp', 'anidado']],
+            'mail.mailers.anidado' => ['transport' => 'roundrobin', 'mailers' => ['ses', 'log']],
+        ]);
+
+        $this->assertTrue(EnlaceAccesoPaciente::mailerExponeElEnlace());
+
+        config(['mail.mailers.anidado.mailers' => ['ses', 'postmark']]);
+        $this->assertFalse(EnlaceAccesoPaciente::mailerExponeElEnlace());
+
+        // Un ciclo entre mailers no cuelga la verificacion.
+        config(['mail.mailers.anidado.mailers' => ['compuesto']]);
+        $this->assertFalse(EnlaceAccesoPaciente::mailerExponeElEnlace());
+    }
+
+    #[DataProvider('mailersQueExponen')]
+    public function test_con_un_mailer_que_deja_el_enlace_legible_no_se_emite_ni_se_manda_nada(string $entorno, string $mailer): void
+    {
+        $this->simularEntorno($entorno, $mailer);
+        Mail::fake();
+        Log::spy();
+
+        $normal = $this->pedir('99999999');
+        $respuesta = $this->pedir(AccesoController::DOCUMENTO_DEMO);
+
+        // La respuesta al paciente es la de siempre.
+        $this->assertSame($normal->headers->get('Location'), $respuesta->headers->get('Location'));
+        $this->assertSame(302, $respuesta->getStatusCode());
+        $this->assertStringContainsString('consultá en recepción', session('info'));
+
+        // No hay mail ni nonce: no existe nada que alguien pueda leer en un log.
+        Mail::assertNothingSent();
+        $this->assertFalse(Cache::has("portal:acceso:{$this->maria->idPersona}"));
+
+        // Y el error no lleva el link, la firma, el token ni el DNI.
+        Log::shouldHaveReceived('error')->once()->withArgs(function (string $mensaje, array $contexto = []) {
+            $todo = $mensaje.json_encode($contexto);
+
+            foreach (['/portal/acceso', 'signature', 'expires', 'nonce', AccesoController::DOCUMENTO_DEMO] as $prohibido) {
+                $this->assertStringNotContainsString($prohibido, $todo);
+            }
+
+            return true;
+        });
+    }
+
+    public static function mailersQueExponen(): array
+    {
+        return [
+            'produccion con log' => ['production', 'log'],
+            'produccion con array' => ['production', 'array'],
+            'staging con log' => ['staging', 'log'],
+            'produccion con failover que incluye log' => ['production', 'failover'],
+        ];
+    }
+
+    #[DataProvider('mailersQueEnvian')]
+    public function test_con_un_mailer_real_o_en_local_el_enlace_sigue_saliendo(string $entorno, string $mailer): void
+    {
+        $this->simularEntorno($entorno, $mailer);
+        Mail::fake();
+
+        $this->pedir(AccesoController::DOCUMENTO_DEMO);
+
+        Mail::assertSent(EnlaceAccesoPortal::class, fn ($mail) => $mail->hasTo(self::EMAIL));
+    }
+
+    public static function mailersQueEnvian(): array
+    {
+        return [
+            'produccion con smtp' => ['production', 'smtp'],
+            'local con log' => ['local', 'log'],
+        ];
     }
 
     // --- Aislamiento entre guards ------------------------------------------
