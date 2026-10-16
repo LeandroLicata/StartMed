@@ -99,7 +99,13 @@ final class Catalogos
     {
         return [
             // --- Personas y acceso ---
-            'tipo-documento' => self::simple(TipoDocumento::class, 'Tipo de documento', 'Tipos de documento', 'Personas y acceso', 120),
+            'tipo-documento' => [
+                ...self::simple(TipoDocumento::class, 'Tipo de documento', 'Tipos de documento', 'Personas y acceso', 120),
+                'protegidos' => ['DNI'],
+                'motivoProteccion' => 'El acceso al portal del paciente busca a la persona por su DNI, con
+                                       este nombre exacto. Si se renombra o se da de baja, ningún
+                                       paciente puede pedir su enlace de ingreso.',
+            ],
             'grupo-sanguineo' => self::simple(GrupoSanguineo::class, 'Grupo sanguíneo', 'Grupos sanguíneos', 'Personas y acceso', 120),
 
             // El unico catalogo cuya columna de baja no sigue el patron fechaBaja*.

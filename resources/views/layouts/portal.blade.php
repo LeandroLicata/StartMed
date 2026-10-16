@@ -46,26 +46,27 @@
     </div>
 
     @if ($paciente)
-        {{-- Una sola fila; en pantallas angostas se desplaza en vez de cortarse. --}}
-        <nav class="mx-auto max-w-4xl overflow-x-auto px-4 [scrollbar-width:thin] sm:px-6" aria-label="Secciones del portal">
-            <ul class="flex gap-1 whitespace-nowrap">
+        {{-- Tres columnas iguales: icono arriba y texto abajo en el celular, lado a lado desde sm. --}}
+        <nav class="mx-auto max-w-4xl px-4 sm:px-6" aria-label="Secciones del portal">
+            <ul class="grid grid-cols-3 gap-1">
                 @foreach ([
-                    ['portal.inicio', 'Próximas cirugías', 'event', ['portal.inicio', 'portal.cirugias.*']],
-                    ['portal.historial', 'Historial', 'history', ['portal.historial']],
-                    ['portal.perfil', 'Mi perfil', 'person', ['portal.perfil']],
-                ] as [$ruta, $etiqueta, $icono, $activaEn])
+                    ['portal.inicio', 'Próximas', 'Próximas cirugías', 'event', ['portal.inicio', 'portal.cirugias.*']],
+                    ['portal.historial', 'Historial', 'Historial de cirugías', 'history', ['portal.historial']],
+                    ['portal.perfil', 'Perfil', 'Mi perfil', 'person', ['portal.perfil']],
+                ] as [$ruta, $etiqueta, $descripcion, $icono, $activaEn])
                     @php($activa = request()->routeIs(...$activaEn))
                     <li>
                         <a
                             href="{{ route($ruta) }}"
+                            title="{{ $descripcion }}"
                             @class([
-                                'flex items-center gap-2 rounded-t-xl px-4 py-3 text-sm font-semibold transition-colors',
+                                'flex flex-col items-center justify-center gap-0.5 rounded-t-xl px-2 py-2.5 text-xs font-semibold transition-colors sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-sm',
                                 'bg-hu-gris-tenue text-hu-azul' => $activa,
                                 'text-white/75 hover:text-white' => ! $activa,
                             ])
                             @if ($activa) aria-current="page" @endif
                         >
-                            <x-icono :nombre="$icono" class="text-lg" :relleno="$activa" />
+                            <x-icono :nombre="$icono" class="text-xl sm:text-lg" :relleno="$activa" />
                             {{ $etiqueta }}
                         </a>
                     </li>
