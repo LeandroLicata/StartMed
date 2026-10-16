@@ -338,7 +338,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
             ->middleware('cirugia.del.paciente')
             ->name('cirugias.')
             ->group(function () {
-                Route::get('/', [PortalCirugiaController::class, 'show'])->name('show');
+                Route::get('/{seccion?}', [PortalCirugiaController::class, 'show'])
+                    ->whereIn('seccion', array_keys(PortalCirugiaController::SECCIONES))
+                    ->name('show');
             });
     });
 });
