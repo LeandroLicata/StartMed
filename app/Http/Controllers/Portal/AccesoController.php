@@ -72,7 +72,8 @@ class AccesoController extends Controller
         return redirect()->route('portal.ingresar')->with(
             'info',
             'Si el DNI corresponde a un paciente con un correo registrado, te enviamos un enlace para ingresar. '
-            .'Vale '.EnlaceAccesoPaciente::VIGENCIA_MINUTOS.' minutos y se usa una sola vez.',
+            .'Vale '.EnlaceAccesoPaciente::VIGENCIA_MINUTOS.' minutos y se usa una sola vez. '
+            .'Si no te llegó el mail, probá de nuevo en unos minutos o consultá en recepción.',
         );
     }
 
@@ -181,6 +182,16 @@ class AccesoController extends Controller
         // `defer()` corre despues de enviar la respuesta, en el mismo proceso y
         // sin cola. Si falla, no hay respuesta que cambiar: solo se registra.
         defer(static function () use ($idPersona) {
+            // Con un mailer que escribe el mail en el servidor (`log`) el link
+            // quedaria legible y serviria para entrar: ni se emite ni se manda.
+            // Nada del link, del nonce ni del DNI va al log.
+            if (EnlaceAccesoPaciente::mailerExponeElEnlace()) {
+                Log::error('Portal: el mailer por defecto («'.config('mail.default').'») deja los mails legibles en el servidor; '
+                    .'no se emitió ni se envió el enlace de acceso. Configurá un mailer real (MAIL_MAILER).');
+
+                return;
+            }
+
             try {
                 $persona = Persona::whereKey($idPersona)->whereNull('fechaHoraBajaPersona')->first();
 

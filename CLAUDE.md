@@ -238,9 +238,44 @@ routes use `auth:web` explicitly so they never depend on which guard is the defa
 Inside the portal, every route that takes `{cirugia}` goes in the `cirugias/{cirugia}`
 subgroup, whose `cirugia.del.paciente` middleware returns **404** (not 403) when the
 surgery is someone else's; `PortalContratoTest` fails if a `{cirugia}` route is added
-outside it. The real access flow (DNI → signed one-time link to
-`Persona.contacto_email_direccion`) is still pending; in `local` only,
-`/portal/entrar-local/{documento?}` logs in as a demo patient (María García by default).
+outside it. In `local` only, `/portal/entrar-local/{documento?}` logs in as a demo
+patient (María García by default); everywhere else the way in is the flow below.
+
+**Patient access: DNI → signed one-time link by email** (`Portal\AccesoController`,
+`App\Support\EnlaceAccesoPaciente`, `App\Mail\EnlaceAccesoPortal`; no new tables).
+`POST /portal/ingresar` finds the one active `Persona` with that DNI (`TipoDocumento`
+«DNI», a protected catalog row) and mails a `URL::temporarySignedRoute` link valid 15
+minutes. The one-time part is a nonce kept in Cache, tied to the `idPersona`: asking for a
+new link replaces the old one. The link's GET only validates and shows an «Entrar» button;
+the POST of that button burns the nonce and logs in. A mail client that opens links to scan
+them would otherwise spend the nonce before the patient clicks. Logout only closes the
+`paciente` guard (no `session()->invalidate()`, which would also drop a staff session in the
+same browser). Decisions that are deliberate, not oversights:
+
+- **The response never depends on the DNI.** Same 302, same flash, same timing-relevant
+  work, whether the DNI exists, has no email, is duplicated, is deactivated, or is
+  rate-limited. The mail is built and sent after the response (`defer()`, no queue: the
+  deploy has no worker). Any difference would let someone probe which DNIs are patients.
+- **The per-DNI limit (3 per 15 min, `RateLimiter`, keyed on the normalized DNI whether or
+  not it exists) can be spent by anyone who knows another person's DNI**, and the patient
+  never learns the link did not arrive. That cost is accepted on purpose, because showing a
+  different message when limited would reveal which DNIs exist. The one mitigation allowed
+  is the generic guidance in the always-shown message («probá de nuevo en unos minutos o
+  consultá en recepción»), identical in every case. Do not make the limited case say
+  anything else. There is also `throttle:5,1` per IP on the POST.
+- **`emitir()` and `consumir()` run inside `Cache::lock` per persona (same key).** Without
+  it an old link could pass the check and then delete the nonce of a link requested a
+  moment later. Verifying and deleting is one step under the lock; if the lock is not
+  obtained within 2 s the link counts as invalid (`consumir`) or nothing is sent
+  (`emitir`, logged). Needs a cache store with locks: `database` (uses the `cache_locks`
+  table from the base migration), `array`, `file`, `redis`.
+- **The link is never written anywhere.** With `MAIL_MAILER=log` the whole mail, link
+  included, lands in the log and anyone who reads it logs in as the patient. So outside
+  `local` and `testing`, if the default mailer is `log` or `array` (or a `failover` /
+  `roundrobin` that includes one of them, resolved recursively), nothing is emitted or
+  sent and a `Log::error` is written **without** link, token or DNI. In those environments
+  patients get no email until a real SMTP is configured. Known limit: only the `log` and
+  `array` transports are recognised; a custom mailer that dumps mail elsewhere is not.
 
 Password reset by email is **not** configured (`config/auth.php` `'passwords' => []`) —
 `Usuario` has no email column; the address lives in `Personal.mailInstitucional` /
