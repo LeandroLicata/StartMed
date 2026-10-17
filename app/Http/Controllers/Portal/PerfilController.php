@@ -48,4 +48,29 @@ class PerfilController extends Controller
         return redirect()->route('portal.perfil')
             ->with('exito', 'Listo, quedó como tu obra social predeterminada.');
     }
+    public function darDeBaja(int $cobertura): RedirectResponse
+    {
+        $persona = auth('paciente')->user();
+
+        $baja = $persona->planObraSociales()->findOrFail($cobertura);
+
+        if (! $baja->estaVigente()) {
+            return back()->with('error', 'Esa obra social ya estaba dada de baja.');
+        }
+
+        $eraPredeterminada = $baja->esPredeterminadaPlanObraSocial;
+
+        $baja->update([
+            'fechaFinPlanObraSocial' => now(),
+            'esPredeterminadaPlanObraSocial' => false,
+        ]);
+
+        if ($eraPredeterminada) {
+            return redirect()->route('portal.perfil')
+                ->with('aviso', 'Diste de baja tu obra social predeterminada. Elegí otra o agregá una nueva.');    
+        }
+
+        return redirect()->route('portal.perfil')
+            ->with('exito', 'La obra social quedó dada de baja.');
+    }
 }

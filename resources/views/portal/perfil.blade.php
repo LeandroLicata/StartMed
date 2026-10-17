@@ -12,25 +12,36 @@
                     </p>
                     <p class="text-sm text-hu-gris-medio">
                         Nro. de afiliado: {{ $cobertura->nroBeneficiaroPlanObraSocial }}
-                        @if ($cobertura->fechaFinPlanObraSocial)
-                        <p class="text-xs text-hu-dorado-oscuro">
-                            Vigente hasta el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y')}}
-                        </p>
-                        @endif
                     </p>
+
+                    @if ($cobertura->fechaFinPlanObraSocial)
+                        <p class="text-xs text-hu-dorado-oscuro">
+                            Vigente hasta el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
+                        </p>
+                    @endif
                 </div>
 
-                @if ($cobertura->esPredeterminadaPlanObraSocial)
-                    <x-estado tono="exito" icono="check_circle">Predeterminada</x-estado>
-                @else
-                    <form method="POST" action="{{ route('portal.perfil.predeterminada', $cobertura->idPlanObraSocial) }}">
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                    @if ($cobertura->esPredeterminadaPlanObraSocial)
+                        <x-estado tono="exito" icono="check_circle">Predeterminada</x-estado>
+                    @else
+                        <form method="POST" action="{{ route('portal.perfil.predeterminada', $cobertura->idPlanObraSocial) }}">
+                            @csrf
+                            @method('PATCH')
+                            <x-boton variante="contorno" forma="grupo" class="px-3 py-1.5 text-xs">
+                                Marcar como predeterminada
+                            </x-boton>
+                        </form>
+                    @endif
+
+                    <form method="POST" action="{{ route('portal.perfil.baja', $cobertura->idPlanObraSocial) }}">
                         @csrf
                         @method('PATCH')
-                        <x-boton variante="contorno" forma="grupo" class="px-2 py-1.5 text-xs">
-                            Marcar como predeterminada
+                        <x-boton variante="fantasma" forma="grupo" class="px-3 py-1.5 text-xs">
+                            Dar de baja
                         </x-boton>
-                    </form> 
-                @endif
+                    </form>
+                </div>
             </div>
         @empty
             <p class="py-6 text-center text-sm text-hu-gris-medio">

@@ -100,4 +100,49 @@ class PortalPerfilTest extends TestCase
 
         $this->assertSame($antes, $ajena->fresh()->esPredeterminadaPlanObraSocial);
     }
+    
+    public function test_dar_de_baja_pasa_la_cobertura_a_anteriores(): void
+    {
+        $cobertura = $this->maria->planObraSociales()->firstOrFail();
+
+        $this->patch(route('portal.perfil.baja', $cobertura->idPlanObraSocial))
+            ->assertRedirect(route('portal.perfil'));
+
+        $this->assertNotNull($cobertura->fresh()->fechaFinPlanObraSocial);
+
+        $this->get(route('portal.perfil'))
+            ->assertSee('Obras sociales anteriores')
+            ->assertSee('No tenés obras sociales vigentes');
+    }
+
+    public function test_dar_de_baja_la_predeterminada_la_desmarca_y_avisa(): void
+    {
+        $cobertura = $this->maria->planObraSociales()->firstOrFail();
+        $cobertura->update(['esPredeterminadaPlanObraSocial' => true]);
+
+        $this->patch(route('portal.perfil.baja', $cobertura->idPlanObraSocial))
+            ->assertSessionHas('aviso');
+
+        $this->assertFalse($cobertura->fresh()->esPredeterminadaPlanObraSocial);
+    }
+
+    public function test_no_se_puede_dar_de_baja_una_cobertura_ya_dada_de_baja(): void
+    {
+        $cobertura = $this->maria->planObraSociales()->firstOrFail();
+        $cobertura->update(['fechaFinPlanObraSocial' => now()->subMonth()]);
+
+        $this->patch(route('portal.perfil.baja', $cobertura->idPlanObraSocial))
+            ->assertSessionHas('error');
+    }
+
+    public function test_no_se_puede_dar_de_baja_la_cobertura_de_otro_paciente(): void
+    {
+        $ajena = PlanObraSocial::where('idPersona', '!=', $this->maria->idPersona)->firstOrFail();
+        $antes = $ajena->fechaFinPlanObraSocial;
+
+        $this->patch(route('portal.perfil.baja', $ajena->idPlanObraSocial))
+            ->assertNotFound();
+
+        $this->assertEquals($antes, $ajena->fresh()->fechaFinPlanObraSocial);
+    }
 }
