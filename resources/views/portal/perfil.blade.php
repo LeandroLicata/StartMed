@@ -34,7 +34,13 @@
                         </form>
                     @endif
 
-                    <form method="POST" action="{{ route('portal.perfil.baja', $cobertura->idPlanObraSocial) }}">
+                    <form
+                        method="POST"
+                        action="{{ route('portal.perfil.baja', $cobertura->idPlanObraSocial) }}"
+                        data-confirmar-titulo="Dar de baja «{{ $cobertura->plan?->obrasocial?->nombreObraSocial }}»"
+                        data-confirmar="Va a pasar a tus obras sociales anteriores. Desde el portal no se puede deshacer."
+                        data-confirmar-accion="Dar de baja"
+                    >
                         @csrf
                         @method('PATCH')
                         <x-boton variante="fantasma" forma="grupo" class="px-3 py-1.5 text-xs">
