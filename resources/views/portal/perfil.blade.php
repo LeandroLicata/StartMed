@@ -55,6 +55,29 @@
             </p>
         @endforelse
     </x-tarjeta>
+    <x-tarjeta titulo="Agregar una obra social" icono="shield" class="mt-6">
+        <form method="POST" action="{{ route('portal.perfil.agregar') }}" class="space-y-4">
+            @csrf
+
+            <x-select
+                nombre="idPlan"
+                etiqueta="Obra social y plan"
+                :opciones="$planes"
+                requerido
+            />
+
+            <x-input
+                nombre="nroBeneficiario"
+                etiqueta="Número de afiliado"
+                placeholder="Como figura en tu credencial"
+                requerido
+            />
+
+            <div class="flex justify-end">
+                <x-boton forma="grupo">Agregar</x-boton>
+            </div>
+        </form>
+    </x-tarjeta>
 
     @if ($historicas->isNotEmpty())
         <x-tarjeta titulo="Obras sociales anteriores" icono="history" class="mt-6">
