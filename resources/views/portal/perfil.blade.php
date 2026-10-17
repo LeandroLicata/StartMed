@@ -22,6 +22,14 @@
 
                 @if ($cobertura->esPredeterminadaPlanObraSocial)
                     <x-estado tono="exito" icono="check_circle">Predeterminada</x-estado>
+                @else
+                    <form method="POST" action="{{ route('portal.perfil.predeterminada', $cobertura->idPlanObraSocial) }}">
+                        @csrf
+                        @method('PATCH')
+                        <x-boton variante="contorno" forma="grupo" class="px-2 py-1.5 text-xs">
+                            Marcar como predeterminada
+                        </x-boton>
+                    </form> 
                 @endif
             </div>
         @empty

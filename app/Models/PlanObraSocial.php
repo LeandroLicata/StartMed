@@ -40,4 +40,10 @@ class PlanObraSocial extends Model
     {
         return $this->belongsTo(Plan::class, 'idPlan', 'idPlan');
     }
+
+    public function estaVigente(): bool
+    { 
+        return $this->fechaFinPlanObraSocial === null
+            || $this->fechaFinPlanObraSocial->isFuture();
+    }
 }
