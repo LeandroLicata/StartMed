@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
-use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 /**
  * Perfil del paciente: datos personales y obras sociales.
@@ -21,7 +21,7 @@ class PerfilController extends Controller
             ->get();
 
         $vigentes = $coberturas->filter(fn ($cobertura) => $cobertura->estaVigente());
-        $historicas = $coberturas->reject(fn ( $cobertura) => $cobertura->estaVigente());
+        $historicas = $coberturas->reject(fn ($cobertura) => $cobertura->estaVigente());
 
         return view('portal.perfil', [
             'vigentes' => $vigentes,
@@ -46,6 +46,6 @@ class PerfilController extends Controller
         });
 
         return redirect()->route('portal.perfil')
-            ->with('exito','Listo, quedó como tu obra social predeterminada.');
+            ->with('exito', 'Listo, quedó como tu obra social predeterminada.');
     }
 }

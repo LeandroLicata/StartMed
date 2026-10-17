@@ -42,7 +42,7 @@ class PlanObraSocial extends Model
     }
 
     public function estaVigente(): bool
-    { 
+    {
         return $this->fechaFinPlanObraSocial === null
             || $this->fechaFinPlanObraSocial->isFuture();
     }

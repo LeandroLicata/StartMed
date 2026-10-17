@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Portal\AccesoController;
 use App\Models\Persona;
+use App\Models\PlanObraSocial;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -34,16 +35,17 @@ class PortalPerfilTest extends TestCase
             ->assertOk()
             ->assertSee('OSDE 410');
     }
+
     public function test_una_baja_futura_sigue_vigente(): void
     {
-            $this->maria->planObraSociales()->update([
-                'fechaFinPlanObraSocial' => now()->addMonth(),
-            ]);
+        $this->maria->planObraSociales()->update([
+            'fechaFinPlanObraSocial' => now()->addMonth(),
+        ]);
 
-            $this->get(route('portal.perfil'))
-                ->assertOk()
-                ->assertSee('Vigente hasta el')
-                ->assertDontSee('Dada de baja');
+        $this->get(route('portal.perfil'))
+            ->assertOk()
+            ->assertSee('Vigente hasta el')
+            ->assertDontSee('Dada de baja');
     }
 
     public function test_una_baja_pasada_aparece_como_anterior(): void
@@ -57,5 +59,45 @@ class PortalPerfilTest extends TestCase
             ->assertOk()
             ->assertSee('Obras sociales anteriores')
             ->assertSee('Dada de baja el');
+    }
+
+    public function test_marcar_predeterminada_desmarca_las_demas(): void
+    {
+        $original = $this->maria->planObraSociales()->firstOrFail();
+
+        $otra = $original->replicate();
+        $otra->esPredeterminadaPlanObraSocial = true;
+        $otra->save();
+
+        $this->patch(route('portal.perfil.predeterminada', $original->idPlanObraSocial))
+            ->assertRedirect(route('portal.perfil'));
+
+        $this->assertTrue($original->fresh()->esPredeterminadaPlanObraSocial);
+        $this->assertFalse($otra->fresh()->esPredeterminadaPlanObraSocial);
+    }
+
+    public function test_no_se_puede_marcar_una_cobertura_dada_de_baja(): void
+    {
+        $cobertura = $this->maria->planObraSociales()->firstOrFail();
+        $cobertura->update([
+            'fechaFinPlanObraSocial' => now()->subMonth(),
+            'esPredeterminadaPlanObraSocial' => false,
+        ]);
+
+        $this->patch(route('portal.perfil.predeterminada', $cobertura->idPlanObraSocial))
+            ->assertSessionHas('error');
+
+        $this->assertFalse($cobertura->fresh()->esPredeterminadaPlanObraSocial);
+    }
+
+    public function test_no_se_puede_marcar_la_cobertura_de_otro_paciente(): void
+    {
+        $ajena = PlanObraSocial::where('idPersona', '!=', $this->maria->idPersona)->firstOrFail();
+        $antes = $ajena->esPredeterminadaPlanObraSocial;
+
+        $this->patch(route('portal.perfil.predeterminada', $ajena->idPlanObraSocial))
+            ->assertNotFound();
+
+        $this->assertSame($antes, $ajena->fresh()->esPredeterminadaPlanObraSocial);
     }
 }
