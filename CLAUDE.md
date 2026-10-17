@@ -102,6 +102,12 @@ names follow that mechanical rule. Careful: the relation to `TipoASA` is `tipoAs
 (derived from the column `idTipoAsa`), not `tipoASA()`. When unsure, grep the model
 rather than guessing.
 
+`PlanObraSocial::estaVigente()` is the single rule for a current coverage: no
+`fechaFinPlanObraSocial`, or one in the future (a scheduled end still counts as
+current). Use it instead of `whereNull('fechaFinPlanObraSocial')`. At most one current
+coverage per patient has `esPredeterminadaPlanObraSocial`; the portal keeps it that way
+inside a transaction.
+
 ### Reading a surgery's state — `App\Support\ResumenCirugia`
 
 Do not re-derive module state in controllers or views. `ResumenCirugia` wraps a
@@ -574,7 +580,9 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   `ConfigConsentimiento` (`/admin/consentimientos`), `ConfigTipoExamenPreAnestesico*`
   (`/admin/cuestionario`) and `MaterialProveedor` / `MaterialProveedorTipoMedida`
   (`/admin/precios`) are date-ranged or nested, so the map would have flattened them.
-  `PlanObraSocial` is the one still without a screen — it is a patient's coverage, so it
-  belongs to a Pacientes section that does not exist yet.
+  `PlanObraSocial` has no `/admin` screen on purpose: it is a patient's coverage, so the
+  patient manages it from the portal profile (`/portal/perfil`) — see current and past
+  coverages, mark the default one and end one. Adding a coverage from the portal is
+  still pending.
 - **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
   disabled; a `Persona` who is not staff has no screen of its own.
