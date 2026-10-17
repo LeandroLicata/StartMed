@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Portal\AgregarObraSocialRequest;
 use App\Models\Plan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use App\Http\Requests\Portal\AgregarObraSocialRequest;
 
 /**
  * Perfil del paciente: datos personales y obras sociales.

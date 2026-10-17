@@ -51,6 +51,7 @@ class Plan extends Model
     {
         return $this->hasMany(PlanObraSocial::class, 'idPlan', 'idPlan');
     }
+
     /**
      * Planes que un paciente puede elegir: activos, con obra social activa y
      * sin el plan "particular". Devuelve idPlan => "Obra social ~ Plan".

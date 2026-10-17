@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Portal\AccesoController;
 use App\Models\Persona;
+use App\Models\Plan;
 use App\Models\PlanObraSocial;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -100,7 +101,7 @@ class PortalPerfilTest extends TestCase
 
         $this->assertSame($antes, $ajena->fresh()->esPredeterminadaPlanObraSocial);
     }
-    
+
     public function test_dar_de_baja_pasa_la_cobertura_a_anteriores(): void
     {
         $cobertura = $this->maria->planObraSociales()->firstOrFail();
@@ -144,5 +145,54 @@ class PortalPerfilTest extends TestCase
             ->assertNotFound();
 
         $this->assertEquals($antes, $ajena->fresh()->fechaFinPlanObraSocial);
+    }
+
+    public function test_agregar_suma_una_obra_social_vigente(): void
+    {
+        $osde = $this->maria->planObraSociales()->firstOrFail();
+        $osde->update(['fechaFinPlanObraSocial' => now()->subMonth()]);
+
+        $this->post(route('portal.perfil.agregar'), [
+            'idPlan' => $osde->idPlan,
+            'nroBeneficiario' => '123456',
+        ])->assertRedirect(route('portal.perfil'));
+
+        $this->assertDatabaseHas('PlanObraSocial', [
+            'idPersona' => $this->maria->idPersona,
+            'idPlan' => $osde->idPlan,
+            'nroBeneficiaroPlanObraSocial' => '123456',
+            'fechaFinPlanObraSocial' => null,
+        ]);
+    }
+
+    public function test_no_se_puede_agregar_un_plan_que_ya_esta_vigente(): void
+    {
+        $osde = $this->maria->planObraSociales()->firstOrFail();
+        $antes = $this->maria->planObraSociales()->count();
+
+        $this->post(route('portal.perfil.agregar'), [
+            'idPlan' => $osde->idPlan,
+            'nroBeneficiario' => '123456',
+        ])->assertSessionHas('error');
+
+        $this->assertSame($antes, $this->maria->planObraSociales()->count());
+    }
+
+    public function test_no_se_puede_agregar_el_plan_particular(): void
+    {
+        $particular = Plan::where('es_sin_cobertura', true)->firstOrFail();
+
+        $this->post(route('portal.perfil.agregar'), [
+            'idPlan' => $particular->idPlan,
+            'nroBeneficiario' => '123456',
+        ])->assertSessionHasErrors('idPlan');
+    }
+
+    public function test_el_numero_de_afiliado_es_obligatorio(): void
+    {
+        $this->post(route('portal.perfil.agregar'), [
+            'idPlan' => Plan::disponiblesParaPaciente()->keys()->first(),
+            'nroBeneficiario' => '',
+        ])->assertSessionHasErrors('nroBeneficiario');
     }
 }
