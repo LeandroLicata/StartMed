@@ -61,7 +61,13 @@
             <table class="w-full min-w-208 text-sm">
                 <thead>
                     <tr class="border-b border-hu-gris-suave/70 text-left text-xs uppercase tracking-wide text-hu-gris-medio">
-                        <th class="px-5 pb-2 font-semibold">Cuándo</th>
+                        <th class="px-5 pb-2 font-semibold">
+                            Cuándo
+                            {{-- Se guarda en UTC; se muestra en la zona de la app. Ver App\Models\Auditoria. --}}
+                            <span class="block font-normal normal-case tracking-normal">
+                                Hora de Argentina (UTC{{ now()->format('P') }})
+                            </span>
+                        </th>
                         <th class="px-3 pb-2 font-semibold">Autor</th>
                         <th class="px-3 pb-2 font-semibold">Acción</th>
                         <th class="px-5 pb-2 font-semibold">Sobre qué</th>
@@ -73,7 +79,10 @@
                         <tr class="align-top hover:bg-hu-azul-tenue/40">
                             <td class="px-5 py-3 whitespace-nowrap tabular-nums">
                                 <p>{{ $registro->fechaHoraAuditoria->translatedFormat('D j/m/Y') }}</p>
-                                <p class="text-xs text-hu-gris-medio">
+                                <p
+                                    class="text-xs text-hu-gris-medio"
+                                    title="{{ $registro->fechaHoraAuditoria->copy()->utc()->format('Y-m-d H:i:s') }} UTC"
+                                >
                                     {{ $registro->fechaHoraAuditoria->format('H:i') }} hs
                                 </p>
                             </td>

@@ -47,6 +47,33 @@ class AuditoriaTest extends TestCase
         $this->assertNull($registro->cambiosAuditoria);
     }
 
+    /**
+     * La hora de la auditoria va en UTC en la base (inequivoca fuera de la
+     * app) y en hora argentina en la pantalla. Las 22:30 de Argentina ya son
+     * el dia siguiente en UTC: si la conversion faltara de algun lado, el
+     * dia cambiaria.
+     */
+    public function test_la_hora_se_guarda_en_utc_y_se_muestra_en_hora_argentina(): void
+    {
+        $this->travelTo(now()->setDate(2026, 10, 19)->setTime(22, 30));
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.catalogos.store', 'tipo-estudio'), ['nombreTipoEstudio' => 'Espirometría']);
+
+        $registro = $this->ultimo();
+
+        $this->assertSame('2026-10-20 01:30:00', $registro->getRawOriginal('fechaHoraAuditoria'));
+        $this->assertSame('2026-10-19 22:30', $registro->fechaHoraAuditoria->format('Y-m-d H:i'));
+        $this->assertSame(config('app.timezone'), $registro->fechaHoraAuditoria->tzName);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.auditoria'))
+            ->assertOk()
+            ->assertSee('Hora de Argentina (UTC-03:00)')
+            ->assertSeeInOrder(['19/10/2026', '22:30 hs'])
+            ->assertSee('2026-10-20 01:30:00 UTC');
+    }
+
     public function test_la_edicion_guarda_el_valor_anterior_y_el_nuevo(): void
     {
         $estudio = TipoEstudio::where('nombreTipoEstudio', 'Hemograma')->firstOrFail();
