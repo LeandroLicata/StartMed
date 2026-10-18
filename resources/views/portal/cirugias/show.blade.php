@@ -25,7 +25,7 @@
                 <p class="text-sm text-white/60">{{ $soloLectura ? 'Cirugía anterior' : 'Tu cirugía' }}</p>
                 <h1 class="mt-1 text-xl font-black sm:text-2xl">{{ $caso->procedimiento() }}</h1>
             </div>
-            <x-portal.estado-cirugia :estado="$caso->estado()" />
+            <x-estado-cirugia :estado="$caso->estado()" />
         </div>
 
         <dl class="mt-4 flex flex-wrap gap-x-8 gap-y-3 text-sm">
@@ -37,16 +37,10 @@
                 <dt class="text-white/60">Hora</dt>
                 <dd class="font-semibold">{{ $caso->cuando()?->format('H:i') }} hs</dd>
             </div>
-            @if ($caso->cirujano())
+            @if ($caso->cuando()?->isFuture())
                 <div>
-                    <dt class="text-white/60">Cirujano/a</dt>
-                    <dd class="font-semibold">{{ $caso->cirujano() }}</dd>
-                </div>
-            @endif
-            @if ($caso->anestesista())
-                <div>
-                    <dt class="text-white/60">Anestesista</dt>
-                    <dd class="font-semibold">{{ $caso->anestesista() }}</dd>
+                    <dt class="text-white/60">Llegá a las</dt>
+                    <dd class="font-semibold text-hu-dorado">{{ $caso->horaLlegada()->format('H:i') }} hs</dd>
                 </div>
             @endif
         </dl>
@@ -56,6 +50,8 @@
         <x-alerta tipo="info" class="mt-4">
             Es una cirugía anterior: podés consultar todo, pero ya no se puede modificar.
         </x-alerta>
+    @else
+        @include('portal.cirugias.asistencia')
     @endif
 
     {{-- Una sola fila de pestañas; en pantallas angostas se desplaza en vez de cortarse. --}}

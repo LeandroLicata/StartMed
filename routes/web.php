@@ -18,6 +18,7 @@ use App\Http\Controllers\DireccionController;
 use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\PacientePortalController;
 use App\Http\Controllers\Portal\AccesoController as PortalAccesoController;
+use App\Http\Controllers\Portal\AsistenciaController as PortalAsistenciaController;
 use App\Http\Controllers\Portal\CirugiaController as PortalCirugiaController;
 use App\Http\Controllers\Portal\PerfilController as PortalPerfilController;
 use App\Http\Controllers\PortalPacienteController;
@@ -356,6 +357,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
                 Route::get('/{seccion?}', [PortalCirugiaController::class, 'show'])
                     ->whereIn('seccion', array_keys(PortalCirugiaController::SECCIONES))
                     ->name('show');
+
+                // --- Leandro: confirmacion de asistencia (48 h antes) ----------
+                Route::post('/asistencia', PortalAsistenciaController::class)
+                    ->middleware('throttle:10,1')
+                    ->name('asistencia');
             });
     });
 });

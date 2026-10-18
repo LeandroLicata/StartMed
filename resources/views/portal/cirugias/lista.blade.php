@@ -37,7 +37,7 @@
                             @if ($caso->cirujano())
                                 <p class="truncate text-xs text-hu-gris-medio">Cirujano/a: {{ $caso->cirujano() }}</p>
                             @endif
-                            <x-portal.estado-cirugia :estado="$caso->estado()" class="mt-2" />
+                            <x-estado-cirugia :estado="$caso->estado()" class="mt-2" />
                         </div>
 
                         <x-icono nombre="chevron_right" class="shrink-0 text-2xl text-hu-gris-medio" />

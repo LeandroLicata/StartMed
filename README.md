@@ -78,7 +78,7 @@ php artisan migrate --seed
 npm run build
 ```
 
-Esto crea las 69 tablas, carga los catálogos y genera datos de demostración: seis
+Esto crea las 69 tablas, carga los catálogos y genera datos de demostración: siete
 cirugías en distintos estados más seis meses de historial.
 
 ### 6. Levantarlo
