@@ -95,6 +95,24 @@ class PortalContratoTest extends TestCase
         $this->assertAuthenticated('web');
     }
 
+    public function test_maria_es_una_persona_comun_con_email_y_cirugias_y_sin_personal_ni_usuario(): void
+    {
+        $maria = $this->maria();
+
+        // Entra por el guard `paciente`: no hay legajo ni usuario del staff que sostener.
+        $this->assertSame('maria.garcia@example.com', $maria->contacto_email_direccion);
+        $this->assertNull($maria->personal);
+        $this->assertFalse(Usuario::where('nombreUsuario', 'mgarcia')->exists());
+        $this->assertTrue(Cirugia::where('idPersonaPaciente', $maria->idPersona)->exists());
+
+        // Correr el seeder otra vez no le inventa nada ni le pisa el email.
+        $maria->update(['contacto_email_direccion' => 'otra@example.com']);
+        $this->seed(DemoSeeder::class);
+
+        $this->assertSame('otra@example.com', $maria->fresh()->contacto_email_direccion);
+        $this->assertNull($maria->fresh()->personal);
+    }
+
     public function test_el_atajo_de_desarrollo_no_existe_fuera_de_local(): void
     {
         $this->assertFalse(Route::has('portal.entrar-local'));

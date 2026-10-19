@@ -116,15 +116,16 @@ Los crea el seeder. Cada uno aterriza en el panel que le corresponde a su rol.
 | `perez` | `demo1234` | Cirujano | `/cirujano` |
 | `lopez` | `demo1234` | Cirujano | `/cirujano` |
 | `ramos` | `demo1234` | Anestesista | `/anestesista` |
-| `mgarcia` | `paciente1234` | Paciente | `/mi-salud` |
 
 Un **403** al entrar a una sección no es un error: es el middleware `rol`
 haciendo su trabajo. Probá con `admin`, que ve todo.
 
-`mgarcia` es la paciente de una de las cirugías sembradas y entra a su portal,
-pero **ese login es un atajo de demo**: el seeder le inventa una fila en
-`Personal` sin legajo, porque `Usuario` cuelga de ahí. Ver *Pendientes
-conocidos*.
+María García es la paciente de una de las cirugías sembradas, pero **no es un
+usuario del staff**: es una `Persona` común que entra al portal del paciente
+(`/portal`). En `local`, `/portal/entrar-local` la loguea directo. Para probar el
+acceso real, ingresá su DNI `28456789` en `/portal/ingresar`: el seeder le carga
+`maria.garcia@example.com` y, con `MAIL_MAILER=log`, el enlace queda en
+`storage/logs/laravel.log`.
 
 ---
 
@@ -284,7 +285,7 @@ en pantallas chicas.
 | `/direccion` | Dirección médica | Serie de 6 meses, suspensiones, uso de quirófanos |
 | `/cirugias/{id}` | Autenticados | Expediente completo de una cirugía |
 | `/cirugias/{id}/portal-paciente` | Autenticados | Vista previa de lo que ve el paciente |
-| `/mi-salud` | Paciente | Su portal — **maqueta**, ver *Pendientes conocidos* |
+| `/portal` | Paciente (guard propio, acceso por DNI) | Su portal: próximas cirugías, historial y perfil |
 | `/admin` | Administrador | Índice de los 27 catálogos maestros |
 | `/admin/usuarios`, `/admin/consentimientos`, `/admin/precios`, `/admin/auditoria` | Administrador | Los módulos que no son catálogo genérico — ver *Administración* |
 | `/admin/cuestionario` | Administrador, **Anestesista** | Cuestionario pre-anestésico (el único módulo de `/admin` que no es solo del administrador) |
@@ -572,17 +573,6 @@ Se entra por `nombreUsuario`, con `throttle:6,1`, y se rechaza a los usuarios co
 ## Pendientes conocidos
 
 Cosas que **no** están hechas y conviene saber antes de asumir que se puede:
-
-**El portal del paciente es una maqueta y su login es falso.** `/mi-salud` se
-navega y `mgarcia` entra, pero `PortalPacienteMock` guarda el estado en la
-sesión y devuelve datos inventados: **ninguna de esas pantallas lee el
-expediente real**. No construyas encima como si estuviera conectado al dominio.
-Y el paciente entra porque el seeder le inventa una fila en `Personal` sin
-legajo — `Usuario` cuelga de ahí y un paciente es una `Persona` sin legajo.
-Cómo se autentica un paciente de verdad (link firmado, login propio, otra
-tabla) sigue sin decidirse, y es lo que hay que resolver antes de que esto sea
-real. Distinto es `/cirugias/{id}/portal-paciente`, que sí lee el expediente:
-es la vista previa que abre el equipo.
 
 **No hay reseteo de contraseña por email.** `config/auth.php` tiene
 `'passwords' => []` porque `Usuario` no tiene columna de email — el correo vive

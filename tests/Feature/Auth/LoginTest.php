@@ -82,6 +82,43 @@ class LoginTest extends TestCase
         $this->actingAs($usuario)->get('/dashboard')->assertForbidden();
     }
 
+    /**
+     * El rol `Paciente` sigue en el catalogo pero ya nada lo lee: los pacientes
+     * entran por el guard `paciente`. Un usuario del staff que solo tenga ese
+     * rol no puede romper la entrada: `rutaInicial()` da null y `/` muestra
+     * `sin-acceso` en el mismo pedido, sin redireccionar (un redirect a `/`
+     * seria un bucle).
+     */
+    public function test_un_usuario_solo_con_el_rol_paciente_aterriza_en_sin_acceso_sin_error_ni_bucle(): void
+    {
+        $usuario = $this->crearUsuario(rol: 'Paciente');
+
+        $this->assertNull($usuario->rutaInicial());
+
+        $respuesta = $this->actingAs($usuario)->get('/');
+        $respuesta->assertOk()->assertViewIs('sin-acceso')->assertSee('Todavía no tenés un rol asignado');
+        $this->assertNull($respuesta->headers->get('Location'));
+
+        // El login completo, siguiendo redirecciones: si hubiera bucle, el cliente de pruebas no termina.
+        auth()->logout();
+        $this->followingRedirects()
+            ->post('/login', ['nombreUsuario' => 'aperez', 'password' => 'secreto123'])
+            ->assertOk()
+            ->assertViewIs('sin-acceso');
+
+        // Las secciones con rol siguen cerradas.
+        $this->get('/dashboard')->assertForbidden();
+    }
+
+    public function test_la_maqueta_vieja_del_portal_ya_no_existe(): void
+    {
+        $this->actingAs($this->crearUsuario(rol: 'Paciente'));
+
+        $this->get('/mi-salud')->assertNotFound();
+        $this->get('/mi-salud/resumen')->assertNotFound();
+        $this->post('/mi-salud/accion/estudio')->assertNotFound();
+    }
+
     public function test_la_contrasena_se_guarda_hasheada(): void
     {
         $usuario = $this->crearUsuario();
