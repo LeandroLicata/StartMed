@@ -318,6 +318,12 @@ role, so sending everyone to `/dashboard` produced a 403 right after a correct l
 `/` (route name `inicio`) resolves it; users with no role get the `sin-acceso` view
 instead of a bare 403.
 
+The `Paciente` role is still in the `Rol` catalog (and protected there) but **nothing reads
+it any more**: patients authenticate through the `paciente` guard, never through `Usuario`,
+so `rutaInicial()` has no branch for it and a staff user holding only that role lands on
+`sin-acceso`. Whether to drop the role is an open team decision; until then it is an unused
+option in the user form.
+
 ### Routing / frontend
 
 Server-rendered Blade — there is no React and no JSON API. The only app JavaScript is
@@ -544,25 +550,6 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
 
 ### Known gaps — do not assume these work
 
-- **The patient portal is routed, but it is a mock, and patient login is faked.**
-  `/mi-salud` (`rol:Paciente` → `PacientePortalController`, view `paciente.portal`) is
-  navigable and `rutaInicial()` sends a `Paciente` there, but `PortalPacienteMock`
-  keeps its state in the session and returns invented data — nothing behind those
-  screens reads the real case file. **Do not build on top of it as if it were wired
-  to the domain.**
-  The way in is a shortcut, not a solution: `Usuario` hangs off `Personal` and a
-  patient is a `Persona` with no staff record, so `DemoSeeder::crearPacienteDemo()`
-  invents a legajo-less `Personal` row for María García (`mgarcia` / `paciente1234`)
-  just to be able to create her user. **How a patient really authenticates is still
-  an open schema decision** — that is what has to be resolved before any of this is
-  real. `PacientePortalTest` covers navigation only, for the same reason.
-  `cirugias/portal-paciente` is a different screen: a preview the staff opens, and it
-  does read the real case file.
-  Its "subir estudio" form is **still a mock** and is the one upload in the app that
-  does not go through `App\Support\GestorDocumental`: `PacientePortalController::accion()`
-  validates the file and then throws it away, writing a boolean into the session. It was
-  left that way on purpose — wiring real patient uploads means writing clinical files
-  against a faked identity, so the login decision above has to come first.
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.
 - **Surgery duration** (`Cirugia.fechaHoraFinCirugia`, nullable) is used for

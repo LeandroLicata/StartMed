@@ -247,7 +247,7 @@ class DemoSeeder extends Seeder
     /** @return array<string, Personal> */
     private function equipo(): array
     {
-        $this->crearPacienteDemo();
+        $this->emailDeLaPacienteDemo();
 
         $definiciones = [
             'perez' => ['Pérez', 'Daniel', '17223456', 'Cirujano', 'MP 4821', 'd.perez@hospital.uncuyo.edu.ar'],
@@ -290,37 +290,22 @@ class DemoSeeder extends Seeder
     }
 
     /**
-     * Usuario de demo para el portal del paciente: María García, que ademas es
-     * la paciente de una de las cirugias sembradas.
+     * María García es la paciente de la demo del portal (/portal): una Persona
+     * comun, sin Personal ni Usuario, porque el paciente entra por el guard
+     * `paciente` y no por la tabla de usuarios del staff.
      *
-     * Le crea una fila en Personal sin legajo, porque Usuario cuelga de ahi y
-     * un paciente es una Persona sin legajo. Es el atajo que hace navegable el
-     * portal, no la solucion: como se autentica un paciente de verdad sigue
-     * siendo una decision de esquema pendiente.
+     * Aca solo se le carga el email: con MAIL_MAILER=log el enlace de acceso
+     * queda en storage/logs/laravel.log. Sus cirugias salen de los casos que arma `run()`.
      */
-    private function crearPacienteDemo(): void
+    private function emailDeLaPacienteDemo(): void
     {
         $persona = $this->persona('García', 'María', '28456789');
 
-        // Direccion de ejemplo (example.com no existe): con MAIL_MAILER=log el
-        // enlace de acceso al portal queda en storage/logs/laravel.log. Solo se
-        // carga si esta vacia, para no pisar un email que alguien le haya puesto.
+        // Direccion de ejemplo (example.com no existe). Solo se carga si esta
+        // vacia, para no pisar un email que alguien le haya puesto.
         if ($persona->contacto_email_direccion === null) {
             $persona->update(['contacto_email_direccion' => 'maria.garcia@example.com']);
         }
-
-        $personal = Personal::firstOrCreate(['idPersona' => $persona->idPersona]);
-
-        $personal->roles()->syncWithoutDetaching([
-            Rol::where('nombreRol', 'Paciente')->value('idRol') => [
-                'fechaHoraAsignacionRolPersonal' => now(),
-            ],
-        ]);
-
-        Usuario::firstOrCreate(
-            ['nombreUsuario' => 'mgarcia'],
-            ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => 'paciente1234'],
-        );
     }
 
     /** @return array<string, MaterialProveedor> */

@@ -16,7 +16,6 @@ use App\Http\Controllers\CirujanoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
 use App\Http\Controllers\PacienteController;
-use App\Http\Controllers\PacientePortalController;
 use App\Http\Controllers\Portal\AccesoController as PortalAccesoController;
 use App\Http\Controllers\Portal\AsistenciaController as PortalAsistenciaController;
 use App\Http\Controllers\Portal\CirugiaController as PortalCirugiaController;
@@ -97,24 +96,6 @@ Route::middleware('auth:web')->group(function () {
     Route::get('/direccion', DireccionController::class)
         ->middleware('rol:Dirección médica')
         ->name('direccion');
-
-    /*
-     * Portal del paciente. Ojo: lo que hay detras es una maqueta. El estado lo
-     * guarda PortalPacienteMock en la sesion y los datos son inventados, asi
-     * que estas rutas dejan navegarlo, no lo ponen en produccion.
-     *
-     * Y para que un paciente pueda entrar hace falta inventarle una fila en
-     * Personal, porque Usuario cuelga de ahi (lo hace DemoSeeder). Esa es la
-     * decision de esquema que sigue pendiente: como se autentica un paciente.
-     */
-    Route::middleware('rol:Paciente')->prefix('mi-salud')->name('paciente.')->group(function () {
-        Route::get('/{seccion?}', PacientePortalController::class)
-            ->where('seccion', 'resumen|turnos|estudios|preanestesica|preparacion|consentimiento|contacto')
-            ->name('portal');
-        Route::post('/accion/{accion}', [PacientePortalController::class, 'accion'])
-            ->where('accion', 'confirmar|reprogramar|estudio|cuestionario|firmar|contacto')
-            ->name('accion');
-    });
 
     // Alta de una cirugia nueva: buscar/dar de alta al paciente por DNI y
     // completar quirofano, equipo y cobertura. Exclusivo del gestor. Va antes
@@ -216,10 +197,9 @@ Route::middleware('auth:web')->group(function () {
         ->name('cirugias.show');
 
     /*
-     * Vista previa del portal del paciente. El paciente todavia no puede
-     * entrar por su cuenta: `Usuario` cuelga de `Personal`, y un paciente es
-     * una `Persona` sin legajo. Hasta que se resuelva el acceso, la pantalla
-     * la abre el equipo desde el expediente.
+     * Vista previa, para el staff, de lo que ve el paciente en su portal. Es
+     * una pantalla del expediente: el paciente entra a su portal real por
+     * `/portal` (guard `paciente`), no por aca.
      */
     Route::get('/cirugias/{cirugia}/portal-paciente', PortalPacienteController::class)
         ->name('cirugias.portal');
