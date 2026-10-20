@@ -171,6 +171,25 @@ class DemoSeeder extends Seeder
                 'evaluacion' => ['ASA I', 'General', 'Pendiente'],
                 'profilaxis' => [['Cefazolina 1g IV', 'Principal']],
             ],
+            // Segunda cirugia de María, mañana: la de hoy a las 07:30 ya paso
+            // la mayor parte del dia, y el portal necesita una dentro de las
+            // 48 h para mostrar la confirmacion de asistencia, con algo
+            // pendiente para que el resto de las pestañas tenga que hacer.
+            [
+                'paciente' => ['García', 'María', '28456789', 'F', '1976-03-14', 'A+'],
+                'tipo' => 'Hernioplastia inguinal',
+                'cirujano' => 'lopez',
+                'anestesista' => 'ramos',
+                'quirofano' => 1,
+                'cuando' => $hoy->copy()->addDay()->setTime(9, 0),
+                'plan' => 'OSDE 410',
+                'estado' => 'Programada',
+                'implante' => false,
+                'autorizacion' => 'Enviada',
+                'estudios' => [['Hemograma', -2], ['Electrocardiograma', null]],
+                'evaluacion' => ['ASA I', 'General', 'Pendiente'],
+                'profilaxis' => [],
+            ],
         ];
 
         foreach ($casos as $caso) {

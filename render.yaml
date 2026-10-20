@@ -74,6 +74,8 @@ services:
         sync: false # ruta al CA cert si el proveedor de MySQL exige TLS (p.ej. Aiven); ver guía
       - key: CLOUDINARY_URL
         sync: false
+      - key: PORTAL_DIRECCION_HOSPITAL
+        sync: false # la que ve el paciente en su cirugia; vacia, no se muestra
 
 # El cron (schedule:run cada minuto, para el chequeo horario de reprogramaciones
 # y la limpieza semanal de huérfanos en Cloudinary) queda afuera a propósito:

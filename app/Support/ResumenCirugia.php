@@ -72,6 +72,23 @@ class ResumenCirugia
         'examenCirugiaPreAnestesicas.examenPreAnestesicoConfiges.examenPreAnestesicoConfigPreguntas.examenPreAnestesicoConfigPreguntaRespuestas.configTipoExamenPreAnestesicoPreguntaRespuesta',
     ];
 
+    /** Cuanto antes de la cirugia tiene que llegar el paciente. */
+    public const MINUTOS_ANTICIPACION_LLEGADA = 30;
+
+    /** Desde cuantas horas antes de la cirugia se le pide al paciente que confirme. */
+    public const HORAS_CONFIRMACION_ASISTENCIA = 48;
+
+    /**
+     * Estados en los que ya no tiene sentido preguntarle si viene: la cirugia
+     * termino, se cayo o el paciente ya respondio. Va por exclusion y no por
+     * lista de los que si, porque estos nombres ya estan en los protegidos de
+     * Catalogos; la lista contraria obligaria a proteger tambien 'Programada'.
+     */
+    public const ESTADOS_SIN_CONFIRMACION = [
+        'Realizada', 'Suspendida', 'Reprogramada',
+        'A reprogramar', 'Asistencia de paciente confirmada',
+    ];
+
     public readonly ?Quirofano $quirofano;
 
     public readonly ?Persona $paciente;
@@ -101,6 +118,15 @@ class ResumenCirugia
     public function fin(): ?Carbon
     {
         return $this->cirugia->fechaHoraFinCirugia;
+    }
+
+    /**
+     * A que hora tiene que llegar el paciente. No hay columna: es una regla
+     * fija sobre la hora de la cirugia.
+     */
+    public function horaLlegada(): ?Carbon
+    {
+        return $this->cuando()?->copy()->subMinutes(self::MINUTOS_ANTICIPACION_LLEGADA);
     }
 
     public function minutosDesdeMedianoche(): int
@@ -182,6 +208,22 @@ class ResumenCirugia
     public function autorizacionAprobada(): bool
     {
         return in_array($this->autorizacion(), ['Aprobada', 'Sin cobertura'], true);
+    }
+
+    /**
+     * Obra social y plan con que se opera, para mostrar: «Swiss Medical · SMG 20».
+     * Si el plan ya lleva el nombre de la obra social («OSDE 410»), va solo.
+     */
+    public function cobertura(): ?string
+    {
+        $plan = $this->plan?->nombrePlan;
+        $obraSocial = $this->plan?->obraSocial?->nombreObraSocial;
+
+        if ($plan && $obraSocial && str_contains(mb_strtolower($plan), mb_strtolower($obraSocial))) {
+            return $plan;
+        }
+
+        return collect([$obraSocial, $plan])->filter()->join(' · ') ?: null;
     }
 
     public function nroAutorizacion(): ?string
@@ -345,6 +387,23 @@ class ResumenCirugia
     }
 
     /**
+     * Si la etiqueta del semaforo («Listo», «En riesgo») tapa el estado
+     * vigente y hay que mostrarlo aparte. Pasa justo cuando la cirugia es
+     * inminente, que es cuando el paciente confirma o pide reprogramar: sin
+     * esto, el staff no veria su respuesta.
+     */
+    public function semaforoTapaEstado(): bool
+    {
+        $etiqueta = match (true) {
+            $this->estaLista() => null,
+            $this->semaforo() === 'error' => 'En riesgo',
+            default => $this->estado(),
+        };
+
+        return $etiqueta !== $this->estado() && $this->estado() !== 'Sin estado';
+    }
+
+    /**
      * Semaforo para la interfaz: verde si esta lista, rojo si falta algo y la
      * cirugia es inminente, amarillo si falta algo pero hay margen.
      */
@@ -491,5 +550,88 @@ class ResumenCirugia
     {
         return $this->cirugia->cirugiaPersonales
             ->whereNull('fechaFinAsignacionCirugiaPersonal');
+    }
+
+    // --- Portal del paciente ------------------------------------------------
+
+    /**
+     * «Estado de mi proceso»: lo que el paciente puede seguir de su cirugia,
+     * dicho para el. Deja afuera lo que es logistica interna (materiales) y lo
+     * que no existe en la base (turnos con otros servicios).
+     *
+     * `seccion` es la pestaña del detalle donde se completa o se consulta, o
+     * null si no depende de el. Necesita RELACIONES_EXPEDIENTE (cuestionario).
+     *
+     * @return Collection<int, array{titulo: string, detalle: string, listo: bool, seccion: ?string}>
+     */
+    public function procesoPaciente(): Collection
+    {
+        $estudios = $this->estudiosTotal() === 0
+            ? 'No te pidieron estudios'
+            : $this->estudiosSubidos().' de '.$this->estudiosTotal().' '
+                .str('subido')->plural($this->estudiosTotal());
+
+        return collect([
+            [
+                'titulo' => 'Autorización de la obra social',
+                'detalle' => $this->autorizacion(),
+                'listo' => $this->autorizacionAprobada(),
+                'seccion' => null,
+            ],
+            [
+                'titulo' => 'Estudios prequirúrgicos',
+                'detalle' => $estudios,
+                'listo' => $this->estudiosPendientes() === 0,
+                'seccion' => 'estudios',
+            ],
+            [
+                'titulo' => 'Cuestionario preanestésico',
+                'detalle' => $this->cuestionario()->isNotEmpty() ? 'Respondido' : 'Sin responder',
+                'listo' => $this->cuestionario()->isNotEmpty(),
+                'seccion' => 'preanestesica',
+            ],
+            [
+                'titulo' => 'Evaluación anestésica',
+                'detalle' => $this->evaluacionCompleta() ? 'Completada' : 'La completa tu anestesista',
+                'listo' => $this->evaluacionCompleta(),
+                'seccion' => null,
+            ],
+            [
+                'titulo' => 'Consentimiento informado',
+                'detalle' => $this->consentimientoFirmado() ? 'Firmado' : 'Sin firmar',
+                'listo' => $this->consentimientoFirmado(),
+                'seccion' => 'consentimiento',
+            ],
+        ]);
+    }
+
+    /**
+     * Si corresponde pedirle al paciente que confirme que viene: cirugia
+     * futura, dentro de las proximas HORAS_CONFIRMACION_ASISTENCIA, y en un
+     * estado en el que la respuesta todavia cambia algo.
+     */
+    public function puedeConfirmarAsistencia(): bool
+    {
+        $cuando = $this->cuando();
+
+        return $cuando !== null
+            && $cuando->isFuture()
+            && $cuando->lte(now()->addHours(self::HORAS_CONFIRMACION_ASISTENCIA))
+            && ! in_array($this->estado(), self::ESTADOS_SIN_CONFIRMACION, true);
+    }
+
+    /**
+     * En que quedo la asistencia, leido del estado vigente: 'confirmada',
+     * 'reprogramar' o null. 'A reprogramar' tambien lo pone
+     * cirugias:check-reprogramar cuando falta algo, asi que la vista no puede
+     * dar por hecho que lo pidio el paciente.
+     */
+    public function respuestaAsistencia(): ?string
+    {
+        return match ($this->estado()) {
+            'Asistencia de paciente confirmada' => 'confirmada',
+            'A reprogramar' => 'reprogramar',
+            default => null,
+        };
     }
 }

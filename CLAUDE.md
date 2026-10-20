@@ -210,7 +210,8 @@ referenced" query, plus the no-op path when the resolved gestor is the local one
 ### Seeders
 
 `DatabaseSeeder` → `CatalogosSeeder` (reference tables) + admin user, then, **only in
-`local`**, `DemoSeeder` (6 surgeries in different states, dates relative to today),
+`local`**, `DemoSeeder` (7 surgeries in different states, dates relative to today; María García
+has two, one of them tomorrow so the portal's 48 h attendance prompt shows),
 `ExpedienteSeeder` (prep, consent, pre-anesthesia questionnaire) and `HistorialSeeder`
 (6 months of closed surgeries for the Dirección charts). All are idempotent.
 
