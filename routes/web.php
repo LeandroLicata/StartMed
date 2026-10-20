@@ -328,6 +328,13 @@ Route::prefix('portal')->name('portal.')->group(function () {
 
         // --- Perfil y obras sociales ----------------------------------------
         Route::get('/perfil', [PortalPerfilController::class, 'show'])->name('perfil');
+        Route::patch('/perfil/obras-sociales/{cobertura}/predeterminada', [PortalPerfilController::class, 'marcarPredeterminada'])
+            ->whereNumber('cobertura')
+            ->name('perfil.predeterminada');
+        Route::patch('/perfil/obras-sociales/{cobertura}/baja', [PortalPerfilController::class, 'darDeBaja'])
+            ->whereNumber('cobertura')
+            ->name('perfil.baja');
+        Route::post('/perfil/obras-sociales', [PortalPerfilController::class, 'agregar'])->name('perfil.agregar');
 
         // --- Detalle de una cirugia (pertenencia verificada) -----------------
         Route::prefix('cirugias/{cirugia}')
