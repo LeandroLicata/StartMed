@@ -198,7 +198,12 @@
             />
 
             <div id="div-existente" style="display: none;">
-                <x-select nombre="idPlanObraSocial" etiqueta="Plan existente" :opciones="$opcionesPlanExistenteReprogramar" />
+                <x-select
+                    nombre="idPlanObraSocial"
+                    etiqueta="Plan existente"
+                    :opciones="$opcionesPlanExistenteReprogramar"
+                    :valor="$coberturas->firstWhere('esPredeterminadaPlanObraSocial', true)?->idPlanObraSocial"
+                />
             </div>
 
             <div id="div-nueva" style="display: none;" class="space-y-4">

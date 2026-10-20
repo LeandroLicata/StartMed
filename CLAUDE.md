@@ -114,11 +114,18 @@ names follow that mechanical rule. Careful: the relation to `TipoASA` is `tipoAs
 (derived from the column `idTipoAsa`), not `tipoASA()`. When unsure, grep the model
 rather than guessing.
 
-`PlanObraSocial::estaVigente()` is the single rule for a current coverage: no
-`fechaFinPlanObraSocial`, or one in the future (a scheduled end still counts as
-current). Use it instead of `whereNull('fechaFinPlanObraSocial')`. At most one current
-coverage per patient has `esPredeterminadaPlanObraSocial`; the portal keeps it that way
-inside a transaction.
+A current coverage has no `fechaFinPlanObraSocial`, or one in the future (a scheduled
+end still counts as current). That rule exists twice on `PlanObraSocial`, and only
+there: the `vigentes()` scope for queries and `estaVigente()` for a loaded model.
+Never write `whereNull('fechaFinPlanObraSocial')` — that is how the gestor's forms once
+hid coverages the patient still saw as current in the portal.
+
+At most one current coverage per patient has `esPredeterminadaPlanObraSocial`; the
+portal keeps it that way inside a transaction. **Create coverages only through
+`PlanObraSocial::agregar()`** — the portal, the create-surgery form and rescheduling all
+do. It marks the new one as the default when the patient has no current default, so the
+gestor's forms always have something to preselect. Both of them (create-surgery and the
+reschedule modal) list the default first and preselect it.
 
 ### Reading a surgery's state — `App\Support\ResumenCirugia`
 

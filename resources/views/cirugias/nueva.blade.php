@@ -241,6 +241,7 @@
             }
 
             $coberturaPorDefecto = old('cobertura', $coberturas->isNotEmpty() ? 'existente' : 'particular');
+            $predeterminada = $coberturas->firstWhere('esPredeterminadaPlanObraSocial', true)?->idPlanObraSocial;
         @endphp
 
         <form method="POST" action="{{ route('cirugias.store') }}" class="space-y-6">
@@ -263,7 +264,7 @@
                             >
                             <div class="w-full max-w-md">
                                 <span class="block text-sm font-semibold text-hu-azul">Usar una cobertura ya cargada</span>
-                                <x-select nombre="idPlanObraSocial" :opciones="$opcionesCobertura" class="mt-1.5" />
+                                <x-select nombre="idPlanObraSocial" :opciones="$opcionesCobertura" :valor="$predeterminada" class="mt-1.5" />
                             </div>
                         </label>
                     @endif
