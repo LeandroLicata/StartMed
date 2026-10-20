@@ -20,6 +20,8 @@ envVarGroups:
         value: es
       - key: APP_FALLBACK_LOCALE
         value: es
+      - key: APP_TIMEZONE
+        value: America/Argentina/Buenos_Aires # ver config/app.php
       - key: LOG_CHANNEL
         value: stderr # storage/logs/laravel.log queda dentro del contenedor y no lo ves en los logs de Render
       - key: LOG_LEVEL

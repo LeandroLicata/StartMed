@@ -59,13 +59,17 @@ return [
     | Application Timezone
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | Hora argentina, no UTC. Las columnas de fecha son DATETIME (sin zona) y
+    | guardan la hora tal cual la carga el staff, que es hora argentina; con la
+    | app en UTC, now() escribia y comparaba 3 h corrido respecto de esos
+    | datos (ventana de 48 h del portal, "cirugia de hoy", auditoria).
+    | Argentina no tiene horario de verano, asi que guardar hora local sin
+    | zona no deja horas ambiguas. Pasar a UTC de nuevo exige convertir en
+    | cada formulario y en cada fecha que se muestra.
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'America/Argentina/Buenos_Aires'),
 
     /*
     |--------------------------------------------------------------------------
