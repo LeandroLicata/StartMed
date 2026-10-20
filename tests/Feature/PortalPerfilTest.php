@@ -147,6 +147,12 @@ class PortalPerfilTest extends TestCase
         $this->assertEquals($antes, $ajena->fresh()->fechaFinPlanObraSocial);
     }
 
+    public function test_un_id_de_cobertura_que_no_es_numero_da_404_y_no_500(): void
+    {
+        $this->patch('/portal/perfil/obras-sociales/abc/predeterminada')->assertNotFound();
+        $this->patch('/portal/perfil/obras-sociales/abc/baja')->assertNotFound();
+    }
+
     public function test_agregar_suma_una_obra_social_vigente(): void
     {
         $osde = $this->maria->planObraSociales()->firstOrFail();

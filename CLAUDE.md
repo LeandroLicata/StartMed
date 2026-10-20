@@ -582,7 +582,6 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   (`/admin/precios`) are date-ranged or nested, so the map would have flattened them.
   `PlanObraSocial` has no `/admin` screen on purpose: it is a patient's coverage, so the
   patient manages it from the portal profile (`/portal/perfil`) — see current and past
-  coverages, mark the default one and end one. Adding a coverage from the portal is
-  still pending.
+  coverages, mark the default one, end one and add a new one.
 - **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
   disabled; a `Persona` who is not staff has no screen of its own.
