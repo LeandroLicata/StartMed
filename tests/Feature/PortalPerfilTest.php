@@ -194,6 +194,64 @@ class PortalPerfilTest extends TestCase
         ])->assertSessionHasErrors('idPlan');
     }
 
+    public function test_marcar_la_que_ya_tenia_el_flag_no_deja_al_paciente_sin_predeterminada(): void
+    {
+        // Dos marcadas a la vez (datos viejos): se elige una que ya estaba en true.
+        $original = $this->maria->planObraSociales()->firstOrFail();
+        $original->update(['esPredeterminadaPlanObraSocial' => true]);
+        $otra = $original->replicate();
+        $otra->save();
+
+        $this->patch(route('portal.perfil.predeterminada', $original->idPlanObraSocial));
+
+        $this->assertTrue($original->fresh()->esPredeterminadaPlanObraSocial);
+        $this->assertFalse($otra->fresh()->esPredeterminadaPlanObraSocial);
+    }
+
+    public function test_la_primera_obra_social_que_se_agrega_queda_como_predeterminada(): void
+    {
+        $osde = $this->maria->planObraSociales()->firstOrFail();
+
+        // Dio de baja la predeterminada: el portal le pide elegir otra o agregar una.
+        $this->patch(route('portal.perfil.baja', $osde->idPlanObraSocial));
+
+        $this->post(route('portal.perfil.agregar'), [
+            'idPlan' => $osde->idPlan,
+            'nroBeneficiario' => '123456',
+        ])->assertSessionHas('exito', 'Agregaste la obra social. Quedó como tu predeterminada.');
+
+        $nueva = $this->maria->planObraSociales()->vigentes()->sole();
+        $this->assertTrue($nueva->esPredeterminadaPlanObraSocial);
+    }
+
+    public function test_agregar_no_le_cambia_la_predeterminada_a_quien_ya_tiene_una(): void
+    {
+        $osde = $this->maria->planObraSociales()->firstOrFail();
+        $this->assertTrue($osde->esPredeterminadaPlanObraSocial, 'DemoSeeder deja la primera cobertura como predeterminada');
+
+        $otroPlan = Plan::disponiblesParaPaciente()->keys()->first(fn ($id) => $id !== $osde->idPlan);
+
+        $this->post(route('portal.perfil.agregar'), [
+            'idPlan' => $otroPlan,
+            'nroBeneficiario' => '123456',
+        ])->assertSessionHas('exito', 'Agregaste la obra social.');
+
+        $this->assertTrue($osde->fresh()->esPredeterminadaPlanObraSocial);
+        $this->assertFalse($this->maria->planObraSociales()->where('idPlan', $otroPlan)->sole()->esPredeterminadaPlanObraSocial);
+    }
+
+    public function test_una_predeterminada_cuya_baja_programada_ya_paso_no_cuenta(): void
+    {
+        // El flag queda puesto, pero la cobertura ya no es vigente.
+        $osde = $this->maria->planObraSociales()->firstOrFail();
+        $osde->update(['fechaFinPlanObraSocial' => now()->subDay()]);
+
+        $this->assertFalse(PlanObraSocial::tienePredeterminadaVigente($this->maria->idPersona));
+
+        $nueva = PlanObraSocial::agregar($this->maria->idPersona, $osde->idPlan, '123456');
+        $this->assertTrue($nueva->esPredeterminadaPlanObraSocial);
+    }
+
     public function test_el_numero_de_afiliado_es_obligatorio(): void
     {
         $this->post(route('portal.perfil.agregar'), [

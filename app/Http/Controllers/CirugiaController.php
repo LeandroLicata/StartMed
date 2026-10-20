@@ -123,8 +123,10 @@ class CirugiaController extends Controller
                     return $estado === null || $estado === 'Disponible';
                 })
                 ->values(),
+            // La predeterminada primero: es la que el modal de reprogramar preselecciona.
             'coberturas' => $cirugia->paciente->planObraSociales()
-                ->whereNull('fechaFinPlanObraSocial')
+                ->vigentes()
+                ->orderByDesc('esPredeterminadaPlanObraSocial')
                 ->with('plan.obrasocial')
                 ->get(),
             'obrasSociales' => ObraSocial::whereNull('fechaBajaObraSocial')

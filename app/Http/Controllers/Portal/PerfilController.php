@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\AgregarObraSocialRequest;
 use App\Models\Plan;
+use App\Models\PlanObraSocial;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -45,7 +46,11 @@ class PerfilController extends Controller
         }
 
         DB::transaction(function () use ($persona, $elegida) {
-            $persona->planObraSociales()->update(['esPredeterminadaPlanObraSocial' => false]);
+            // Se desmarcan solo las demas: si la elegida ya tenia el flag en
+            // memoria, update() no ve cambios y no la volveria a marcar.
+            $persona->planObraSociales()
+                ->whereKeyNot($elegida->getKey())
+                ->update(['esPredeterminadaPlanObraSocial' => false]);
             $elegida->update(['esPredeterminadaPlanObraSocial' => true]);
         });
 
@@ -84,21 +89,23 @@ class PerfilController extends Controller
         $persona = auth('paciente')->user();
 
         $yaLaTiene = $persona->planObraSociales()
+            ->vigentes()
             ->where('idPlan', $request->integer('idPlan'))
-            ->get()
-            ->contains(fn ($cobertura) => $cobertura->estaVigente());
+            ->exists();
 
         if ($yaLaTiene) {
             return back()->withInput()->with('error', 'Ya tenés ese plan entre tus obras sociales vigentes.');
         }
 
-        $persona->planObraSociales()->create([
-            'idPlan' => $request->integer('idPlan'),
-            'nroBeneficiaroPlanObraSocial' => $request->input('nroBeneficiario'),
-            'fechaInicioPlanObraSocial' => now(),
-        ]);
+        $nueva = PlanObraSocial::agregar(
+            $persona->idPersona,
+            $request->integer('idPlan'),
+            $request->input('nroBeneficiario'),
+        );
 
         return redirect()->route('portal.perfil')
-            ->with('exito', 'Agregaste la obra social.');
+            ->with('exito', $nueva->esPredeterminadaPlanObraSocial
+                ? 'Agregaste la obra social. Quedó como tu predeterminada.'
+                : 'Agregaste la obra social.');
     }
 }

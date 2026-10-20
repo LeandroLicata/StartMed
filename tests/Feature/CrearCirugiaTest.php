@@ -208,7 +208,61 @@ class CrearCirugiaTest extends TestCase
             'idPersona' => $paciente->idPersona,
             'idPlan' => $plan->idPlan,
             'nroBeneficiaroPlanObraSocial' => '123456',
+            // No tenia ninguna: la que carga el gestor queda como predeterminada.
+            'esPredeterminadaPlanObraSocial' => true,
         ]);
+    }
+
+    public function test_el_alta_preselecciona_la_cobertura_predeterminada(): void
+    {
+        $gestor = $this->conDatosDemo();
+        $paciente = $this->pacienteNuevo();
+        [$swiss, $osde] = [
+            ObraSocial::where('nombreObraSocial', 'Swiss Medical')->firstOrFail()->planes()->firstOrFail(),
+            ObraSocial::where('nombreObraSocial', 'OSDE')->firstOrFail()->planes()->firstOrFail(),
+        ];
+
+        PlanObraSocial::create(['idPersona' => $paciente->idPersona, 'idPlan' => $swiss->idPlan, 'fechaInicioPlanObraSocial' => now()->subYear()]);
+        $predeterminada = PlanObraSocial::create([
+            'idPersona' => $paciente->idPersona,
+            'idPlan' => $osde->idPlan,
+            'fechaInicioPlanObraSocial' => now()->subYear(),
+            'esPredeterminadaPlanObraSocial' => true,
+        ]);
+
+        $this->actingAs($gestor)
+            ->get(route('cirugias.crear', ['persona' => $paciente->idPersona]))
+            ->assertOk()
+            ->assertViewHas('coberturas', fn ($coberturas) => $coberturas->first()->is($predeterminada))
+            ->assertSee('<option value="'.$predeterminada->idPlanObraSocial.'" selected>', false);
+    }
+
+    public function test_el_alta_usa_la_misma_regla_de_vigencia_que_el_portal(): void
+    {
+        $gestor = $this->conDatosDemo();
+        $paciente = $this->pacienteNuevo();
+        $planes = [
+            ObraSocial::where('nombreObraSocial', 'OSDE')->firstOrFail()->planes()->firstOrFail(),
+            ObraSocial::where('nombreObraSocial', 'Swiss Medical')->firstOrFail()->planes()->firstOrFail(),
+        ];
+
+        $conBajaProgramada = PlanObraSocial::create([
+            'idPersona' => $paciente->idPersona,
+            'idPlan' => $planes[0]->idPlan,
+            'fechaInicioPlanObraSocial' => now()->subYear(),
+            'fechaFinPlanObraSocial' => now()->addMonth(),
+        ]);
+        $vencida = PlanObraSocial::create([
+            'idPersona' => $paciente->idPersona,
+            'idPlan' => $planes[1]->idPlan,
+            'fechaInicioPlanObraSocial' => now()->subYear(),
+            'fechaFinPlanObraSocial' => now()->subDay(),
+        ]);
+
+        $this->actingAs($gestor)
+            ->get(route('cirugias.crear', ['persona' => $paciente->idPersona]))
+            ->assertViewHas('coberturas', fn ($coberturas) => $coberturas->contains($conBajaProgramada)
+                && ! $coberturas->contains($vencida));
     }
 
     public function test_crear_cirugia_con_cobertura_existente_reutiliza_el_plan(): void

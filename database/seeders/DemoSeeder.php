@@ -397,9 +397,16 @@ class DemoSeeder extends Seeder
 
         $plan = $planes[$caso['plan']];
 
+        // La primera cobertura de cada paciente queda como predeterminada, como
+        // la dejaria PlanObraSocial::agregar(): asi el alta del gestor tiene
+        // algo que preseleccionar en la demo.
         PlanObraSocial::firstOrCreate(
             ['idPersona' => $paciente->idPersona, 'idPlan' => $plan->idPlan],
-            ['nroBeneficiaroPlanObraSocial' => '62'.$documento, 'fechaInicioPlanObraSocial' => now()->subYears(3)],
+            [
+                'nroBeneficiaroPlanObraSocial' => '62'.$documento,
+                'fechaInicioPlanObraSocial' => now()->subYears(3),
+                'esPredeterminadaPlanObraSocial' => ! PlanObraSocial::tienePredeterminadaVigente($paciente->idPersona),
+            ],
         );
 
         $cirugia = Cirugia::firstOrCreate(
