@@ -16,7 +16,10 @@ use App\Http\Controllers\CirujanoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
 use App\Http\Controllers\PacienteController;
-use App\Http\Controllers\PacientePortalController;
+use App\Http\Controllers\Portal\AccesoController as PortalAccesoController;
+use App\Http\Controllers\Portal\AsistenciaController as PortalAsistenciaController;
+use App\Http\Controllers\Portal\CirugiaController as PortalCirugiaController;
+use App\Http\Controllers\Portal\PerfilController as PortalPerfilController;
 use App\Http\Controllers\PortalPacienteController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,7 +44,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:6,1');
 });
 
-Route::middleware('auth')->group(function () {
+// `auth:web` y no `auth` a secas: con el guard `paciente` en juego, el staff
+// nombra el suyo para no depender de cual quedo como guard por defecto.
+Route::middleware('auth:web')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     Route::get('/dashboard', DashboardController::class)
@@ -91,24 +96,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/direccion', DireccionController::class)
         ->middleware('rol:Dirección médica')
         ->name('direccion');
-
-    /*
-     * Portal del paciente. Ojo: lo que hay detras es una maqueta. El estado lo
-     * guarda PortalPacienteMock en la sesion y los datos son inventados, asi
-     * que estas rutas dejan navegarlo, no lo ponen en produccion.
-     *
-     * Y para que un paciente pueda entrar hace falta inventarle una fila en
-     * Personal, porque Usuario cuelga de ahi (lo hace DemoSeeder). Esa es la
-     * decision de esquema que sigue pendiente: como se autentica un paciente.
-     */
-    Route::middleware('rol:Paciente')->prefix('mi-salud')->name('paciente.')->group(function () {
-        Route::get('/{seccion?}', PacientePortalController::class)
-            ->where('seccion', 'resumen|turnos|estudios|preanestesica|preparacion|consentimiento|contacto')
-            ->name('portal');
-        Route::post('/accion/{accion}', [PacientePortalController::class, 'accion'])
-            ->where('accion', 'confirmar|reprogramar|estudio|cuestionario|firmar|contacto')
-            ->name('accion');
-    });
 
     // Alta de una cirugia nueva: buscar/dar de alta al paciente por DNI y
     // completar quirofano, equipo y cobertura. Exclusivo del gestor. Va antes
@@ -210,10 +197,9 @@ Route::middleware('auth')->group(function () {
         ->name('cirugias.show');
 
     /*
-     * Vista previa del portal del paciente. El paciente todavia no puede
-     * entrar por su cuenta: `Usuario` cuelga de `Personal`, y un paciente es
-     * una `Persona` sin legajo. Hasta que se resuelva el acceso, la pantalla
-     * la abre el equipo desde el expediente.
+     * Vista previa, para el staff, de lo que ve el paciente en su portal. Es
+     * una pantalla del expediente: el paciente entra a su portal real por
+     * `/portal` (guard `paciente`), no por aca.
      */
     Route::get('/cirugias/{cirugia}/portal-paciente', PortalPacienteController::class)
         ->name('cirugias.portal');
@@ -293,5 +279,76 @@ Route::middleware('auth')->group(function () {
         Route::delete('cuestionario/{version}/preguntas/{pregunta}', [CuestionarioController::class, 'eliminarPregunta'])->name('cuestionario.preguntas.destroy');
         Route::post('cuestionario/{version}/preguntas/{pregunta}/respuestas', [CuestionarioController::class, 'agregarRespuesta'])->name('cuestionario.respuestas.store');
         Route::delete('cuestionario/{version}/preguntas/{pregunta}/respuestas/{respuesta}', [CuestionarioController::class, 'eliminarRespuesta'])->name('cuestionario.respuestas.destroy');
+    });
+});
+
+/*
+ * Portal del paciente. Externo al sistema interno: layout propio, guard propio
+ * (`paciente`, autentica una Persona) y prefijo propio. Va en /portal y no en
+ * /pacientes porque esa URL ya es el listado de pacientes del staff.
+ *
+ * Reglas para quien agregue rutas aca:
+ *  - Todo lo del paciente logueado va dentro del grupo `auth:paciente`.
+ *  - Todo lo que reciba `{cirugia}` va dentro del subgrupo `cirugias/{cirugia}`,
+ *    que ya verifica que la cirugia sea del paciente (404 si no). No repetir
+ *    esa verificacion en los controladores.
+ *  - Cada uno agrega su bloque con un comentario de que modulo es.
+ */
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::get('/ingresar', [PortalAccesoController::class, 'ingresar'])->name('ingresar');
+
+    // Atajo de desarrollo para ver el portal sin el acceso por email. Solo
+    // existe en local; en produccion la ruta ni se registra.
+    if (app()->environment('local')) {
+        Route::get('/entrar-local/{documento?}', [PortalAccesoController::class, 'entrarLocal'])
+            ->name('entrar-local');
+    }
+
+    // --- Jhonni: acceso por DNI con link firmado de un solo uso -----------
+    // Publicas: es la puerta, el paciente todavia no tiene sesion. El GET del
+    // link solo valida y muestra el boton; el POST es el que consume el nonce
+    // y autentica (un cliente de correo que abre el link no lo quema).
+    Route::post('/ingresar', [PortalAccesoController::class, 'solicitar'])
+        ->middleware('throttle:5,1')
+        ->name('acceso.solicitar');
+    Route::get('/acceso/{persona}/{nonce}', [PortalAccesoController::class, 'entrar'])
+        ->whereNumber('persona')
+        ->name('acceso.entrar');
+    Route::post('/acceso/{persona}/{nonce}', [PortalAccesoController::class, 'confirmar'])
+        ->whereNumber('persona')
+        ->middleware('throttle:10,1')
+        ->name('acceso.confirmar');
+
+    Route::middleware('auth:paciente')->group(function () {
+        Route::post('/salir', [PortalAccesoController::class, 'salir'])->name('salir');
+
+        // --- Cirugias: proximas e historial ---------------------------------
+        Route::get('/', [PortalCirugiaController::class, 'proximas'])->name('inicio');
+        Route::get('/historial', [PortalCirugiaController::class, 'historial'])->name('historial');
+
+        // --- Perfil y obras sociales ----------------------------------------
+        Route::get('/perfil', [PortalPerfilController::class, 'show'])->name('perfil');
+        Route::patch('/perfil/obras-sociales/{cobertura}/predeterminada', [PortalPerfilController::class, 'marcarPredeterminada'])
+            ->whereNumber('cobertura')
+            ->name('perfil.predeterminada');
+        Route::patch('/perfil/obras-sociales/{cobertura}/baja', [PortalPerfilController::class, 'darDeBaja'])
+            ->whereNumber('cobertura')
+            ->name('perfil.baja');
+        Route::post('/perfil/obras-sociales', [PortalPerfilController::class, 'agregar'])->name('perfil.agregar');
+
+        // --- Detalle de una cirugia (pertenencia verificada) -----------------
+        Route::prefix('cirugias/{cirugia}')
+            ->middleware('cirugia.del.paciente')
+            ->name('cirugias.')
+            ->group(function () {
+                Route::get('/{seccion?}', [PortalCirugiaController::class, 'show'])
+                    ->whereIn('seccion', array_keys(PortalCirugiaController::SECCIONES))
+                    ->name('show');
+
+                // --- Leandro: confirmacion de asistencia (48 h antes) ----------
+                Route::post('/asistencia', PortalAsistenciaController::class)
+                    ->middleware('throttle:10,1')
+                    ->name('asistencia');
+            });
     });
 });

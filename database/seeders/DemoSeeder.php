@@ -171,6 +171,25 @@ class DemoSeeder extends Seeder
                 'evaluacion' => ['ASA I', 'General', 'Pendiente'],
                 'profilaxis' => [['Cefazolina 1g IV', 'Principal']],
             ],
+            // Segunda cirugia de María, mañana: la de hoy a las 07:30 ya paso
+            // la mayor parte del dia, y el portal necesita una dentro de las
+            // 48 h para mostrar la confirmacion de asistencia, con algo
+            // pendiente para que el resto de las pestañas tenga que hacer.
+            [
+                'paciente' => ['García', 'María', '28456789', 'F', '1976-03-14', 'A+'],
+                'tipo' => 'Hernioplastia inguinal',
+                'cirujano' => 'lopez',
+                'anestesista' => 'ramos',
+                'quirofano' => 1,
+                'cuando' => $hoy->copy()->addDay()->setTime(9, 0),
+                'plan' => 'OSDE 410',
+                'estado' => 'Programada',
+                'implante' => false,
+                'autorizacion' => 'Enviada',
+                'estudios' => [['Hemograma', -2], ['Electrocardiograma', null]],
+                'evaluacion' => ['ASA I', 'General', 'Pendiente'],
+                'profilaxis' => [],
+            ],
         ];
 
         foreach ($casos as $caso) {
@@ -228,7 +247,7 @@ class DemoSeeder extends Seeder
     /** @return array<string, Personal> */
     private function equipo(): array
     {
-        $this->crearPacienteDemo();
+        $this->emailDeLaPacienteDemo();
 
         $definiciones = [
             'perez' => ['Pérez', 'Daniel', '17223456', 'Cirujano', 'MP 4821', 'd.perez@hospital.uncuyo.edu.ar'],
@@ -271,29 +290,22 @@ class DemoSeeder extends Seeder
     }
 
     /**
-     * Usuario de demo para el portal del paciente: María García, que ademas es
-     * la paciente de una de las cirugias sembradas.
+     * María García es la paciente de la demo del portal (/portal): una Persona
+     * comun, sin Personal ni Usuario, porque el paciente entra por el guard
+     * `paciente` y no por la tabla de usuarios del staff.
      *
-     * Le crea una fila en Personal sin legajo, porque Usuario cuelga de ahi y
-     * un paciente es una Persona sin legajo. Es el atajo que hace navegable el
-     * portal, no la solucion: como se autentica un paciente de verdad sigue
-     * siendo una decision de esquema pendiente.
+     * Aca solo se le carga el email: con MAIL_MAILER=log el enlace de acceso
+     * queda en storage/logs/laravel.log. Sus cirugias salen de los casos que arma `run()`.
      */
-    private function crearPacienteDemo(): void
+    private function emailDeLaPacienteDemo(): void
     {
         $persona = $this->persona('García', 'María', '28456789');
-        $personal = Personal::firstOrCreate(['idPersona' => $persona->idPersona]);
 
-        $personal->roles()->syncWithoutDetaching([
-            Rol::where('nombreRol', 'Paciente')->value('idRol') => [
-                'fechaHoraAsignacionRolPersonal' => now(),
-            ],
-        ]);
-
-        Usuario::firstOrCreate(
-            ['nombreUsuario' => 'mgarcia'],
-            ['idPersonal' => $personal->idPersonal, 'passwordUsuario' => 'paciente1234'],
-        );
+        // Direccion de ejemplo (example.com no existe). Solo se carga si esta
+        // vacia, para no pisar un email que alguien le haya puesto.
+        if ($persona->contacto_email_direccion === null) {
+            $persona->update(['contacto_email_direccion' => 'maria.garcia@example.com']);
+        }
     }
 
     /** @return array<string, MaterialProveedor> */
@@ -385,9 +397,16 @@ class DemoSeeder extends Seeder
 
         $plan = $planes[$caso['plan']];
 
+        // La primera cobertura de cada paciente queda como predeterminada, como
+        // la dejaria PlanObraSocial::agregar(): asi el alta del gestor tiene
+        // algo que preseleccionar en la demo.
         PlanObraSocial::firstOrCreate(
             ['idPersona' => $paciente->idPersona, 'idPlan' => $plan->idPlan],
-            ['nroBeneficiaroPlanObraSocial' => '62'.$documento, 'fechaInicioPlanObraSocial' => now()->subYears(3)],
+            [
+                'nroBeneficiaroPlanObraSocial' => '62'.$documento,
+                'fechaInicioPlanObraSocial' => now()->subYears(3),
+                'esPredeterminadaPlanObraSocial' => ! PlanObraSocial::tienePredeterminadaVigente($paciente->idPersona),
+            ],
         );
 
         $cirugia = Cirugia::firstOrCreate(

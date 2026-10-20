@@ -2,13 +2,24 @@
 
 namespace App\Models;
 
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class Persona extends Model
+/**
+ * Tambien es lo que autentica el guard `paciente` (portal del paciente).
+ *
+ * Un paciente es una Persona sin legajo, asi que no puede entrar por Usuario,
+ * que cuelga de Personal. El portal lo identifica por su Persona: sin
+ * contrasena (el acceso es por link al email) y sin tablas nuevas.
+ */
+class Persona extends Model implements AuthenticatableContract
 {
+    use Authenticatable;
+
     protected $table = 'Persona';
 
     protected $primaryKey = 'idPersona';
@@ -28,6 +39,14 @@ class Persona extends Model
             'es_cronico' => 'boolean',
             'no_acepta_donacion_sanguinea' => 'boolean',
         ];
+    }
+
+    /**
+     * Persona no tiene columna remember_token: "recordarme" no aplica.
+     */
+    public function getRememberTokenName(): ?string
+    {
+        return null;
     }
 
     public function getNombreCompletoAttribute(): string

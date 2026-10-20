@@ -6,13 +6,11 @@ use App\Http\Controllers\Concerns\FiltraCirugias;
 use App\Models\AutCirugia;
 use App\Models\AutoCirugiaEstado;
 use App\Models\Cirugia;
-use App\Models\CirugiaEstado;
 use App\Models\CirugiaPersonal;
 use App\Models\CirugiaQuirofano;
 use App\Models\CirugiaTipoEstudio;
 use App\Models\Establecimiento;
 use App\Models\EstadoAutCirugia;
-use App\Models\EstadoCirugia;
 use App\Models\EstadoHisopadoSarm;
 use App\Models\EstadoPedidoHemoderivado;
 use App\Models\EstadoPedidoMaterial;
@@ -44,6 +42,7 @@ use App\Models\TipoEstudio;
 use App\Models\TipoHemoderivado;
 use App\Models\TipoIndicacion;
 use App\Models\TipoPreparacion;
+use App\Services\CambiarEstadoCirugiaService;
 use App\Services\ReprogramarCirugiaService;
 use App\Support\DocumentoNoDisponible;
 use App\Support\GestorDocumental;
@@ -124,8 +123,10 @@ class CirugiaController extends Controller
                     return $estado === null || $estado === 'Disponible';
                 })
                 ->values(),
+            // La predeterminada primero: es la que el modal de reprogramar preselecciona.
             'coberturas' => $cirugia->paciente->planObraSociales()
-                ->whereNull('fechaFinPlanObraSocial')
+                ->vigentes()
+                ->orderByDesc('esPredeterminadaPlanObraSocial')
                 ->with('plan.obrasocial')
                 ->get(),
             'obrasSociales' => ObraSocial::whereNull('fechaBajaObraSocial')
@@ -984,22 +985,12 @@ class CirugiaController extends Controller
     /**
      * Cancela la cirugía y libera los turnos.
      */
-    public function cancelar(Cirugia $cirugia)
+    public function cancelar(Cirugia $cirugia, CambiarEstadoCirugiaService $estados)
     {
-        DB::transaction(function () use ($cirugia) {
+        DB::transaction(function () use ($cirugia, $estados) {
             // El catalogo no tiene "Cancelada": cancelar es suspender. 'Suspendida'
             // esta en los protegidos de Catalogos, asi que no puede faltar.
-            $estadoSuspendida = EstadoCirugia::where('nombreEstadoCirugia', 'Suspendida')->firstOrFail();
-
-            CirugiaEstado::where('idCirugia', $cirugia->idCirugia)
-                ->whereNull('fechaDesasignacionCirugiaEstado')
-                ->update(['fechaDesasignacionCirugiaEstado' => now()]);
-
-            CirugiaEstado::create([
-                'idCirugia' => $cirugia->idCirugia,
-                'idEstadoCirugia' => $estadoSuspendida->idEstadoCirugia,
-                'fechaAsignacionCirugiaEstado' => now(),
-            ]);
+            $estados->cambiar($cirugia, 'Suspendida');
 
             // Liberar quirófano
             CirugiaQuirofano::where('idCirugia', $cirugia->idCirugia)

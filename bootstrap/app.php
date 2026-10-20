@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CirugiaDelPaciente;
 use App\Http\Middleware\VerificarRol;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,7 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'rol' => VerificarRol::class,
+            'cirugia.del.paciente' => CirugiaDelPaciente::class,
         ]);
+
+        // El portal del paciente tiene su propia puerta: mandarlo al login del
+        // staff le pediria un usuario y contrasena que un paciente no tiene.
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('portal', 'portal/*')
+            ? route('portal.ingresar')
+            : route('login'));
 
         // Render (y plataformas similares) terminan el TLS en su proxy y
         // reenvían por HTTP simple. Sin confiar en el proxy, Laravel arma

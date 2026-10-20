@@ -51,4 +51,21 @@ class Plan extends Model
     {
         return $this->hasMany(PlanObraSocial::class, 'idPlan', 'idPlan');
     }
+
+    /**
+     * Planes que un paciente puede elegir: activos, con obra social activa y
+     * sin el plan "particular". Devuelve idPlan => "Obra social ~ Plan".
+     */
+    public static function disponiblesParaPaciente()
+    {
+        return static::whereNull('fechaBajaPlan')
+            ->where('es_sin_cobertura', false)
+            ->whereHas('obrasocial', fn ($consulta) => $consulta->whereNull('fechaBajaObraSocial'))
+            ->with('obrasocial')
+            ->get()
+            ->mapWithKeys(fn ($plan) => [
+                $plan->idPlan => $plan->obrasocial->nombreObraSocial.' · '.$plan->nombrePlan,
+            ])
+            ->sort();
+    }
 }

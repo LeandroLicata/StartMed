@@ -279,8 +279,10 @@ class CirugiaCreacionController extends Controller
             'cirujanos' => $this->personalConRol('Cirujano'),
             'anestesistas' => $this->personalConRol('Anestesista'),
             'quirofanos' => $this->quirofanosDisponibles(),
+            // La predeterminada primero: es la que la vista preselecciona.
             'coberturas' => $persona->planObraSociales()
-                ->whereNull('fechaFinPlanObraSocial')
+                ->vigentes()
+                ->orderByDesc('esPredeterminadaPlanObraSocial')
                 ->with('plan.obrasocial')
                 ->get(),
             'obrasSociales' => ObraSocial::whereNull('fechaBajaObraSocial')
@@ -300,12 +302,7 @@ class CirugiaCreacionController extends Controller
             'particular' => Plan::where('es_sin_cobertura', true)->firstOrFail(),
             'existente' => PlanObraSocial::findOrFail($datos['idPlanObraSocial'])->plan,
             'nueva' => tap(Plan::findOrFail($datos['idPlan']), function (Plan $plan) use ($datos) {
-                PlanObraSocial::create([
-                    'idPersona' => $datos['idPersona'],
-                    'idPlan' => $plan->idPlan,
-                    'nroBeneficiaroPlanObraSocial' => $datos['nroBeneficiario'] ?? null,
-                    'fechaInicioPlanObraSocial' => now(),
-                ]);
+                PlanObraSocial::agregar($datos['idPersona'], $plan->idPlan, $datos['nroBeneficiario'] ?? null);
             }),
         };
     }

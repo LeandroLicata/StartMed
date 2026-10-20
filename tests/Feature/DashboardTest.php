@@ -148,7 +148,8 @@ class DashboardTest extends TestCase
         // arranque que después no se repiten; se descarta para no medirlas.
         $contar();
 
-        $conSeisCirugias = $contar();
+        $conLasDeDemo = $contar();
+        $cantidad = Cirugia::count();
 
         // Se duplican las cirugias existentes, cada una con su propio paciente.
         foreach (Cirugia::with('paciente')->get() as $original) {
@@ -161,9 +162,9 @@ class DashboardTest extends TestCase
             $copia->save();
         }
 
-        $this->assertSame(12, Cirugia::count());
+        $this->assertSame(2 * $cantidad, Cirugia::count());
         $this->assertSame(
-            $conSeisCirugias,
+            $conLasDeDemo,
             $contar(),
             'El tablero hace más consultas al haber más cirugías: hay un N+1.'
         );

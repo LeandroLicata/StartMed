@@ -23,6 +23,11 @@
                 {{ $caso->estaLista() ? 'Listo para operar' : ($caso->semaforo() === 'error' ? 'En riesgo' : $caso->estado()) }}
             </x-estado>
 
+            {{-- El semaforo dice si esta preparada; el estado, en que quedo (p. ej. lo que respondio el paciente). --}}
+            @if ($caso->semaforoTapaEstado())
+                <x-estado-cirugia :estado="$caso->estado()" />
+            @endif
+
             <x-boton
                 variante="contorno"
                 forma="grupo"
@@ -193,7 +198,12 @@
             />
 
             <div id="div-existente" style="display: none;">
-                <x-select nombre="idPlanObraSocial" etiqueta="Plan existente" :opciones="$opcionesPlanExistenteReprogramar" />
+                <x-select
+                    nombre="idPlanObraSocial"
+                    etiqueta="Plan existente"
+                    :opciones="$opcionesPlanExistenteReprogramar"
+                    :valor="$coberturas->firstWhere('esPredeterminadaPlanObraSocial', true)?->idPlanObraSocial"
+                />
             </div>
 
             <div id="div-nueva" style="display: none;" class="space-y-4">

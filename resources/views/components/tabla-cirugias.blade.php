@@ -75,12 +75,18 @@
                     </td>
 
                     <td class="px-5 py-3">
-                        <x-estado
-                            :tono="$caso->semaforo()"
-                            :icono="$caso->estaLista() ? 'check_circle' : 'warning'"
-                        >
-                            {{ $caso->estaLista() ? 'Listo' : ($caso->semaforo() === 'error' ? 'En riesgo' : $caso->estado()) }}
-                        </x-estado>
+                        <div class="flex flex-col items-start gap-1">
+                            <x-estado
+                                :tono="$caso->semaforo()"
+                                :icono="$caso->estaLista() ? 'check_circle' : 'warning'"
+                            >
+                                {{ $caso->estaLista() ? 'Listo' : ($caso->semaforo() === 'error' ? 'En riesgo' : $caso->estado()) }}
+                            </x-estado>
+
+                            @if ($caso->semaforoTapaEstado())
+                                <x-estado-cirugia :estado="$caso->estado()" />
+                            @endif
+                        </div>
                     </td>
                 </tr>
             @empty
