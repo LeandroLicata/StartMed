@@ -160,6 +160,11 @@ class PortalEstudiosTest extends TestCase
             {
                 throw new DocumentoNoDisponible('Gestor caído.');
             }
+
+            public function reconoce(string $puntero): bool
+            {
+                return true;
+            }
         });
 
         $this->subir($this->pendiente, $this->pdf())->assertSessionHas('error');
@@ -238,6 +243,11 @@ class PortalEstudiosTest extends TestCase
             {
                 return 'https://gestor.example/documento?firma=abc';
             }
+
+            public function reconoce(string $puntero): bool
+            {
+                return true;
+            }
         });
 
         $this->get($this->urlArchivo($this->subido))->assertRedirect('https://gestor.example/documento?firma=abc');
@@ -248,17 +258,30 @@ class PortalEstudiosTest extends TestCase
         $this->get($this->urlArchivo($this->pendiente))->assertNotFound();
     }
 
-    public function test_un_puntero_que_el_gestor_no_encuentra_avisa_en_vez_de_romper(): void
+    public function test_un_archivo_que_el_gestor_no_encuentra_vuelve_a_los_estudios_con_el_aviso(): void
     {
-        // 'local:estudios/previo.pdf' no existe en el disco falso. «Ver» abre una
-        // pestaña nueva: ahí va una página propia, no otra copia del detalle.
+        // 'local:estudios/previo.pdf' no existe en el disco falso.
         $this->get($this->urlArchivo($this->subido))
-            ->assertStatus(503)
-            ->assertSee('No pudimos abrir el resultado de '.$this->subido->tipoEstudio->nombreTipoEstudio)
-            ->assertSee('Tu estudio figura como recibido')
-            ->assertSee(route('portal.cirugias.estudios.archivo', [$this->cirugia, $this->subido]), false)
-            ->assertSee(route('portal.cirugias.show', [$this->cirugia, 'estudios']), false)
-            ->assertDontSee('Confirmá tu asistencia');
+            ->assertRedirect(route('portal.cirugias.show', [$this->cirugia, 'estudios']))
+            ->assertSessionHas('error');
+    }
+
+    public function test_ver_abre_en_la_misma_pestana(): void
+    {
+        // En una pestaña nueva, una falla dejaba otra copia del portal abierta.
+        $this->pestana()->assertDontSee('target="_blank"', false);
+    }
+
+    public function test_un_puntero_de_otro_gestor_no_ofrece_ver(): void
+    {
+        // Base sembrada contra Cloudinary servida con el gestor local: ya se
+        // sabe que «Ver» fallaría, así que no se ofrece.
+        $this->subido->update(['urlArchivoCirugiaTipoEstudio' => 'cloudinary:image:startmed/estudios/x:png']);
+
+        $this->pestana()
+            ->assertDontSee(route('portal.cirugias.estudios.archivo', [$this->cirugia, $this->subido]), false)
+            ->assertSee('El archivo no está disponible para ver.')
+            ->assertSee('Subido');
     }
 
     // --- Pertenencia --------------------------------------------------------

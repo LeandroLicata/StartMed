@@ -182,7 +182,15 @@ Delivery goes through the app, never a direct link: `cirugias.estudios.archivo` 
 `cirugias.hisopado.archivo` check the role and the record's ownership, then redirect
 to a freshly signed URL. Cloudinary's side uses `privateDownloadUrl()`, which
 expires and does not go through the delivery CDN — so the account setting that
-blocks PDF delivery does not apply, and study results are mostly PDFs.
+blocks PDF delivery does not apply, and study results are mostly PDFs. The portal's
+`portal.cirugias.estudios.archivo` does the same for the patient.
+
+"Ver" links open in the **same tab**, never `target="_blank"`: when delivery fails the
+route redirects back with a flash, and in a new tab that left a second copy of the
+screen open. Views also ask `GestorDocumental::reconoce($puntero)` — a format-only
+check, no network — and show "no disponible" instead of a link that is known to fail
+(a DB seeded against the local disk served with Cloudinary, which is the case for
+every demo study when `CLOUDINARY_URL` is set locally).
 
 Two rules when extending it:
 

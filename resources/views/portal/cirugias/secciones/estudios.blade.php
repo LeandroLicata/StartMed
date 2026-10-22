@@ -4,8 +4,13 @@
     Un estudio pendiente se sube desde aca; uno subido solo se ve (ver
     Portal\EstudioController por que el paciente no reemplaza). El link de
     "Ver" va a una ruta que firma la URL al pedirla: el puntero no sale al HTML.
+
+    "Ver" abre en la misma pestaña: si la entrega falla, el paciente vuelve
+    aca con el aviso, en vez de quedar con otra copia del portal abierta. Y
+    no se ofrece cuando ya se sabe que va a fallar (puntero de otro gestor).
 --}}
 
+@inject('gestor', 'App\Support\GestorDocumental')
 @php($estudios = $caso->cirugia->cirugiaTipoEstudios)
 
 <x-tarjeta titulo="Mis estudios" icono="upload_file">
@@ -45,16 +50,19 @@
                         </x-estado>
                     </div>
 
-                    @if ($subido)
+                    @if ($subido && $gestor->reconoce($estudio->urlArchivoCirugiaTipoEstudio))
                         <a
                             href="{{ route('portal.cirugias.estudios.archivo', [$caso->cirugia, $estudio]) }}"
-                            target="_blank"
-                            rel="noopener"
                             class="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-hu-azul hover:text-hu-azul-claro"
                         >
                             <x-icono nombre="visibility" class="text-lg" />
                             Ver el resultado
                         </a>
+                    @elseif ($subido)
+                        <p class="mt-2 inline-flex items-start gap-1 text-sm text-hu-gris-medio">
+                            <x-icono nombre="error" class="text-lg text-hu-dorado" />
+                            El archivo no está disponible para ver. Si lo necesitás, consultá al equipo del hospital.
+                        </p>
                     @elseif (! $soloLectura)
                         <form
                             method="POST"

@@ -57,4 +57,14 @@ interface GestorDocumental
      * @throws DocumentoNoDisponible si el puntero no es de este gestor o el archivo no esta.
      */
     public function urlTemporal(string $puntero, ?int $minutos = null): string;
+
+    /**
+     * Si el puntero es de este gestor, mirando solo su formato: sin red y sin
+     * tocar el deposito, asi que se puede preguntar al armar una pantalla.
+     *
+     * Sirve para no ofrecer un «Ver» que ya se sabe que va a fallar (una base
+     * sembrada contra el disco local servida con Cloudinary, o al reves). Que
+     * de true no garantiza que el archivo exista: eso solo lo dice urlTemporal().
+     */
+    public function reconoce(string $puntero): bool;
 }

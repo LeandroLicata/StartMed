@@ -415,6 +415,42 @@ class GestorDocumentalTest extends TestCase
             ->assertSee($ruta, false);
     }
 
+    public function test_ver_un_adjunto_no_abre_otra_pestana(): void
+    {
+        // Si la entrega falla, el redirect con el aviso cae en la misma pestaña
+        // y no en una copia del expediente abierta aparte.
+        $estudio = $this->estudioConArchivo();
+        $this->hisopadoDe($this->cirugiaConHisopado())->update(['urlHisopadoSarm' => 'local:hisopados/previo.pdf']);
+
+        foreach (["/cirugias/{$estudio->idCirugia}?tab=estudios", "/cirugias/{$this->cirugiaConHisopado()->idCirugia}?tab=profilaxis"] as $url) {
+            $this->actingAs($this->usuario('gonzalez'))
+                ->get($url)
+                ->assertOk()
+                ->assertDontSee('target="_blank"', false);
+        }
+    }
+
+    public function test_un_puntero_de_otro_gestor_no_ofrece_ver_en_el_expediente(): void
+    {
+        $estudio = $this->estudioConArchivo();
+        $estudio->update(['urlArchivoCirugiaTipoEstudio' => 'cloudinary:image:startmed/estudios/x:pdf']);
+
+        $this->actingAs($this->usuario('gonzalez'))
+            ->get("/cirugias/{$estudio->idCirugia}?tab=estudios")
+            ->assertOk()
+            ->assertDontSee(route('cirugias.estudios.archivo', [$estudio->idCirugia, $estudio->idCirugiaTipoEstudio]), false)
+            ->assertSee('El archivo no está disponible en el gestor documental');
+
+        $cirugia = $this->cirugiaConHisopado();
+        $this->hisopadoDe($cirugia)->update(['urlHisopadoSarm' => 'cloudinary:raw:startmed/hisopados/x:pdf']);
+
+        $this->actingAs($this->usuario('gonzalez'))
+            ->get("/cirugias/{$cirugia->idCirugia}?tab=profilaxis")
+            ->assertOk()
+            ->assertDontSee(route('cirugias.hisopado.archivo', $cirugia->idCirugia), false)
+            ->assertSee('No disponible');
+    }
+
     public function test_el_hisopado_sin_adjunto_no_tiene_documento_que_mostrar(): void
     {
         $cirugia = $this->cirugiaConHisopado();
@@ -448,6 +484,21 @@ class GestorDocumentalTest extends TestCase
             'startmed',
             10,
         );
+    }
+
+    public function test_cada_gestor_reconoce_solo_sus_punteros(): void
+    {
+        $local = new GestorDocumentalLocal(10);
+        $cloudinary = $this->cloudinary();
+
+        $this->assertTrue($local->reconoce('local:estudios/7/hemograma.pdf'));
+        $this->assertFalse($local->reconoce('cloudinary:image:startmed/estudios/7/abc:pdf'));
+        $this->assertFalse($local->reconoce('local:'));
+
+        $this->assertTrue($cloudinary->reconoce('cloudinary:image:startmed/estudios/7/abc:pdf'));
+        $this->assertFalse($cloudinary->reconoce('local:estudios/7/hemograma.pdf'));
+        // Una URL de las que guardaba la maqueta tampoco es un puntero.
+        $this->assertFalse($cloudinary->reconoce('https://res.cloudinary.com/x/image/upload/abc.pdf'));
     }
 
     public function test_cloudinary_entrega_una_url_firmada_y_con_vencimiento(): void
@@ -500,6 +551,11 @@ final class GestorDocumentalCaido implements GestorDocumental
     {
         throw new DocumentoNoDisponible('Gestor caído.');
     }
+
+    public function reconoce(string $puntero): bool
+    {
+        return true;
+    }
 }
 
 /** Gestor que devuelve una URL fija, para aislar al controlador del backend. */
@@ -515,5 +571,10 @@ final class GestorDocumentalDeUtileria implements GestorDocumental
     public function urlTemporal(string $puntero, ?int $minutos = null): string
     {
         return self::URL;
+    }
+
+    public function reconoce(string $puntero): bool
+    {
+        return true;
     }
 }
