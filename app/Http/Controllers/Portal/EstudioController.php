@@ -11,6 +11,7 @@ use App\Support\GestorDocumental;
 use App\Support\ResumenCirugia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * Estudios prequirurgicos desde el portal: el paciente sube el resultado de
@@ -61,10 +62,13 @@ class EstudioController extends Controller
 
     /**
      * Redirige al resultado con una URL firmada que vence: el puntero nunca
-     * sale al HTML. «Ver» abre en la misma pestaña, asi que si el gestor no lo
-     * entrega se vuelve a los estudios con el aviso.
+     * sale al HTML.
+     *
+     * «Ver» abre en una pestaña nueva, asi que si el gestor no lo entrega se
+     * responde una pagina suelta (documentos/no-disponible) y no un redirect
+     * al detalle, que dejaba ahi otra copia del portal.
      */
-    public function ver(Cirugia $cirugia, CirugiaTipoEstudio $cirugiaTipoEstudio, ResultadoEstudioService $resultados): RedirectResponse
+    public function ver(Cirugia $cirugia, CirugiaTipoEstudio $cirugiaTipoEstudio, ResultadoEstudioService $resultados): RedirectResponse|Response
     {
         abort_if(blank($cirugiaTipoEstudio->urlArchivoCirugiaTipoEstudio), 404);
 
@@ -73,9 +77,10 @@ class EstudioController extends Controller
         } catch (DocumentoNoDisponible $e) {
             report($e);
 
-            return redirect()
-                ->route('portal.cirugias.show', [$cirugia, 'estudios'])
-                ->with('error', 'No pudimos abrir el archivo. Probá de nuevo en unos minutos; si sigue pasando, consultá al equipo del hospital.');
+            return response()->view('documentos.no-disponible', [
+                'titulo' => 'No pudimos abrir el resultado de '.($cirugiaTipoEstudio->tipoEstudio?->nombreTipoEstudio ?? 'tu estudio'),
+                'detalle' => 'Probá de nuevo en unos minutos; si sigue pasando, consultá al equipo del hospital. Tu estudio figura como recibido, así que no hace falta que lo vuelvas a subir.',
+            ], 503);
         }
     }
 

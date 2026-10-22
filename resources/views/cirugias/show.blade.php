@@ -807,11 +807,13 @@
                             {{-- Botón Ver Archivo. Mira el puntero al documento y no la
                                  fecha de subida: la fecha sin puntero es un estudio cargado
                                  antes de que existiera el gestor documental, y ahí no hay
-                                 nada que abrir. Abre en la misma pestaña: si la entrega
-                                 falla se vuelve acá con el aviso, sin una pestaña de más. --}}
+                                 nada que abrir. Abre en otra pestaña; si la entrega falla,
+                                 ahí queda una página suelta, no otra copia del expediente. --}}
                             @if ($estudio->urlArchivoCirugiaTipoEstudio && $gestorDocumental->reconoce($estudio->urlArchivoCirugiaTipoEstudio))
                                 <a
                                     href="{{ route('cirugias.estudios.archivo', [$caso->cirugia, $estudio]) }}"
+                                    target="_blank"
+                                    rel="noopener"
                                     class="flex h-8 w-8 items-center justify-center rounded-full text-hu-azul transition-colors hover:bg-hu-azul-tenue"
                                     title="Ver resultado"
                                 >
@@ -1209,6 +1211,8 @@
                                     @if ($gestorDocumental->reconoce($hisopado['archivo']))
                                         <a
                                             href="{{ route('cirugias.hisopado.archivo', $caso->cirugia) }}"
+                                            target="_blank"
+                                            rel="noopener"
                                             class="inline-flex items-center gap-1 font-semibold text-hu-azul hover:underline"
                                         >
                                             <x-icono nombre="visibility" class="text-base" />

@@ -258,18 +258,21 @@ class PortalEstudiosTest extends TestCase
         $this->get($this->urlArchivo($this->pendiente))->assertNotFound();
     }
 
-    public function test_un_archivo_que_el_gestor_no_encuentra_vuelve_a_los_estudios_con_el_aviso(): void
+    public function test_si_el_gestor_no_entrega_el_archivo_la_pestana_no_muestra_el_portal(): void
     {
-        // 'local:estudios/previo.pdf' no existe en el disco falso.
+        // 'local:estudios/previo.pdf' no existe en el disco falso. «Ver» abrió
+        // una pestaña nueva: ahí queda una página suelta, no otra copia del portal.
         $this->get($this->urlArchivo($this->subido))
-            ->assertRedirect(route('portal.cirugias.show', [$this->cirugia, 'estudios']))
-            ->assertSessionHas('error');
+            ->assertStatus(503)
+            ->assertSee('No pudimos abrir el resultado de '.$this->subido->tipoEstudio->nombreTipoEstudio)
+            ->assertSee('Cerrar esta pestaña')
+            ->assertDontSee(route('portal.inicio'), false)
+            ->assertDontSee('Confirmá tu asistencia');
     }
 
-    public function test_ver_abre_en_la_misma_pestana(): void
+    public function test_ver_abre_el_archivo_en_otra_pestana(): void
     {
-        // En una pestaña nueva, una falla dejaba otra copia del portal abierta.
-        $this->pestana()->assertDontSee('target="_blank"', false);
+        $this->pestana()->assertSee('target="_blank"', false);
     }
 
     public function test_un_puntero_de_otro_gestor_no_ofrece_ver(): void

@@ -5,9 +5,10 @@
     Portal\EstudioController por que el paciente no reemplaza). El link de
     "Ver" va a una ruta que firma la URL al pedirla: el puntero no sale al HTML.
 
-    "Ver" abre en la misma pestaña: si la entrega falla, el paciente vuelve
-    aca con el aviso, en vez de quedar con otra copia del portal abierta. Y
-    no se ofrece cuando ya se sabe que va a fallar (puntero de otro gestor).
+    "Ver" abre el archivo en una pestaña nueva; si la entrega falla, en esa
+    pestaña queda una pagina suelta (documentos/no-disponible), no otra copia
+    del portal. Y no se ofrece cuando ya se sabe que va a fallar (puntero de
+    otro gestor).
 --}}
 
 @inject('gestor', 'App\Support\GestorDocumental')
@@ -53,6 +54,8 @@
                     @if ($subido && $gestor->reconoce($estudio->urlArchivoCirugiaTipoEstudio))
                         <a
                             href="{{ route('portal.cirugias.estudios.archivo', [$caso->cirugia, $estudio]) }}"
+                            target="_blank"
+                            rel="noopener"
                             class="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-hu-azul hover:text-hu-azul-claro"
                         >
                             <x-icono nombre="visibility" class="text-lg" />

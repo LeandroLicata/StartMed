@@ -263,11 +263,13 @@ class GestorDocumentalTest extends TestCase
 
         // Base sembrada contra Cloudinary y aplicación corriendo con el gestor
         // local (o al revés): el puntero lleva prefijo justamente para que esto
-        // se note como un aviso y no como un archivo equivocado o un 500.
+        // se note como un aviso y no como un archivo equivocado o un 500. «Ver»
+        // abre en otra pestaña, así que el aviso es una página suelta.
         $this->actingAs($this->usuario('gonzalez'))
             ->get("/cirugias/{$estudio->idCirugia}/estudios/{$estudio->idCirugiaTipoEstudio}/archivo")
-            ->assertRedirect()
-            ->assertSessionHas('error');
+            ->assertStatus(503)
+            ->assertSee('No se pudo abrir el resultado de '.$estudio->tipoEstudio->nombreTipoEstudio)
+            ->assertDontSee(route('dashboard'), false);
     }
 
     // --- Pantallas ----------------------------------------------------------
@@ -415,10 +417,8 @@ class GestorDocumentalTest extends TestCase
             ->assertSee($ruta, false);
     }
 
-    public function test_ver_un_adjunto_no_abre_otra_pestana(): void
+    public function test_ver_un_adjunto_abre_otra_pestana(): void
     {
-        // Si la entrega falla, el redirect con el aviso cae en la misma pestaña
-        // y no en una copia del expediente abierta aparte.
         $estudio = $this->estudioConArchivo();
         $this->hisopadoDe($this->cirugiaConHisopado())->update(['urlHisopadoSarm' => 'local:hisopados/previo.pdf']);
 
@@ -426,8 +426,22 @@ class GestorDocumentalTest extends TestCase
             $this->actingAs($this->usuario('gonzalez'))
                 ->get($url)
                 ->assertOk()
-                ->assertDontSee('target="_blank"', false);
+                ->assertSee('target="_blank"', false);
         }
+    }
+
+    public function test_si_el_adjunto_del_hisopado_no_se_entrega_la_pestana_no_muestra_el_expediente(): void
+    {
+        $cirugia = $this->cirugiaConHisopado();
+        // No existe en el disco falso.
+        $this->hisopadoDe($cirugia)->update(['urlHisopadoSarm' => 'local:hisopados/previo.pdf']);
+
+        $this->actingAs($this->usuario('gonzalez'))
+            ->get(route('cirugias.hisopado.archivo', $cirugia->idCirugia))
+            ->assertStatus(503)
+            ->assertSee('No se pudo abrir el adjunto del hisopado')
+            ->assertSee('Cerrar esta pestaña')
+            ->assertDontSee(route('dashboard'), false);
     }
 
     public function test_un_puntero_de_otro_gestor_no_ofrece_ver_en_el_expediente(): void

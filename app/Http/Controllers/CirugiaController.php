@@ -51,6 +51,7 @@ use App\Support\Paginador;
 use App\Support\ResumenCirugia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -337,7 +338,7 @@ class CirugiaController extends Controller
      *
      * Mismo criterio que verArchivoEstudio(): la URL se firma acá y vence.
      */
-    public function verArchivoHisopado(Cirugia $cirugia, GestorDocumental $gestor): RedirectResponse
+    public function verArchivoHisopado(Cirugia $cirugia, GestorDocumental $gestor): RedirectResponse|Response
     {
         $hisopado = HisopadoSarm::where('idCirugia', $cirugia->idCirugia)->firstOrFail();
 
@@ -350,10 +351,21 @@ class CirugiaController extends Controller
         } catch (DocumentoNoDisponible $e) {
             report($e);
 
-            return redirect()
-                ->route('cirugias.show', [$cirugia, 'tab' => 'profilaxis'])
-                ->with('error', 'El archivo no está disponible en el gestor documental.');
+            return $this->documentoNoDisponible('No se pudo abrir el adjunto del hisopado');
         }
+    }
+
+    /**
+     * Lo que queda en la pestaña cuando «Ver» no puede entregar un adjunto. El
+     * link abre en una pestaña nueva, así que es una página suelta y no un
+     * redirect al expediente, que dejaba ahí una segunda copia de la pantalla.
+     */
+    private function documentoNoDisponible(string $titulo): Response
+    {
+        return response()->view('documentos.no-disponible', [
+            'titulo' => $titulo,
+            'detalle' => 'El gestor documental no entregó el archivo. Probá de nuevo en unos minutos; si sigue pasando, puede que el archivo ya no esté y haya que volver a subirlo desde el expediente.',
+        ], 503);
     }
 
     /**
@@ -530,7 +542,7 @@ class CirugiaController extends Controller
      * la sesión y el rol ya verificados por el middleware, y vence en minutos.
      * Es lo que hace que copiar el link de un hemograma no lo deje público.
      */
-    public function verArchivoEstudio(Cirugia $cirugia, CirugiaTipoEstudio $estudio, ResultadoEstudioService $resultados): RedirectResponse
+    public function verArchivoEstudio(Cirugia $cirugia, CirugiaTipoEstudio $estudio, ResultadoEstudioService $resultados): RedirectResponse|Response
     {
         if ($estudio->idCirugia !== $cirugia->idCirugia || blank($estudio->urlArchivoCirugiaTipoEstudio)) {
             abort(404);
@@ -541,9 +553,9 @@ class CirugiaController extends Controller
         } catch (DocumentoNoDisponible $e) {
             report($e);
 
-            return redirect()
-                ->route('cirugias.show', [$cirugia, 'tab' => 'estudios'])
-                ->with('error', 'El archivo no está disponible en el gestor documental.');
+            return $this->documentoNoDisponible(
+                'No se pudo abrir el resultado de '.($estudio->tipoEstudio?->nombreTipoEstudio ?? 'el estudio'),
+            );
         }
     }
 
