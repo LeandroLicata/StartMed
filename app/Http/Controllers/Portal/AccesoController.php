@@ -116,12 +116,13 @@ class AccesoController extends Controller
     }
 
     /**
-     * Solo cierra la sesion del guard `paciente`: si en el mismo navegador hay
-     * una sesion de staff abierta, sigue abierta.
+     * Cierra la sesion del portal entera. La del staff, si hay una abierta en
+     * el mismo navegador, es otra cookie (ver SesionPorArea) y sigue abierta.
      */
     public function salir(Request $request): RedirectResponse
     {
         Auth::guard('paciente')->logout();
+        $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect()->route('portal.ingresar');
