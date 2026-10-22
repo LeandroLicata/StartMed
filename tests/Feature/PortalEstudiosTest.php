@@ -250,10 +250,15 @@ class PortalEstudiosTest extends TestCase
 
     public function test_un_puntero_que_el_gestor_no_encuentra_avisa_en_vez_de_romper(): void
     {
-        // 'local:estudios/previo.pdf' no existe en el disco falso.
+        // 'local:estudios/previo.pdf' no existe en el disco falso. «Ver» abre una
+        // pestaña nueva: ahí va una página propia, no otra copia del detalle.
         $this->get($this->urlArchivo($this->subido))
-            ->assertRedirect(route('portal.cirugias.show', [$this->cirugia, 'estudios']))
-            ->assertSessionHas('error');
+            ->assertStatus(503)
+            ->assertSee('No pudimos abrir el resultado de '.$this->subido->tipoEstudio->nombreTipoEstudio)
+            ->assertSee('Tu estudio figura como recibido')
+            ->assertSee(route('portal.cirugias.estudios.archivo', [$this->cirugia, $this->subido]), false)
+            ->assertSee(route('portal.cirugias.show', [$this->cirugia, 'estudios']), false)
+            ->assertDontSee('Confirmá tu asistencia');
     }
 
     // --- Pertenencia --------------------------------------------------------
