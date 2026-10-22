@@ -58,6 +58,17 @@ final class GestorDocumentalLocal implements GestorDocumental
         }
     }
 
+    public function reconoce(string $puntero): bool
+    {
+        try {
+            $this->ruta($puntero);
+        } catch (DocumentoNoDisponible) {
+            return false;
+        }
+
+        return true;
+    }
+
     private function ruta(string $puntero): string
     {
         $partes = explode(':', $puntero, 2);

@@ -72,7 +72,7 @@ class CirugiaController extends Controller
             'secciones' => self::SECCIONES,
             // Una cirugia pasada se mira, no se completa: sin firmar, sin
             // subir, sin responder. Cada pestaña con formularios lo respeta.
-            'soloLectura' => $caso->cuando()?->lt(today()) ?? true,
+            'soloLectura' => $caso->esAnterior(),
         ]);
     }
 

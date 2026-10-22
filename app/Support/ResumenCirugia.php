@@ -155,6 +155,17 @@ class ResumenCirugia
         return $this->cuando()?->isToday() ?? false;
     }
 
+    /**
+     * Una cirugia de un dia anterior: en el portal se mira, no se completa.
+     * Es la misma regla que separa Proximas de Historial, y la que cada
+     * formulario del portal tiene que volver a mirar del lado del servidor.
+     * Sin fecha cuenta como anterior: no hay nada que preparar para ella.
+     */
+    public function esAnterior(): bool
+    {
+        return $this->cuando()?->lt(today()) ?? true;
+    }
+
     public function procedimiento(): string
     {
         return $this->cirugia->tipoCirugia?->nombreTipoCirugia

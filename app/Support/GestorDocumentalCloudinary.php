@@ -83,6 +83,11 @@ final class GestorDocumentalCloudinary implements GestorDocumental
         }
     }
 
+    public function reconoce(string $puntero): bool
+    {
+        return self::referenciaDe($puntero) !== null;
+    }
+
     /**
      * Carpeta raiz configurada (ya con el sufijo de entorno si corresponde). La
      * usa LimpiarDocumentosHuerfanos para no barrer mas alla de lo que esta

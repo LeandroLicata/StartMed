@@ -182,7 +182,19 @@ Delivery goes through the app, never a direct link: `cirugias.estudios.archivo` 
 `cirugias.hisopado.archivo` check the role and the record's ownership, then redirect
 to a freshly signed URL. Cloudinary's side uses `privateDownloadUrl()`, which
 expires and does not go through the delivery CDN — so the account setting that
-blocks PDF delivery does not apply, and study results are mostly PDFs.
+blocks PDF delivery does not apply, and study results are mostly PDFs. The portal's
+`portal.cirugias.estudios.archivo` does the same for the patient.
+
+"Ver" links open the file in a **new tab**, so when delivery fails these routes answer
+`documentos/no-disponible` (503) — a standalone page with no layout and a "close tab"
+button — **never a redirect back to the screen**: that left a second copy of the portal
+or the expediente open in the new tab. Views also ask
+`GestorDocumental::reconoce($puntero)` — a format-only check, no network — and show
+"no disponible" instead of a link that is known to fail (a DB seeded against the local
+disk served with Cloudinary, which is the case for every demo study when
+`CLOUDINARY_URL` is set locally). An asset deleted on Cloudinary's side is not caught by
+either: `privateDownloadUrl()` signs without asking, so the tab shows Cloudinary's own
+error.
 
 Two rules when extending it:
 
@@ -194,9 +206,15 @@ Two rules when extending it:
   clones `CirugiaTipoEstudio` rows pointing at the same puntero, so two rows can share
   one file — same reason every other deletion in this app is logical.
 
-Validation for both attachments is one constant, `CirugiaController::REGLAS_ARCHIVO`
-(pdf/jpg/png, 20 MB). `GestorDocumentalTest` covers the round trip, the rejections,
-the failure path and the signing.
+Validation for every attachment is one constant, `GestorDocumental::REGLAS_ARCHIVO`
+(pdf/jpg/png, 20 MB), without `nullable`/`required` — each form prepends the one it
+needs. `GestorDocumentalTest` covers the round trip, the rejections, the failure path
+and the signing.
+
+A study result is uploaded and served through `App\Services\ResultadoEstudioService`,
+shared by the staff expediente and the patient portal: it is the one place that writes
+the puntero and `fechaSubidaCirugiaTipoEstudio` together. Do not call
+`GestorDocumental::guardar()` for a study from a controller.
 
 **Replacing a file orphans the old one, and nothing on the write path cleans it up**
 — re-uploading a study result or a hisopado adjunto overwrites the puntero column;

@@ -40,6 +40,9 @@ return [
     'required_if' => 'El campo :attribute es obligatorio cuando :other es :value.',
     'string' => 'El campo :attribute tiene que ser texto.',
     'unique' => 'Ese :attribute ya está en uso.',
+    // Lo que dice Laravel cuando PHP descarto el archivo antes de validarlo
+    // (casi siempre, por pasar upload_max_filesize).
+    'uploaded' => 'No se pudo subir el :attribute. Revisá que no pese más de 20 MB.',
 
     /*
      * Casi todas las pantallas validan con un FormRequest y nombran sus campos
