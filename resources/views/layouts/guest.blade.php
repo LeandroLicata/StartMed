@@ -9,7 +9,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=error,lock,person&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=error,lock,person,warning&display=block">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -40,6 +40,8 @@
 
     <div class="flex flex-1 items-center justify-center px-6 py-10">
         <div class="w-full max-w-sm">
+            {{-- Hasta ahora el login no tenia flash; lo usa el aviso de sesion vencida (419). --}}
+            @include('partials.flash')
             @yield('contenido')
         </div>
     </div>

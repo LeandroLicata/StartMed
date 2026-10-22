@@ -285,6 +285,21 @@ surgery is someone else's; `PortalContratoTest` fails if a `{cirugia}` route is 
 outside it. In `local` only, `/portal/entrar-local/{documento?}` logs in as a demo
 patient (María García by default); everywhere else the way in is the flow below.
 
+**The portal and the staff have separate session cookies** (`App\Http\Middleware\SesionPorArea`,
+prepended to the `web` group and placed before `StartSession` in the priority list):
+`/portal/*` uses `<session.cookie>-portal`, everything else the plain one. With a single
+session, both guards shared one CSRF token, so logging out of the portal gave a 419 on a
+staff login form open in another tab, and logging out of the staff (`invalidate()`) also
+logged the patient out. Now each side logs out completely without touching the other.
+The area is decided **by URL**, which turns "every patient route lives under `/portal`"
+from a convention into a requirement: a patient route outside it (an email-confirmation
+link, say) would not find the patient's session. The staff preview
+`/cirugias/{cirugia}/portal-paciente` is staff, correctly.
+
+An expired CSRF token (a form left open longer than `SESSION_LIFETIME`) no longer shows
+Laravel's bare «419 Page Expired»: `bootstrap/app.php` redirects back with an `aviso` and
+the input (minus the password and files). JSON requests still get the 419.
+
 **Patient access: DNI → signed one-time link by email** (`Portal\AccesoController`,
 `App\Support\EnlaceAccesoPaciente`, `App\Mail\EnlaceAccesoPortal`; no new tables).
 `POST /portal/ingresar` finds the one active `Persona` with that DNI (`TipoDocumento`
@@ -292,9 +307,9 @@ patient (María García by default); everywhere else the way in is the flow belo
 minutes. The one-time part is a nonce kept in Cache, tied to the `idPersona`: asking for a
 new link replaces the old one. The link's GET only validates and shows an «Entrar» button;
 the POST of that button burns the nonce and logs in. A mail client that opens links to scan
-them would otherwise spend the nonce before the patient clicks. Logout only closes the
-`paciente` guard (no `session()->invalidate()`, which would also drop a staff session in the
-same browser). Decisions that are deliberate, not oversights:
+them would otherwise spend the nonce before the patient clicks. Logout invalidates the
+portal's session entirely; a staff session in the same browser is a different cookie and
+stays open. Decisions that are deliberate, not oversights:
 
 - **The response never depends on the DNI.** Same 302, same flash, same timing-relevant
   work, whether the DNI exists, has no email, is duplicated, is deactivated, or is
