@@ -194,9 +194,15 @@ Two rules when extending it:
   clones `CirugiaTipoEstudio` rows pointing at the same puntero, so two rows can share
   one file — same reason every other deletion in this app is logical.
 
-Validation for both attachments is one constant, `CirugiaController::REGLAS_ARCHIVO`
-(pdf/jpg/png, 20 MB). `GestorDocumentalTest` covers the round trip, the rejections,
-the failure path and the signing.
+Validation for every attachment is one constant, `GestorDocumental::REGLAS_ARCHIVO`
+(pdf/jpg/png, 20 MB), without `nullable`/`required` — each form prepends the one it
+needs. `GestorDocumentalTest` covers the round trip, the rejections, the failure path
+and the signing.
+
+A study result is uploaded and served through `App\Services\ResultadoEstudioService`,
+shared by the staff expediente and the patient portal: it is the one place that writes
+the puntero and `fechaSubidaCirugiaTipoEstudio` together. Do not call
+`GestorDocumental::guardar()` for a study from a controller.
 
 **Replacing a file orphans the old one, and nothing on the write path cleans it up**
 — re-uploading a study result or a hisopado adjunto overwrites the puntero column;

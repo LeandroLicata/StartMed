@@ -44,6 +44,7 @@ use App\Models\TipoIndicacion;
 use App\Models\TipoPreparacion;
 use App\Services\CambiarEstadoCirugiaService;
 use App\Services\ReprogramarCirugiaService;
+use App\Services\ResultadoEstudioService;
 use App\Support\DocumentoNoDisponible;
 use App\Support\GestorDocumental;
 use App\Support\Paginador;
@@ -65,10 +66,9 @@ class CirugiaController extends Controller
 
     /**
      * Adjuntos clínicos del expediente (resultados de estudios y de hisopados).
-     * Un solo juego de reglas para los dos: son el mismo tipo de documento y no
-     * hay razón para que uno acepte lo que el otro rechaza.
+     * Opcionales: los mismos formularios guardan también fechas y observaciones.
      */
-    private const REGLAS_ARCHIVO = ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'];
+    private const REGLAS_ARCHIVO = ['nullable', ...GestorDocumental::REGLAS_ARCHIVO];
 
     /**
      * Listado de todas las cirugias (pasadas y futuras), con los mismos
@@ -471,7 +471,7 @@ class CirugiaController extends Controller
     /**
      * Actualiza los datos de un estudio prequirúrgico existente (fecha esperada, resultado, archivo).
      */
-    public function actualizarEstudio(Request $request, Cirugia $cirugia, CirugiaTipoEstudio $estudio, GestorDocumental $gestor): RedirectResponse
+    public function actualizarEstudio(Request $request, Cirugia $cirugia, CirugiaTipoEstudio $estudio, ResultadoEstudioService $resultados): RedirectResponse
     {
         // Validar que el estudio pertenece a la cirugía
         if ($estudio->idCirugia !== $cirugia->idCirugia) {
@@ -497,24 +497,16 @@ class CirugiaController extends Controller
 
         $subioArchivo = $request->hasFile('archivoResultadoEstudio');
 
+        // El archivo va primero: si el gestor falla, no se guarda nada del
+        // formulario, igual que antes de pasar la subida al servicio.
         if ($subioArchivo) {
-            /*
-             * El puntero al documento y la fecha de subida se escriben juntos: si
-             * el gestor falla no queremos el estudio marcado como «Subido» sin
-             * archivo detrás, que es lo que hacía la versión anterior.
-             */
             try {
-                $cambios['urlArchivoCirugiaTipoEstudio'] = $gestor->guardar(
-                    $request->file('archivoResultadoEstudio'),
-                    'estudios/'.$cirugia->idCirugia,
-                );
+                $resultados->subir($estudio, $request->file('archivoResultadoEstudio'));
             } catch (DocumentoNoDisponible $e) {
                 report($e);
 
                 return back()->with('error', 'No se pudo guardar el archivo en el gestor documental. Probá de nuevo en unos minutos.');
             }
-
-            $cambios['fechaSubidaCirugiaTipoEstudio'] = now();
         }
 
         $estudio->update($cambios);
@@ -538,14 +530,14 @@ class CirugiaController extends Controller
      * la sesión y el rol ya verificados por el middleware, y vence en minutos.
      * Es lo que hace que copiar el link de un hemograma no lo deje público.
      */
-    public function verArchivoEstudio(Cirugia $cirugia, CirugiaTipoEstudio $estudio, GestorDocumental $gestor): RedirectResponse
+    public function verArchivoEstudio(Cirugia $cirugia, CirugiaTipoEstudio $estudio, ResultadoEstudioService $resultados): RedirectResponse
     {
         if ($estudio->idCirugia !== $cirugia->idCirugia || blank($estudio->urlArchivoCirugiaTipoEstudio)) {
             abort(404);
         }
 
         try {
-            return redirect()->away($gestor->urlTemporal($estudio->urlArchivoCirugiaTipoEstudio));
+            return redirect()->away($resultados->urlTemporal($estudio));
         } catch (DocumentoNoDisponible $e) {
             report($e);
 

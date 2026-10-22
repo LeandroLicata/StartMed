@@ -33,6 +33,14 @@ use Illuminate\Http\UploadedFile;
 interface GestorDocumental
 {
     /**
+     * Que acepta el deposito: un solo juego de reglas para todo adjunto clinico
+     * (estudios, hisopados), lo suba el staff o el paciente. Son el mismo tipo
+     * de documento y no hay razon para que una pantalla acepte lo que otra
+     * rechaza. Sin `nullable` ni `required`: eso lo decide cada formulario.
+     */
+    public const REGLAS_ARCHIVO = ['file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'];
+
+    /**
      * Guarda el archivo y devuelve el puntero que hay que persistir.
      *
      * @param  string  $carpeta  Ruta relativa dentro del deposito, sin barras al borde.
