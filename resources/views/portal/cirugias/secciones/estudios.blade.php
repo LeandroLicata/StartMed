@@ -28,6 +28,10 @@
             @foreach ($estudios as $estudio)
                 @php($subido = filled($estudio->urlArchivoCirugiaTipoEstudio))
                 @php($errores = $errors->getBag(\App\Http\Controllers\Portal\EstudioController::bolsaDeErrores($estudio)))
+                @php($limite = $estudio->fechaEsperadaResultadoCirugiaTipoEstudio ?? $caso->cuando())
+                {{-- Vencido pero con la cirugia por delante: se puede subir igual, y
+                     "Subilo antes del" con una fecha pasada se leia como que ya no. --}}
+                @php($atrasado = ! $subido && ! $soloLectura && $limite?->lt(today()))
 
                 <li class="py-3">
                     <div class="flex items-start justify-between gap-3">
@@ -35,13 +39,19 @@
                             <p class="text-sm font-semibold text-hu-azul">
                                 {{ $estudio->tipoEstudio?->nombreTipoEstudio ?? 'Estudio' }}
                             </p>
-                            <p class="text-xs text-hu-gris-medio">
+                            <p @class([
+                                'text-xs',
+                                'font-semibold text-hu-dorado-oscuro' => $atrasado,
+                                'text-hu-gris-medio' => ! $atrasado,
+                            ])>
                                 @if ($subido)
                                     Subido el {{ $estudio->fechaSubidaCirugiaTipoEstudio?->translatedFormat('j \d\e F') }}
                                 @elseif ($soloLectura)
                                     No se subió el resultado.
+                                @elseif ($atrasado)
+                                    Se esperaba para el {{ $limite->translatedFormat('j \d\e F') }}. Subilo cuanto antes.
                                 @else
-                                    Subilo antes del {{ ($estudio->fechaEsperadaResultadoCirugiaTipoEstudio ?? $caso->cuando())?->translatedFormat('j \d\e F') }}
+                                    Subilo antes del {{ $limite?->translatedFormat('j \d\e F') }}
                                 @endif
                             </p>
                         </div>

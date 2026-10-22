@@ -114,6 +114,30 @@ class PortalEstudiosTest extends TestCase
             ->assertSee('Subilo antes del '.$this->pendiente->fechaEsperadaResultadoCirugiaTipoEstudio->translatedFormat('j \d\e F'));
     }
 
+    public function test_un_estudio_atrasado_se_puede_subir_igual_y_no_dice_subilo_antes(): void
+    {
+        // La fecha esperada ya pasó pero la cirugía no: "Subilo antes del" con
+        // una fecha vieja se leía como que ya no se podía.
+        $this->pendiente->update(['fechaEsperadaResultadoCirugiaTipoEstudio' => now()->subDays(3)]);
+        $fecha = $this->pendiente->fresh()->fechaEsperadaResultadoCirugiaTipoEstudio->translatedFormat('j \d\e F');
+
+        $this->pestana()
+            ->assertSee("Se esperaba para el {$fecha}. Subilo cuanto antes.")
+            ->assertDontSee("Subilo antes del {$fecha}")
+            ->assertSee('action="'.route('portal.cirugias.estudios.subir', [$this->cirugia, $this->pendiente]).'"', false);
+
+        $this->subir($this->pendiente, $this->pdf())->assertSessionHas('exito');
+    }
+
+    public function test_un_estudio_que_vence_hoy_todavia_no_esta_atrasado(): void
+    {
+        $this->pendiente->update(['fechaEsperadaResultadoCirugiaTipoEstudio' => today()]);
+
+        $this->pestana()
+            ->assertSee('Subilo antes del '.today()->translatedFormat('j \d\e F'))
+            ->assertDontSee('Subilo cuanto antes');
+    }
+
     public function test_el_pendiente_tiene_formulario_y_el_subido_solo_se_ve(): void
     {
         $this->pestana()
