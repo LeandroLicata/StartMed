@@ -19,6 +19,7 @@ use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\Portal\AccesoController as PortalAccesoController;
 use App\Http\Controllers\Portal\AsistenciaController as PortalAsistenciaController;
 use App\Http\Controllers\Portal\CirugiaController as PortalCirugiaController;
+use App\Http\Controllers\Portal\EstudioController as PortalEstudioController;
 use App\Http\Controllers\Portal\PerfilController as PortalPerfilController;
 use App\Http\Controllers\PortalPacienteController;
 use Illuminate\Support\Facades\Route;
@@ -349,6 +350,17 @@ Route::prefix('portal')->name('portal.')->group(function () {
                 Route::post('/asistencia', PortalAsistenciaController::class)
                     ->middleware('throttle:10,1')
                     ->name('asistencia');
+
+                // --- Leandro: estudios prequirurgicos ---------------------------
+                // scopeBindings: un estudio de otra cirugia, aunque sea del mismo
+                // paciente, da 404 (resuelve por Cirugia::cirugiaTipoEstudios).
+                Route::scopeBindings()->group(function () {
+                    Route::post('/estudios/{cirugiaTipoEstudio}', [PortalEstudioController::class, 'subir'])
+                        ->middleware('throttle:10,1')
+                        ->name('estudios.subir');
+                    Route::get('/estudios/{cirugiaTipoEstudio}/archivo', [PortalEstudioController::class, 'ver'])
+                        ->name('estudios.archivo');
+                });
             });
     });
 });

@@ -1,5 +1,8 @@
 @extends('layouts.app')
 
+{{-- Para no ofrecer "Ver" en un adjunto cuyo puntero es de otro gestor. --}}
+@inject('gestorDocumental', 'App\Support\GestorDocumental')
+
 @section('titulo', $caso->nombrePaciente())
 @section('subtitulo', $caso->procedimiento().' · '.$caso->cuando()?->translatedFormat('l j/m · H:i').' hs')
 
@@ -804,8 +807,9 @@
                             {{-- Botón Ver Archivo. Mira el puntero al documento y no la
                                  fecha de subida: la fecha sin puntero es un estudio cargado
                                  antes de que existiera el gestor documental, y ahí no hay
-                                 nada que abrir. --}}
-                            @if ($estudio->urlArchivoCirugiaTipoEstudio)
+                                 nada que abrir. Abre en otra pestaña; si la entrega falla,
+                                 ahí queda una página suelta, no otra copia del expediente. --}}
+                            @if ($estudio->urlArchivoCirugiaTipoEstudio && $gestorDocumental->reconoce($estudio->urlArchivoCirugiaTipoEstudio))
                                 <a
                                     href="{{ route('cirugias.estudios.archivo', [$caso->cirugia, $estudio]) }}"
                                     target="_blank"
@@ -815,6 +819,16 @@
                                 >
                                     <x-icono nombre="visibility" class="text-[18px]" />
                                 </a>
+                            @elseif ($estudio->urlArchivoCirugiaTipoEstudio)
+                                {{-- Puntero de otro gestor (base sembrada contra el disco
+                                     local servida con Cloudinary, o al revés): ya se sabe
+                                     que "Ver" fallaría. --}}
+                                <span
+                                    class="flex h-8 w-8 items-center justify-center rounded-full text-hu-dorado"
+                                    title="El archivo no está disponible en el gestor documental"
+                                >
+                                    <x-icono nombre="error" class="text-[18px]" />
+                                </span>
                             @else
                                 <span
                                     class="flex h-8 w-8 items-center justify-center rounded-full text-hu-gris-suave"
@@ -1194,15 +1208,22 @@
                             <div class="flex items-center justify-between gap-3 py-2.5 last:pb-0">
                                 <dt class="text-hu-gris-medio">Adjunto</dt>
                                 <dd>
-                                    <a
-                                        href="{{ route('cirugias.hisopado.archivo', $caso->cirugia) }}"
-                                        target="_blank"
-                                        rel="noopener"
-                                        class="inline-flex items-center gap-1 font-semibold text-hu-azul hover:underline"
-                                    >
-                                        <x-icono nombre="visibility" class="text-base" />
-                                        Ver resultado
-                                    </a>
+                                    @if ($gestorDocumental->reconoce($hisopado['archivo']))
+                                        <a
+                                            href="{{ route('cirugias.hisopado.archivo', $caso->cirugia) }}"
+                                            target="_blank"
+                                            rel="noopener"
+                                            class="inline-flex items-center gap-1 font-semibold text-hu-azul hover:underline"
+                                        >
+                                            <x-icono nombre="visibility" class="text-base" />
+                                            Ver resultado
+                                        </a>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 text-hu-gris-medio" title="El archivo no está disponible en el gestor documental">
+                                            <x-icono nombre="error" class="text-base text-hu-dorado" />
+                                            No disponible
+                                        </span>
+                                    @endif
                                 </dd>
                             </div>
                         @endif

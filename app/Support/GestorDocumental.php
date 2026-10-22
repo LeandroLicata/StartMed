@@ -33,6 +33,14 @@ use Illuminate\Http\UploadedFile;
 interface GestorDocumental
 {
     /**
+     * Que acepta el deposito: un solo juego de reglas para todo adjunto clinico
+     * (estudios, hisopados), lo suba el staff o el paciente. Son el mismo tipo
+     * de documento y no hay razon para que una pantalla acepte lo que otra
+     * rechaza. Sin `nullable` ni `required`: eso lo decide cada formulario.
+     */
+    public const REGLAS_ARCHIVO = ['file', 'mimes:pdf,jpg,jpeg,png', 'max:20480'];
+
+    /**
      * Guarda el archivo y devuelve el puntero que hay que persistir.
      *
      * @param  string  $carpeta  Ruta relativa dentro del deposito, sin barras al borde.
@@ -49,4 +57,14 @@ interface GestorDocumental
      * @throws DocumentoNoDisponible si el puntero no es de este gestor o el archivo no esta.
      */
     public function urlTemporal(string $puntero, ?int $minutos = null): string;
+
+    /**
+     * Si el puntero es de este gestor, mirando solo su formato: sin red y sin
+     * tocar el deposito, asi que se puede preguntar al armar una pantalla.
+     *
+     * Sirve para no ofrecer un «Ver» que ya se sabe que va a fallar (una base
+     * sembrada contra el disco local servida con Cloudinary, o al reves). Que
+     * de true no garantiza que el archivo exista: eso solo lo dice urlTemporal().
+     */
+    public function reconoce(string $puntero): bool;
 }

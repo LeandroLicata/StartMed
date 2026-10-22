@@ -44,6 +44,7 @@ COPY --from=assets /app/public/build ./public/build
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+COPY docker/php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 COPY docker/nginx.conf.template /etc/nginx/http.d/default.conf.template
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /entrypoint.sh
