@@ -12,6 +12,7 @@ use App\Models\Usuario;
 use App\Support\DocumentoNoDisponible;
 use App\Support\GestorDocumental;
 use Database\Seeders\DemoSeeder;
+use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -344,7 +345,9 @@ class PortalEstudiosTest extends TestCase
     {
         // Con guard explicito: el actingAs del setUp dejo `paciente` como guard por
         // defecto, y sin nombrarlo el usuario del staff terminaria en ese.
-        auth('paciente')->logout();
+        /** @var StatefulGuard $paciente */
+        $paciente = auth('paciente');
+        $paciente->logout();
         $this->actingAs(Usuario::where('nombreUsuario', 'gonzalez')->firstOrFail(), 'web');
 
         $this->get($this->urlArchivo($this->subido))->assertRedirect(route('portal.ingresar'));
