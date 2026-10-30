@@ -5,7 +5,8 @@
 --}}
 
 @php
-    $whatsapp = config('portal.whatsapp_hospital');
+    // wa.me solo acepta dígitos: se limpian espacios, guiones o el "+" que alguien cargue en el .env.
+    $whatsapp = preg_replace('/\D/', '', (string) config('portal.whatsapp_hospital'));
     $telefono = config('portal.telefono_hospital');
     $email = config('portal.email_hospital');
     $direccion = config('portal.direccion_hospital');

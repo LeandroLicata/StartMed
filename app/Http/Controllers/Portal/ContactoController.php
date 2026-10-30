@@ -22,23 +22,20 @@ use function Illuminate\Support\defer;
  */
 class ContactoController extends Controller
 {
-    public function __invoke(Request $request, Cirugia $cirugia): RedirectResponse
-    {
-        return $this->enviar($request, $cirugia);
-    }
-
     public function enviar(Request $request, Cirugia $cirugia): RedirectResponse
     {
-        $datos = $request->validate([
-            'mensaje' => ['required', 'string', 'min:10', 'max:2000'],
-        ]);
-
         $caso = new ResumenCirugia($cirugia);
 
+        // Antes de validar: en una cirugía anterior no hay formulario, así que
+        // no tiene sentido devolver errores de un campo que no se ve.
         if ($caso->esAnterior()) {
             return redirect()->route('portal.cirugias.show', [$cirugia, 'contacto'])
                 ->with('aviso', 'Esta cirugía ya pasó: no podés enviar mensajes para el equipo.');
         }
+
+        $datos = $request->validate([
+            'mensaje' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
 
         $destinatarios = AvisoCambioCoberturaService::emailsGestores();
 
