@@ -55,7 +55,7 @@
             <x-estado tono="aviso" icono="schedule">Pendiente</x-estado>
         </x-slot:acciones>
 
-        <p class="mb-5 text-sm text-hu-gris">
+        <p class="mb-5 max-w-prose text-sm text-hu-gris">
             Por favor respondé las siguientes preguntas sobre tu salud. La información es confidencial y le permite al equipo de anestesia preparar tu atención de forma segura. Todas las preguntas son obligatorias.
         </p>
 

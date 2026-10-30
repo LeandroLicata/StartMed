@@ -23,7 +23,7 @@
 @php($paciente = auth('paciente')->user())
 
 <header class="bg-hu-azul">
-    <div class="mx-auto flex max-w-4xl items-center gap-4 px-4 py-4 sm:px-6">
+    <div class="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6">
         <a href="{{ $paciente ? route('portal.inicio') : route('portal.ingresar') }}" class="block shrink-0">
             <img src="{{ asset('img/logo-hu-blanco.svg') }}" alt="Hospital Universitario" class="h-9 w-auto">
         </a>
@@ -47,14 +47,21 @@
 
     @if ($paciente)
         {{-- Tres columnas iguales: icono arriba y texto abajo en el celular, lado a lado desde sm. --}}
-        <nav class="mx-auto max-w-4xl px-4 sm:px-6" aria-label="Secciones del portal">
+        <nav class="mx-auto max-w-7xl px-4 sm:px-6" aria-label="Secciones del portal">
             <ul class="grid grid-cols-3 gap-1">
                 @foreach ([
                     ['portal.inicio', 'Próximas', 'Próximas cirugías', 'event', ['portal.inicio', 'portal.cirugias.*']],
                     ['portal.historial', 'Historial', 'Historial de cirugías', 'history', ['portal.historial']],
                     ['portal.perfil', 'Perfil', 'Mi perfil', 'person', ['portal.perfil']],
                 ] as [$ruta, $etiqueta, $descripcion, $icono, $activaEn])
-                    @php($activa = request()->routeIs(...$activaEn))
+                    @php
+                        // $navSeccionActiva puede ser seteada por la vista hija (ej: 'portal.historial')
+                        // para corregir la pestaña marcada cuando una cirugia anterior se ve
+                        // desde el historial. Si no existe, se evalua el routeIs() habitual.
+                        $activa = isset($navSeccionActiva)
+                            ? ($navSeccionActiva === $ruta)
+                            : request()->routeIs(...$activaEn);
+                    @endphp
                     <li>
                         <a
                             href="{{ route($ruta) }}"
@@ -76,7 +83,7 @@
     @endif
 </header>
 
-<main class="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+<main class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
     @include('partials.flash')
     @yield('contenido')
 </main>
