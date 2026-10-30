@@ -510,20 +510,34 @@ class ResumenCirugia
     }
 
     /**
-     * Indicaciones de preparación con sus horas, aplanadas para mostrarlas.
+     * Indicaciones de preparación con sus horas y fecha/hora límite calculada,
+     * aplanadas para mostrarlas.
      *
-     * @return Collection<int, array{bloque: string, indicacion: string, horas: ?int}>
+     * @return Collection<int, array{bloque: string, indicacion: string, horas: ?int, ultimaIngesta: ?Carbon}>
      */
     public function preparacion(): Collection
     {
+        $cuando = $this->cuando();
+
         return collect($this->cirugia->preparacionPacientes->first()?->preparacionPacienteTipoPreparaciones ?? [])
             ->flatMap(fn ($bloque) => collect($bloque->preparacionPacienteTipoPreparacionTipoIndicaciones)
                 ->map(fn ($indicacion) => [
                     'bloque' => $bloque->tipoPreparacion?->nombreTipoPreparacion ?? '',
                     'indicacion' => $indicacion->tipoIndicacion?->nombreTipoIndicacion ?? '',
                     'horas' => $indicacion->hsReglaCantidadIngestaAnteriorCirugia,
+                    'ultimaIngesta' => ($indicacion->hsReglaCantidadIngestaAnteriorCirugia !== null && $cuando)
+                        ? $cuando->copy()->subHours($indicacion->hsReglaCantidadIngestaAnteriorCirugia)
+                        : null,
                 ]))
             ->values();
+    }
+
+    /**
+     * Recordatorio u observaciones de la preparación cargadas por el equipo.
+     */
+    public function recordatorioPreparacion(): ?string
+    {
+        return $this->cirugia->preparacionPacientes->first()?->observacionesPreparacionPaciente;
     }
 
     /**
@@ -606,6 +620,12 @@ class ResumenCirugia
                 'detalle' => $this->evaluacionCompleta() ? 'Completada' : 'La completa tu anestesista',
                 'listo' => $this->evaluacionCompleta(),
                 'seccion' => null,
+            ],
+            [
+                'titulo' => 'Indicaciones de preparación',
+                'detalle' => $this->preparacion()->isNotEmpty() ? 'Cargadas por el equipo' : 'Tu equipo todavía no las cargó',
+                'listo' => $this->preparacion()->isNotEmpty(),
+                'seccion' => 'preparacion',
             ],
             [
                 'titulo' => 'Consentimiento informado',

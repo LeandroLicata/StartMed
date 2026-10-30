@@ -53,7 +53,10 @@ class ExpedienteSeeder extends Seeder
         $config = $this->cuestionario();
 
         foreach (Cirugia::with('paciente', 'tipoCirugia', 'cirugiaEstados.estadoCirugia')->get() as $cirugia) {
-            $this->preparacion($cirugia);
+            // Dejar al menos una cirugía futura sin preparación para probar el estado vacío (Jorge Vidal).
+            if ($cirugia->paciente?->documento !== '20114523') {
+                $this->preparacion($cirugia);
+            }
             $this->consentimiento($cirugia);
             $this->examen($cirugia, $config);
         }
