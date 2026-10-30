@@ -112,6 +112,19 @@ class PortalCirugiasTest extends TestCase
             ->assertDontSee($aviso);
     }
 
+    public function test_la_navegacion_marca_historial_en_una_cirugia_pasada_y_proximas_en_una_futura(): void
+    {
+        $activa = fn (string $etiqueta) => '/aria-current="page"\s*>\s*<span[^>]*>[^<]*<\/span>\s*'.$etiqueta.'/u';
+
+        $pasada = $this->get('/portal/cirugias/'.$this->cirugiaPasadaSuspendida()->idCirugia)->assertOk()->getContent();
+        $this->assertMatchesRegularExpression($activa('Historial'), $pasada);
+        $this->assertDoesNotMatchRegularExpression($activa('Próximas'), $pasada);
+
+        $futura = $this->get('/portal/cirugias/'.$this->cirugiaDeMaria()->idCirugia)->assertOk()->getContent();
+        $this->assertMatchesRegularExpression($activa('Próximas'), $futura);
+        $this->assertDoesNotMatchRegularExpression($activa('Historial'), $futura);
+    }
+
     /**
      * Guarda contra N+1, igual que DashboardTest: la cantidad de consultas
      * depende de las relaciones cargadas, no de cuantas cirugias tenga.
