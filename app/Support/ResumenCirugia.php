@@ -622,12 +622,6 @@ class ResumenCirugia
                 'seccion' => null,
             ],
             [
-                'titulo' => 'Indicaciones de preparación',
-                'detalle' => $this->preparacion()->isNotEmpty() ? 'Cargadas por el equipo' : 'Tu equipo todavía no las cargó',
-                'listo' => $this->preparacion()->isNotEmpty(),
-                'seccion' => 'preparacion',
-            ],
-            [
                 'titulo' => 'Consentimiento informado',
                 'detalle' => $this->consentimientoFirmado() ? 'Firmado' : 'Sin firmar',
                 'listo' => $this->consentimientoFirmado(),

@@ -91,6 +91,25 @@ class PortalPreparacionTest extends TestCase
             ->assertDontSee('Recordatorio');
     }
 
+    public function test_muestra_el_recordatorio_aun_sin_indicaciones(): void
+    {
+        $prep = PreparacionPaciente::where('idCirugia', $this->cirugia->idCirugia)->firstOrFail();
+        // Borramos todas las indicaciones pero mantenemos el recordatorio
+        $prep->preparacionPacienteTipoPreparaciones()->each(function ($b) {
+            $b->preparacionPacienteTipoPreparacionTipoIndicaciones()->delete();
+            $b->delete();
+        });
+        $prep->update(['observacionesPreparacionPaciente' => 'Suspender anticoagulantes según indicación del hematólogo.']);
+
+        $response = $this->get("/portal/cirugias/{$this->cirugia->idCirugia}/preparacion");
+
+        $response->assertOk()
+            ->assertSee('Recordatorio')
+            ->assertSee('Suspender anticoagulantes según indicación del hematólogo.')
+            ->assertDontSee('Tu equipo todavía no cargó las indicaciones')
+            ->assertDontSee('No se cargaron indicaciones de preparación para esta cirugía.');
+    }
+
     private function eliminarPreparacion(Cirugia $cirugia): void
     {
         $prep = PreparacionPaciente::where('idCirugia', $cirugia->idCirugia)->first();
@@ -103,7 +122,7 @@ class PortalPreparacionTest extends TestCase
         }
     }
 
-    public function test_muestra_estado_vacio_claro_cuando_no_hay_preparacion(): void
+    public function test_muestra_estado_vacio_en_cirugia_futura(): void
     {
         // Borramos la preparación de esta cirugía para simular que el equipo aún no la cargó
         $this->eliminarPreparacion($this->cirugia);
@@ -112,9 +131,27 @@ class PortalPreparacionTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Tu equipo todavía no cargó las indicaciones')
+            ->assertDontSee('No se cargaron indicaciones de preparación para esta cirugía.')
             ->assertDontSee('Ayuno')
             ->assertDontSee('Recordatorio')
             ->assertDontSee('Última ingesta');
+    }
+
+    public function test_muestra_estado_vacio_en_cirugia_anterior(): void
+    {
+        $this->eliminarPreparacion($this->cirugia);
+        $this->cirugia->update([
+            'fechaHoraCirugia' => Carbon::now()->subMonths(2),
+        ]);
+
+        $response = $this->get("/portal/cirugias/{$this->cirugia->idCirugia}/preparacion");
+
+        $response->assertOk()
+            ->assertSee('No se cargaron indicaciones de preparación para esta cirugía.')
+            ->assertDontSee('todavía')
+            ->assertDontSee('Tu equipo todavía no cargó las indicaciones')
+            ->assertDontSee('Ayuno')
+            ->assertDontSee('Recordatorio');
     }
 
     public function test_un_paciente_no_puede_ver_la_preparacion_de_una_cirugia_ajena(): void
@@ -151,22 +188,17 @@ class PortalPreparacionTest extends TestCase
             ->assertDontSee('Tenés que');
     }
 
-    public function test_estado_del_proceso_en_resumen_es_coherente_con_preparacion(): void
+    public function test_proceso_paciente_no_incluye_preparacion_como_pendiente(): void
     {
-        // Con preparación cargada: debe figurar como Listo y enlazar a preparacion
-        $this->get("/portal/cirugias/{$this->cirugia->idCirugia}")
-            ->assertOk()
-            ->assertSee('Indicaciones de preparación')
-            ->assertSee('Cargadas por el equipo')
-            ->assertSee(route('portal.cirugias.show', [$this->cirugia, 'preparacion']));
-
-        // Sin preparación cargada: debe figurar como Pendiente y enlazar a preparacion
+        // Sin preparación: no debe aparecer en el proceso del paciente ni figurar como pendiente
         $this->eliminarPreparacion($this->cirugia);
 
-        $this->get("/portal/cirugias/{$this->cirugia->idCirugia}")
-            ->assertOk()
-            ->assertSee('Indicaciones de preparación')
-            ->assertSee('Tu equipo todavía no las cargó')
-            ->assertSee(route('portal.cirugias.show', [$this->cirugia, 'preparacion']));
+        $response = $this->get("/portal/cirugias/{$this->cirugia->idCirugia}");
+
+        $response->assertOk()
+            ->assertDontSee('Indicaciones de preparación');
+
+        // Y la pestaña propia de preparación sigue existiendo en el menú de navegación
+        $response->assertSee(route('portal.cirugias.show', [$this->cirugia, 'preparacion']));
     }
 }
