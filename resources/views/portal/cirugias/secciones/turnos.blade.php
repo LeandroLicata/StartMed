@@ -76,7 +76,7 @@
                                     Estudios prequirúrgicos
                                 </p>
                                 <p class="text-xs text-hu-gris-medio">
-                                    Tenés {{ $estudiosPendientes }} {{ str('estudio')->plural($estudiosPendientes) }} pendiente(s) de subir:
+                                    Tenés {{ $estudiosPendientes }} {{ str('estudio')->plural($estudiosPendientes) }} {{ str('pendiente')->plural($estudiosPendientes) }} de subir:
                                     <span class="font-medium text-hu-azul">{{ $nombresPendientes->join(', ') }}</span>.
                                 </p>
                                 <div class="mt-1">
