@@ -136,7 +136,7 @@ class PortalPreanestesicaTest extends TestCase
         // 3. Verificar en la base de datos
         $this->assertDatabaseHas('ExamenCirugiaPreAnestesica', [
             'idCirugia' => $this->cirugia->idCirugia,
-            'observacionesExamenCirugiaPreAnestesica' => 'Cuestionario respondido por el paciente.',
+            'observacionesExamenCirugiaPreAnestesica' => null,
         ]);
 
         $this->assertDatabaseHas('ExamenPreAnestesicoConfig', [
@@ -309,5 +309,96 @@ class PortalPreanestesicaTest extends TestCase
         $this->responder(['respuestas' => []])
             ->assertRedirect(route('portal.cirugias.show', [$this->cirugia, 'preanestesica']))
             ->assertSessionHas('error', 'No hay un cuestionario preanestésico vigente disponible.');
+    }
+
+    public function test_un_examen_existente_sin_respuestas_permite_responder_y_no_se_duplica(): void
+    {
+        // El staff médico creó previamente un examen sin respuestas
+        $examenPrevio = ExamenCirugiaPreAnestesica::create([
+            'idCirugia' => $this->cirugia->idCirugia,
+            'observacionesExamenCirugiaPreAnestesica' => 'Nota preliminar cargada por el staff',
+        ]);
+
+        $this->assertSame(1, ExamenCirugiaPreAnestesica::where('idCirugia', $this->cirugia->idCirugia)->count());
+
+        // La vista ofrece el formulario para responder
+        $this->pestana()
+            ->assertOk()
+            ->assertSee('Enviar respuestas');
+
+        // El paciente responde el cuestionario
+        $respuestas = [
+            $this->preguntaCerrada->idConfigTipoExamenPreAnestesicoPregunta => $this->opcionSi->idConfigTipoExamenPreAnestesicoPreguntaRespuesta,
+            $this->preguntaAbierta->idConfigTipoExamenPreAnestesicoPregunta => 'Losartán 50mg',
+        ];
+
+        $respuesta = $this->responder($respuestas);
+        $respuesta->assertRedirect(route('portal.cirugias.show', [$this->cirugia, 'preanestesica']));
+        $respuesta->assertSessionHas('exito', 'Listo, recibimos tus respuestas.');
+
+        // Se reutilizó el registro existente: no se duplicó
+        $this->assertSame(1, ExamenCirugiaPreAnestesica::where('idCirugia', $this->cirugia->idCirugia)->count());
+        $examenActualizado = ExamenCirugiaPreAnestesica::where('idCirugia', $this->cirugia->idCirugia)->first();
+        $this->assertSame($examenPrevio->idExamenCirugiaPreAnestesica, $examenActualizado->idExamenCirugiaPreAnestesica);
+        // Las observaciones del staff se preservaron intactas
+        $this->assertSame('Nota preliminar cargada por el staff', $examenActualizado->observacionesExamenCirugiaPreAnestesica);
+
+        // Las respuestas se guardaron asociadas a este examen
+        $this->assertDatabaseHas('ExamenPreAnestesicoConfig', [
+            'idExamenCirugiaPreAnestesica' => $examenPrevio->idExamenCirugiaPreAnestesica,
+            'idConfigTipoExamenPreAnestesico' => $this->version->idConfigTipoExamenPreAnestesico,
+        ]);
+        $this->assertDatabaseHas('ExamenPreAnestesicoConfigPregunta', [
+            'idConfigTipoExamenPreAnestesicoPregunta' => $this->preguntaAbierta->idConfigTipoExamenPreAnestesicoPregunta,
+            'respuestaExamenPreAnestesicoConfigPregunta' => 'Losartán 50mg',
+        ]);
+    }
+
+    public function test_la_vista_no_ofrece_el_formulario_cuando_el_controlador_lo_rechazaria(): void
+    {
+        $respuestas = [
+            $this->preguntaCerrada->idConfigTipoExamenPreAnestesicoPregunta => $this->opcionNo->idConfigTipoExamenPreAnestesicoPreguntaRespuesta,
+            $this->preguntaAbierta->idConfigTipoExamenPreAnestesicoPregunta => 'Ninguna',
+        ];
+
+        // 1. Cirugía anterior: el controlador rechaza y la vista no ofrece formulario
+        $this->cirugia->update(['fechaHoraCirugia' => today()->subDays(5)]);
+
+        $this->responder($respuestas)
+            ->assertRedirect(route('portal.cirugias.show', [$this->cirugia, 'preanestesica']))
+            ->assertSessionHas('aviso', 'Es una cirugía anterior: ya no se puede responder el cuestionario.');
+
+        $this->pestana()
+            ->assertOk()
+            ->assertDontSee('Enviar respuestas')
+            ->assertSee('Esta cirugía ya pasó y no se completó el cuestionario preanestésico.');
+
+        // 2. Sin cuestionario vigente: el controlador rechaza y la vista no ofrece formulario
+        $this->cirugia->update(['fechaHoraCirugia' => today()->addDays(5)]);
+        $this->version->update(['fechaFinVigeConfigTipoExamenPreAnestesico' => now()]);
+
+        $this->responder($respuestas)
+            ->assertRedirect(route('portal.cirugias.show', [$this->cirugia, 'preanestesica']))
+            ->assertSessionHas('error', 'No hay un cuestionario preanestésico vigente disponible.');
+
+        $this->pestana()
+            ->assertOk()
+            ->assertDontSee('Enviar respuestas')
+            ->assertSee('No hay un cuestionario preanestésico disponible para responder en este momento.');
+
+        // 3. Caso ya respondido: el controlador rechaza y la vista no ofrece formulario
+        $this->version->update(['fechaFinVigeConfigTipoExamenPreAnestesico' => null]);
+
+        $this->responder($respuestas)->assertRedirect();
+
+        $this->responder($respuestas)
+            ->assertRedirect(route('portal.cirugias.show', [$this->cirugia, 'preanestesica']))
+            ->assertSessionHas('aviso', 'El cuestionario preanestésico ya fue respondido.');
+
+        $this->pestana()
+            ->assertOk()
+            ->assertDontSee('Enviar respuestas')
+            ->assertSee('Respondido')
+            ->assertSee('Ya respondiste este cuestionario');
     }
 }
