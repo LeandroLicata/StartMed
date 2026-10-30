@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\AutoCirugiaEstado;
 use App\Models\Cirugia;
 use App\Models\CirugiaPersonal;
+use App\Models\ConfigTipoExamenPreAnestesico;
 use App\Models\ConsentimientoPaciente;
 use App\Models\HisopadoSarm;
 use App\Models\PedidoHemoderivado;
@@ -534,10 +535,15 @@ class ResumenCirugia
      */
     public function cuestionario(): Collection
     {
-        $config = $this->cirugia->examenCirugiaPreAnestesicas->first()
-            ?->examenPreAnestesicoConfiges->first();
+        $examen = $this->cirugia->examenCirugiaPreAnestesicas
+            ->first(fn ($e) => $e->examenPreAnestesicoConfiges->contains(fn ($c) => $c->examenPreAnestesicoConfigPreguntas->isNotEmpty()))
+            ?? $this->cirugia->examenCirugiaPreAnestesicas->first();
+
+        $config = $examen?->examenPreAnestesicoConfiges->first(fn ($c) => $c->examenPreAnestesicoConfigPreguntas->isNotEmpty())
+            ?? $examen?->examenPreAnestesicoConfiges->first();
 
         return collect($config?->examenPreAnestesicoConfigPreguntas ?? [])
+            ->sortBy(fn ($p) => $p->configTipoExamenPreAnestesicoPregunta?->idConfigTipoExamenPreAnestesicoPregunta ?? $p->idConfigTipoExamenPreAnestesicoPregunta)
             ->map(function ($respondida) {
                 $cerradas = collect($respondida->examenPreAnestesicoConfigPreguntaRespuestas)
                     ->map(fn ($r) => $r->configTipoExamenPreAnestesicoPreguntaRespuesta
@@ -554,6 +560,16 @@ class ResumenCirugia
             })
             ->filter(fn (array $fila) => $fila['pregunta'] !== '')
             ->values();
+    }
+
+    public function cuestionarioRespondido(): bool
+    {
+        return $this->cuestionario()->isNotEmpty();
+    }
+
+    public function cuestionarioVigente(): ?ConfigTipoExamenPreAnestesico
+    {
+        return ConfigTipoExamenPreAnestesico::vigente();
     }
 
     /** @return Collection<int, CirugiaPersonal> */
@@ -597,8 +613,8 @@ class ResumenCirugia
             ],
             [
                 'titulo' => 'Cuestionario preanestésico',
-                'detalle' => $this->cuestionario()->isNotEmpty() ? 'Respondido' : 'Sin responder',
-                'listo' => $this->cuestionario()->isNotEmpty(),
+                'detalle' => $this->cuestionarioRespondido() ? 'Respondido' : 'Sin responder',
+                'listo' => $this->cuestionarioRespondido(),
                 'seccion' => 'preanestesica',
             ],
             [

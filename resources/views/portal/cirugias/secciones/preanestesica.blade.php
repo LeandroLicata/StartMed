@@ -8,19 +8,10 @@
 --}}
 
 @php
-    $cuestionarioRespondido = $caso->cuestionario();
-    $cuestionarioVigente = $cuestionarioRespondido->isEmpty() && ! $soloLectura
-        ? \App\Models\ConfigTipoExamenPreAnestesico::query()
-            ->whereNull('fechaFinVigeConfigTipoExamenPreAnestesico')
-            ->with([
-                'configTipoExamenPreAnestesicoPreguntas' => fn ($q) => $q->orderBy('idConfigTipoExamenPreAnestesicoPregunta'),
-                'configTipoExamenPreAnestesicoPreguntas.configTipoExamenPreAnestesicoPreguntaRespuestas',
-            ])
-            ->first()
-        : null;
+    $cuestionarioVigente = $cuestionarioVigente ?? null;
 @endphp
 
-@if ($cuestionarioRespondido->isNotEmpty())
+@if ($caso->cuestionarioRespondido())
     {{-- Cuestionario ya respondido: solo lectura --}}
     <x-tarjeta titulo="Cuestionario preanestésico" icono="stethoscope">
         <x-slot:acciones>
@@ -32,7 +23,7 @@
         </p>
 
         <dl class="divide-y divide-hu-gris-suave/70">
-            @foreach ($cuestionarioRespondido as $fila)
+            @foreach ($caso->cuestionario() as $fila)
                 <div class="py-3 first:pt-0 last:pb-0">
                     <dt class="text-xs font-semibold text-hu-gris-medio">{{ $fila['pregunta'] }}</dt>
                     <dd class="mt-1 text-sm font-semibold text-hu-azul">{{ $fila['respuesta'] }}</dd>

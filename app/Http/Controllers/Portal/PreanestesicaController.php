@@ -31,18 +31,18 @@ class PreanestesicaController extends Controller
     {
         $volver = redirect()->route('portal.cirugias.show', [$cirugia, 'preanestesica']);
 
-        if ((new ResumenCirugia($cirugia))->esAnterior()) {
+        $cirugia->load([...ResumenCirugia::RELACIONES, ...ResumenCirugia::RELACIONES_EXPEDIENTE]);
+        $caso = new ResumenCirugia($cirugia);
+
+        if ($caso->esAnterior()) {
             return $volver->with('aviso', 'Es una cirugía anterior: ya no se puede responder el cuestionario.');
         }
 
-        if ($cirugia->examenCirugiaPreAnestesicas()->exists()) {
+        if ($caso->cuestionarioRespondido()) {
             return $volver->with('aviso', 'El cuestionario preanestésico ya fue respondido.');
         }
 
-        $version = ConfigTipoExamenPreAnestesico::query()
-            ->whereNull('fechaFinVigeConfigTipoExamenPreAnestesico')
-            ->with(['configTipoExamenPreAnestesicoPreguntas.configTipoExamenPreAnestesicoPreguntaRespuestas'])
-            ->first();
+        $version = ConfigTipoExamenPreAnestesico::vigente();
 
         if (! $version || $version->configTipoExamenPreAnestesicoPreguntas->isEmpty()) {
             return $volver->with('error', 'No hay un cuestionario preanestésico vigente disponible.');
@@ -69,21 +69,39 @@ class PreanestesicaController extends Controller
         $datos = $request->validate($reglas, [], $atributos);
 
         $guardado = DB::transaction(function () use ($cirugia, $version, $datos) {
-            Cirugia::whereKey($cirugia->idCirugia)->lockForUpdate()->first();
+            $cirugiaBloqueada = Cirugia::whereKey($cirugia->idCirugia)->lockForUpdate()->first();
+            $cirugiaBloqueada->load([...ResumenCirugia::RELACIONES, ...ResumenCirugia::RELACIONES_EXPEDIENTE]);
 
-            if ($cirugia->examenCirugiaPreAnestesicas()->exists()) {
+            $casoBloqueado = new ResumenCirugia($cirugiaBloqueada);
+            if ($casoBloqueado->cuestionarioRespondido()) {
                 return false;
             }
 
-            $examen = ExamenCirugiaPreAnestesica::create([
-                'idCirugia' => $cirugia->idCirugia,
-                'observacionesExamenCirugiaPreAnestesica' => 'Cuestionario respondido por el paciente.',
-            ]);
+            $examen = $cirugiaBloqueada->examenCirugiaPreAnestesicas
+                ->first(function ($e) {
+                    $config = $e->examenPreAnestesicoConfiges->first();
 
-            $examenConfig = ExamenPreAnestesicoConfig::create([
-                'idExamenCirugiaPreAnestesica' => $examen->idExamenCirugiaPreAnestesica,
-                'idConfigTipoExamenPreAnestesico' => $version->idConfigTipoExamenPreAnestesico,
-            ]);
+                    return ! $config || $config->examenPreAnestesicoConfigPreguntas->isEmpty();
+                })
+                ?? $cirugiaBloqueada->examenCirugiaPreAnestesicas->first()
+                ?? ExamenCirugiaPreAnestesica::create([
+                    'idCirugia' => $cirugiaBloqueada->idCirugia,
+                    'observacionesExamenCirugiaPreAnestesica' => null,
+                ]);
+
+            $examenConfig = $examen->examenPreAnestesicoConfiges
+                ->first(fn ($c) => $c->examenPreAnestesicoConfigPreguntas->isEmpty())
+                ?? $examen->examenPreAnestesicoConfiges->first()
+                ?? ExamenPreAnestesicoConfig::create([
+                    'idExamenCirugiaPreAnestesica' => $examen->idExamenCirugiaPreAnestesica,
+                    'idConfigTipoExamenPreAnestesico' => $version->idConfigTipoExamenPreAnestesico,
+                ]);
+
+            if ($examenConfig->idConfigTipoExamenPreAnestesico !== $version->idConfigTipoExamenPreAnestesico) {
+                $examenConfig->update([
+                    'idConfigTipoExamenPreAnestesico' => $version->idConfigTipoExamenPreAnestesico,
+                ]);
+            }
 
             foreach ($version->configTipoExamenPreAnestesicoPreguntas as $pregunta) {
                 $valor = $datos['respuestas'][$pregunta->idConfigTipoExamenPreAnestesicoPregunta];
