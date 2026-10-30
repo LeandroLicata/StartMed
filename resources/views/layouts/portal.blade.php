@@ -22,65 +22,91 @@
 
 @php($paciente = auth('paciente')->user())
 
-<header class="bg-hu-azul">
-    <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-4 sm:px-6">
-        <a href="{{ $paciente ? route('portal.inicio') : route('portal.ingresar') }}" class="block shrink-0">
-            <img src="{{ asset('img/logo-hu-blanco.svg') }}" alt="Hospital Universitario" class="h-9 w-auto">
-        </a>
+@hasSection('pantalla-ingreso')
+    {{--
+        Pantallas de acceso al portal (ingreso y confirmación de enlace):
+        tarjeta centrada sobre fondo institucional ofuscado a pantalla completa.
+        El desenfoque (blur-sm + scale-105) y el velo traslúcido se aplican por CSS
+        en el contenedor; de este modo, si en el futuro se reemplaza portal-fondo.svg
+        por una fotografía real del hospital o sus instalaciones, queda automáticamente
+        ofuscada sin modificar código ni estilos.
+    --}}
+    <div class="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
+        <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+            <img
+                src="{{ asset('img/portal-fondo.svg') }}"
+                alt=""
+                class="h-full w-full object-cover blur-sm scale-105 motion-reduce:transform-none"
+            >
+            <div class="absolute inset-0 bg-hu-azul/75 backdrop-blur-[2px]"></div>
+        </div>
+
+        <div class="w-full max-w-md">
+            @include('partials.flash')
+            @yield('contenido')
+        </div>
+    </div>
+@else
+    <header class="bg-hu-azul">
+        <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-4 sm:px-6">
+            <a href="{{ $paciente ? route('portal.inicio') : route('portal.ingresar') }}" class="block shrink-0">
+                <img src="{{ asset('img/logo-hu-blanco.svg') }}" alt="Hospital Universitario" class="h-9 w-auto">
+            </a>
+
+            @if ($paciente)
+                <div class="ml-auto flex min-w-0 items-center gap-3">
+                    <p class="hidden truncate text-sm font-semibold text-white sm:block">
+                        {{ $paciente->nombre_completo }}
+                    </p>
+
+                    <form method="POST" action="{{ route('portal.salir') }}">
+                        @csrf
+                        <button type="submit" class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">
+                            <x-icono nombre="logout" class="text-xl" />
+                            <span>Salir</span>
+                        </button>
+                    </form>
+                </div>
+            @endif
+        </div>
 
         @if ($paciente)
-            <div class="ml-auto flex min-w-0 items-center gap-3">
-                <p class="hidden truncate text-sm font-semibold text-white sm:block">
-                    {{ $paciente->nombre_completo }}
-                </p>
-
-                <form method="POST" action="{{ route('portal.salir') }}">
-                    @csrf
-                    <button type="submit" class="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white">
-                        <x-icono nombre="logout" class="text-xl" />
-                        <span>Salir</span>
-                    </button>
-                </form>
-            </div>
+            {{-- Tres columnas iguales: icono arriba y texto abajo en el celular, lado a lado desde sm. --}}
+            <nav class="mx-auto max-w-6xl px-4 sm:px-6" aria-label="Secciones del portal">
+                <ul class="grid grid-cols-3 gap-1">
+                    @foreach ([
+                        ['portal.inicio', 'Próximas', 'Próximas cirugías', 'event', ['portal.inicio', 'portal.cirugias.*']],
+                        ['portal.historial', 'Historial', 'Historial de cirugías', 'history', ['portal.historial']],
+                        ['portal.perfil', 'Perfil', 'Mi perfil', 'person', ['portal.perfil']],
+                    ] as [$ruta, $etiqueta, $descripcion, $icono, $activaEn])
+                        {{-- La vista puede fijar $navSeccionActiva: una cirugía anterior marca Historial. --}}
+                        @php($activa = isset($navSeccionActiva) ? $navSeccionActiva === $ruta : request()->routeIs(...$activaEn))
+                        <li>
+                            <a
+                                href="{{ route($ruta) }}"
+                                title="{{ $descripcion }}"
+                                @class([
+                                    'flex flex-col items-center justify-center gap-0.5 rounded-t-xl px-2 py-2.5 text-xs font-semibold transition-colors sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-sm',
+                                    'bg-hu-gris-tenue text-hu-azul' => $activa,
+                                    'text-white/75 hover:text-white' => ! $activa,
+                                ])
+                                @if ($activa) aria-current="page" @endif
+                            >
+                                <x-icono :nombre="$icono" class="text-xl sm:text-lg" :relleno="$activa" />
+                                {{ $etiqueta }}
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </nav>
         @endif
-    </div>
+    </header>
 
-    @if ($paciente)
-        {{-- Tres columnas iguales: icono arriba y texto abajo en el celular, lado a lado desde sm. --}}
-        <nav class="mx-auto max-w-6xl px-4 sm:px-6" aria-label="Secciones del portal">
-            <ul class="grid grid-cols-3 gap-1">
-                @foreach ([
-                    ['portal.inicio', 'Próximas', 'Próximas cirugías', 'event', ['portal.inicio', 'portal.cirugias.*']],
-                    ['portal.historial', 'Historial', 'Historial de cirugías', 'history', ['portal.historial']],
-                    ['portal.perfil', 'Perfil', 'Mi perfil', 'person', ['portal.perfil']],
-                ] as [$ruta, $etiqueta, $descripcion, $icono, $activaEn])
-                    {{-- La vista puede fijar $navSeccionActiva: una cirugía anterior marca Historial. --}}
-                    @php($activa = isset($navSeccionActiva) ? $navSeccionActiva === $ruta : request()->routeIs(...$activaEn))
-                    <li>
-                        <a
-                            href="{{ route($ruta) }}"
-                            title="{{ $descripcion }}"
-                            @class([
-                                'flex flex-col items-center justify-center gap-0.5 rounded-t-xl px-2 py-2.5 text-xs font-semibold transition-colors sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-sm',
-                                'bg-hu-gris-tenue text-hu-azul' => $activa,
-                                'text-white/75 hover:text-white' => ! $activa,
-                            ])
-                            @if ($activa) aria-current="page" @endif
-                        >
-                            <x-icono :nombre="$icono" class="text-xl sm:text-lg" :relleno="$activa" />
-                            {{ $etiqueta }}
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
-        </nav>
-    @endif
-</header>
-
-<main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-    @include('partials.flash')
-    @yield('contenido')
-</main>
+    <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        @include('partials.flash')
+        @yield('contenido')
+    </main>
+@endif
 
 {{-- El mismo dialogo de confirmacion que el staff; lo usan los forms con data-confirmar. --}}
 <x-confirmar />
