@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -24,6 +25,22 @@ class ConfigTipoExamenPreAnestesico extends Model
             'fechaInicioVigeConfigTipoExamenPreAnestesico' => 'datetime',
             'fechaFinVigeConfigTipoExamenPreAnestesico' => 'datetime',
         ];
+    }
+
+    public function scopeVigente(Builder $query): void
+    {
+        $query->whereNull('fechaFinVigeConfigTipoExamenPreAnestesico');
+    }
+
+    public static function vigente(): ?self
+    {
+        return self::query()
+            ->vigente()
+            ->with([
+                'configTipoExamenPreAnestesicoPreguntas' => fn ($q) => $q->orderBy('idConfigTipoExamenPreAnestesicoPregunta'),
+                'configTipoExamenPreAnestesicoPreguntas.configTipoExamenPreAnestesicoPreguntaRespuestas' => fn ($q) => $q->orderBy('idConfigTipoExamenPreAnestesicoPreguntaRespuesta'),
+            ])
+            ->first();
     }
 
     public function configTipoExamenPreAnestesicoPreguntas(): HasMany

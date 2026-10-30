@@ -181,10 +181,7 @@ class CuestionarioController extends Controller
 
     private function vigente(): ?Version
     {
-        return Version::query()
-            ->whereNull('fechaFinVigeConfigTipoExamenPreAnestesico')
-            ->with('configTipoExamenPreAnestesicoPreguntas.configTipoExamenPreAnestesicoPreguntaRespuestas')
-            ->first();
+        return Version::vigente();
     }
 
     /**

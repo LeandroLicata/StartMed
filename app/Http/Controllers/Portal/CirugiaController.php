@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cirugia;
+use App\Models\ConfigTipoExamenPreAnestesico;
 use App\Models\Persona;
 use App\Support\ResumenCirugia;
 use Illuminate\Database\Eloquent\Builder;
@@ -73,6 +74,9 @@ class CirugiaController extends Controller
             // Una cirugia pasada se mira, no se completa: sin firmar, sin
             // subir, sin responder. Cada pestaña con formularios lo respeta.
             'soloLectura' => $caso->esAnterior(),
+            'cuestionarioVigente' => $seccion === 'preanestesica'
+                ? ConfigTipoExamenPreAnestesico::vigente()
+                : null,
         ]);
     }
 
