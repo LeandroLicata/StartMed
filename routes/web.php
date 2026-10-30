@@ -20,6 +20,7 @@ use App\Http\Controllers\Portal\AccesoController as PortalAccesoController;
 use App\Http\Controllers\Portal\AsistenciaController as PortalAsistenciaController;
 use App\Http\Controllers\Portal\CirugiaController as PortalCirugiaController;
 use App\Http\Controllers\Portal\ConsentimientoController as PortalConsentimientoController;
+use App\Http\Controllers\Portal\ContactoController as PortalContactoController;
 use App\Http\Controllers\Portal\EstudioController as PortalEstudioController;
 use App\Http\Controllers\Portal\PerfilController as PortalPerfilController;
 use App\Http\Controllers\Portal\PreanestesicaController as PortalPreanestesicaController;
@@ -373,6 +374,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
                 Route::post('/consentimiento', [PortalConsentimientoController::class, 'firmar'])
                     ->middleware('throttle:10,1')
                     ->name('consentimiento.firmar');
+
+                // --- Mensaje para el equipo -------------------------------------
+                Route::post('/contacto', [PortalContactoController::class, 'enviar'])
+                    ->middleware('throttle:5,1')
+                    ->name('contacto');
             });
     });
 });
