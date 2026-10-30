@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cirugia;
+use App\Models\ConfigConsentimiento;
 use App\Models\ConfigTipoExamenPreAnestesico;
 use App\Models\Persona;
 use App\Support\ResumenCirugia;
@@ -76,6 +77,13 @@ class CirugiaController extends Controller
             'soloLectura' => $caso->esAnterior(),
             'cuestionarioVigente' => $seccion === 'preanestesica'
                 ? ConfigTipoExamenPreAnestesico::vigente()
+                : null,
+            // La plantilla solo hace falta si la cirugia todavia no tiene su
+            // documento generado.
+            'documentoConsentimiento' => $seccion === 'consentimiento'
+                ? $caso->documentoConsentimiento(
+                    $caso->consentimiento() ? null : ConfigConsentimiento::vigentePara($cirugia->idTipoCirugia)
+                )
                 : null,
         ]);
     }

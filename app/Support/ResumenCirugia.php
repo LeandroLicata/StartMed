@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\AutoCirugiaEstado;
 use App\Models\Cirugia;
 use App\Models\CirugiaPersonal;
+use App\Models\ConfigConsentimiento;
 use App\Models\ConfigTipoExamenPreAnestesico;
 use App\Models\ConsentimientoPaciente;
 use App\Models\HisopadoSarm;
@@ -508,6 +509,22 @@ class ResumenCirugia
     public function consentimientoFirmado(): bool
     {
         return $this->consentimiento()?->fechaFirmaConsentimiento !== null;
+    }
+
+    /**
+     * El texto que el paciente lee y firma: el snapshot ya generado para la
+     * cirugia o, si todavia no hay, la plantilla vigente con sus datos. La
+     * plantilla la trae quien llama, para no consultar desde aca.
+     */
+    public function documentoConsentimiento(?ConfigConsentimiento $vigente): ?string
+    {
+        if ($consentimiento = $this->consentimiento()) {
+            return $consentimiento->textoRenderizadoConsentimiento;
+        }
+
+        return $vigente
+            ? Consentimiento::paraCirugia($vigente->textoConfigConsentimiento, $this->cirugia)
+            : null;
     }
 
     /**
