@@ -38,7 +38,7 @@
                 alt=""
                 class="h-full w-full object-cover blur-sm scale-105 motion-reduce:transform-none"
             >
-            <div class="absolute inset-0 bg-hu-azul/75 backdrop-blur-[2px]"></div>
+            <div class="absolute inset-0 bg-hu-azul/45"></div>
         </div>
 
         <div class="w-full max-w-md">
