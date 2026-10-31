@@ -608,6 +608,19 @@ class PortalAccesoTest extends TestCase
             ->assertSee(route('portal.acceso.solicitar'), false);
     }
 
+    public function test_la_pantalla_de_ingreso_usa_el_fondo_institucional_y_el_portal_autenticado_no(): void
+    {
+        $this->get(route('portal.ingresar'))
+            ->assertOk()
+            ->assertSee('img/portal-fondo.svg', false);
+
+        $this->actingAs($this->maria, 'paciente');
+
+        $this->get(route('portal.inicio'))
+            ->assertOk()
+            ->assertDontSee('img/portal-fondo.svg', false);
+    }
+
     public function test_la_nav_del_portal_tiene_las_tres_secciones_con_etiquetas_cortas(): void
     {
         $this->actingAs($this->maria, 'paciente');

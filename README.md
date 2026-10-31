@@ -339,6 +339,48 @@ ver: la hoja de estilos viene subseteada para que pese poco.
 
 ---
 
+## Portal del paciente
+
+Es la página para el paciente (`/portal`): se entra con el DNI y un enlace de un solo
+uso por email, con su propio guard (`paciente`) y su propia cookie de sesión, separada
+de la del personal. Cada cirugía tiene siete pestañas, y cada una es un parcial en
+`resources/views/portal/cirugias/secciones/`:
+
+| Pestaña | Qué hace |
+|---|---|
+| Resumen | Datos de la cirugía y "Estado de mi proceso" |
+| Estudios | El paciente sube el resultado de cada estudio pedido |
+| Preanestésica | Responde el cuestionario vigente, una sola vez; queda en solo lectura |
+| Preparación | Indicaciones de ayuno e higiene, con la última ingesta calculada |
+| Consentimiento | Lee el documento en una ventana, marca que lo leyó y confirma dos veces; se guarda el texto firmado con su hash, la fecha, la IP y el navegador |
+| Turnos | Solo un aviso: los turnos se coordinan por los canales habituales del hospital, StartMed no los muestra |
+| Contacto | Datos del hospital y un mensaje para el equipo |
+
+Una cirugía anterior se muestra en solo lectura.
+
+### Datos del hospital (variables `PORTAL_*`)
+
+Esos datos no viven en ninguna tabla, salen del `.env` (ver `config/portal.php`). Todas
+son opcionales: lo que no esté cargado no se muestra, no se inventa.
+
+| Variable | Qué es | Si está vacía |
+|---|---|---|
+| `PORTAL_DIRECCION_HOSPITAL` | Dirección que ve el paciente en el resumen de su cirugía | No aparece la fila |
+| `PORTAL_WHATSAPP_HOSPITAL` | Número de WhatsApp, **solo dígitos con código de país** (ej. `5492994000000`). Arma el botón de la pestaña Contacto | No hay botón de WhatsApp |
+| `PORTAL_TELEFONO_HOSPITAL` | Teléfono, tal como se quiere mostrar | No aparece la fila |
+| `PORTAL_EMAIL_HOSPITAL` | Email de consultas del hospital | No aparece la fila |
+
+Si no hay ninguno cargado, Contacto dice "Consultá en recepción del hospital". Después
+de cambiarlas, `php artisan config:clear`. En Render se cargan a mano en el dashboard,
+igual que el resto de las variables sin valor del Blueprint.
+
+El **mensaje para el equipo** de Contacto no se guarda en la base: se manda por email a
+los gestores de quirófano que tengan `mailInstitucional` cargado. Con
+`MAIL_MAILER=log` (el valor de desarrollo) el mail queda en `storage/logs/laravel.log`
+y no llega a nadie, así que para que funcione de verdad hace falta un SMTP real.
+
+---
+
 ## Administración
 
 `/admin` es el único lado de escritura de datos maestros de la app (crear/editar

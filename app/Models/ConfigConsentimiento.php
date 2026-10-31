@@ -29,6 +29,19 @@ class ConfigConsentimiento extends Model
         ];
     }
 
+    /**
+     * La plantilla que firma hoy un paciente de ese tipo de cirugia. Una sola
+     * definicion para la administracion y para el portal.
+     */
+    public static function vigentePara(int $idTipoCirugia): ?self
+    {
+        return self::query()
+            ->where('idTipoCirugia', $idTipoCirugia)
+            ->whereNull('fechaFinConfigConsentimiento')
+            ->latest('idConfigConsentimiento')
+            ->first();
+    }
+
     public function tipoCirugia(): BelongsTo
     {
         return $this->belongsTo(TipoCirugia::class, 'idTipoCirugia', 'idTipoCirugia');

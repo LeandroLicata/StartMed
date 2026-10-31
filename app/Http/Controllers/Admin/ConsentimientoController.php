@@ -144,9 +144,7 @@ class ConsentimientoController extends Controller
 
     private function vigente(TipoCirugia $tipo): ?ConfigConsentimiento
     {
-        return $tipo->configConsentimientos()
-            ->whereNull('fechaFinConfigConsentimiento')
-            ->first();
+        return ConfigConsentimiento::vigentePara($tipo->idTipoCirugia);
     }
 
     /**

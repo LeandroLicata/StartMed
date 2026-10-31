@@ -8,6 +8,7 @@ use App\Models\Persona;
 use App\Models\Personal;
 use App\Models\PlanObraSocial;
 use App\Support\ResumenCirugia;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -72,11 +73,7 @@ class AvisoCambioCoberturaService
             return;
         }
 
-        $destinatarios = Personal::query()
-            ->whereHas('rolesVigentes', fn ($consulta) => $consulta->where('nombreRol', 'Gestor de quirófano'))
-            ->pluck('mailInstitucional')
-            ->filter(fn ($mail) => filter_var($mail, FILTER_VALIDATE_EMAIL))
-            ->unique();
+        $destinatarios = static::emailsGestores();
 
         if ($destinatarios->isEmpty()) {
             return;
@@ -105,5 +102,20 @@ class AvisoCambioCoberturaService
         return $cobertura
             ? $cobertura->plan?->obrasocial?->nombreObraSocial.' · '.$cobertura->plan?->nombrePlan
             : null;
+    }
+
+    /**
+     * Mails institucionales validos y unicos de los gestores de quirofano con rol vigente.
+     *
+     * @return Collection<int, string>
+     */
+    public static function emailsGestores(): Collection
+    {
+        return Personal::query()
+            ->whereHas('rolesVigentes', fn ($consulta) => $consulta->where('nombreRol', 'Gestor de quirófano'))
+            ->pluck('mailInstitucional')
+            ->filter(fn ($mail) => filter_var($mail, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values();
     }
 }
