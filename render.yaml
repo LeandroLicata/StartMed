@@ -78,6 +78,12 @@ services:
         sync: false
       - key: PORTAL_DIRECCION_HOSPITAL
         sync: false # la que ve el paciente en su cirugia; vacia, no se muestra
+      - key: PORTAL_WHATSAPP_HOSPITAL
+        sync: false # solo digitos con codigo de pais (ej. 5492994000000); vacio, no hay boton de WhatsApp
+      - key: PORTAL_TELEFONO_HOSPITAL
+        sync: false # vacio, no se muestra
+      - key: PORTAL_EMAIL_HOSPITAL
+        sync: false # vacio, no se muestra
 
 # El cron (schedule:run cada minuto, para el chequeo horario de reprogramaciones
 # y la limpieza semanal de huérfanos en Cloudinary) queda afuera a propósito:
