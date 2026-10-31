@@ -15,4 +15,20 @@ return [
      */
     'direccion_hospital' => env('PORTAL_DIRECCION_HOSPITAL'),
 
+    /*
+     * Numero de WhatsApp del hospital (solo digitos con codigo de pais,
+     * por ejemplo 5492994000000). Opcional.
+     */
+    'whatsapp_hospital' => env('PORTAL_WHATSAPP_HOSPITAL'),
+
+    /*
+     * Telefono del hospital, tal como se muestra al paciente. Opcional.
+     */
+    'telefono_hospital' => env('PORTAL_TELEFONO_HOSPITAL'),
+
+    /*
+     * Email de contacto del hospital para consultas del paciente. Opcional.
+     */
+    'email_hospital' => env('PORTAL_EMAIL_HOSPITAL'),
+
 ];

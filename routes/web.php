@@ -19,8 +19,11 @@ use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\Portal\AccesoController as PortalAccesoController;
 use App\Http\Controllers\Portal\AsistenciaController as PortalAsistenciaController;
 use App\Http\Controllers\Portal\CirugiaController as PortalCirugiaController;
+use App\Http\Controllers\Portal\ConsentimientoController as PortalConsentimientoController;
+use App\Http\Controllers\Portal\ContactoController as PortalContactoController;
 use App\Http\Controllers\Portal\EstudioController as PortalEstudioController;
 use App\Http\Controllers\Portal\PerfilController as PortalPerfilController;
+use App\Http\Controllers\Portal\PreanestesicaController as PortalPreanestesicaController;
 use App\Http\Controllers\PortalPacienteController;
 use Illuminate\Support\Facades\Route;
 
@@ -361,6 +364,21 @@ Route::prefix('portal')->name('portal.')->group(function () {
                     Route::get('/estudios/{cirugiaTipoEstudio}/archivo', [PortalEstudioController::class, 'ver'])
                         ->name('estudios.archivo');
                 });
+
+                // --- Gonzalo: cuestionario preanestesico ------------------------
+                Route::post('/preanestesica', [PortalPreanestesicaController::class, 'responder'])
+                    ->middleware('throttle:10,1')
+                    ->name('preanestesica.responder');
+
+                // --- Firma del consentimiento informado -------------------------
+                Route::post('/consentimiento', [PortalConsentimientoController::class, 'firmar'])
+                    ->middleware('throttle:10,1')
+                    ->name('consentimiento.firmar');
+
+                // --- Mensaje para el equipo -------------------------------------
+                Route::post('/contacto', [PortalContactoController::class, 'enviar'])
+                    ->middleware('throttle:5,1')
+                    ->name('contacto');
             });
     });
 });

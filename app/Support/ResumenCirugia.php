@@ -5,6 +5,8 @@ namespace App\Support;
 use App\Models\AutoCirugiaEstado;
 use App\Models\Cirugia;
 use App\Models\CirugiaPersonal;
+use App\Models\ConfigConsentimiento;
+use App\Models\ConfigTipoExamenPreAnestesico;
 use App\Models\ConsentimientoPaciente;
 use App\Models\HisopadoSarm;
 use App\Models\PedidoHemoderivado;
@@ -510,20 +512,50 @@ class ResumenCirugia
     }
 
     /**
-     * Indicaciones de preparación con sus horas, aplanadas para mostrarlas.
+     * El texto que el paciente lee y firma: el snapshot ya generado para la
+     * cirugia o, si todavia no hay, la plantilla vigente con sus datos. La
+     * plantilla la trae quien llama, para no consultar desde aca.
+     */
+    public function documentoConsentimiento(?ConfigConsentimiento $vigente): ?string
+    {
+        if ($consentimiento = $this->consentimiento()) {
+            return $consentimiento->textoRenderizadoConsentimiento;
+        }
+
+        return $vigente
+            ? Consentimiento::paraCirugia($vigente->textoConfigConsentimiento, $this->cirugia)
+            : null;
+    }
+
+    /**
+     * Indicaciones de preparación con sus horas y fecha/hora límite calculada,
+     * aplanadas para mostrarlas.
      *
-     * @return Collection<int, array{bloque: string, indicacion: string, horas: ?int}>
+     * @return Collection<int, array{bloque: string, indicacion: string, horas: ?int, ultimaIngesta: ?Carbon}>
      */
     public function preparacion(): Collection
     {
+        $cuando = $this->cuando();
+
         return collect($this->cirugia->preparacionPacientes->first()?->preparacionPacienteTipoPreparaciones ?? [])
             ->flatMap(fn ($bloque) => collect($bloque->preparacionPacienteTipoPreparacionTipoIndicaciones)
                 ->map(fn ($indicacion) => [
                     'bloque' => $bloque->tipoPreparacion?->nombreTipoPreparacion ?? '',
                     'indicacion' => $indicacion->tipoIndicacion?->nombreTipoIndicacion ?? '',
                     'horas' => $indicacion->hsReglaCantidadIngestaAnteriorCirugia,
+                    'ultimaIngesta' => ($indicacion->hsReglaCantidadIngestaAnteriorCirugia !== null && $cuando)
+                        ? $cuando->copy()->subHours($indicacion->hsReglaCantidadIngestaAnteriorCirugia)
+                        : null,
                 ]))
             ->values();
+    }
+
+    /**
+     * Recordatorio u observaciones de la preparación cargadas por el equipo.
+     */
+    public function recordatorioPreparacion(): ?string
+    {
+        return $this->cirugia->preparacionPacientes->first()?->observacionesPreparacionPaciente;
     }
 
     /**
@@ -534,10 +566,15 @@ class ResumenCirugia
      */
     public function cuestionario(): Collection
     {
-        $config = $this->cirugia->examenCirugiaPreAnestesicas->first()
-            ?->examenPreAnestesicoConfiges->first();
+        $examen = $this->cirugia->examenCirugiaPreAnestesicas
+            ->first(fn ($e) => $e->examenPreAnestesicoConfiges->contains(fn ($c) => $c->examenPreAnestesicoConfigPreguntas->isNotEmpty()))
+            ?? $this->cirugia->examenCirugiaPreAnestesicas->first();
+
+        $config = $examen?->examenPreAnestesicoConfiges->first(fn ($c) => $c->examenPreAnestesicoConfigPreguntas->isNotEmpty())
+            ?? $examen?->examenPreAnestesicoConfiges->first();
 
         return collect($config?->examenPreAnestesicoConfigPreguntas ?? [])
+            ->sortBy(fn ($p) => $p->configTipoExamenPreAnestesicoPregunta?->idConfigTipoExamenPreAnestesicoPregunta ?? $p->idConfigTipoExamenPreAnestesicoPregunta)
             ->map(function ($respondida) {
                 $cerradas = collect($respondida->examenPreAnestesicoConfigPreguntaRespuestas)
                     ->map(fn ($r) => $r->configTipoExamenPreAnestesicoPreguntaRespuesta
@@ -554,6 +591,16 @@ class ResumenCirugia
             })
             ->filter(fn (array $fila) => $fila['pregunta'] !== '')
             ->values();
+    }
+
+    public function cuestionarioRespondido(): bool
+    {
+        return $this->cuestionario()->isNotEmpty();
+    }
+
+    public function cuestionarioVigente(): ?ConfigTipoExamenPreAnestesico
+    {
+        return ConfigTipoExamenPreAnestesico::vigente();
     }
 
     /** @return Collection<int, CirugiaPersonal> */
@@ -597,8 +644,8 @@ class ResumenCirugia
             ],
             [
                 'titulo' => 'Cuestionario preanestésico',
-                'detalle' => $this->cuestionario()->isNotEmpty() ? 'Respondido' : 'Sin responder',
-                'listo' => $this->cuestionario()->isNotEmpty(),
+                'detalle' => $this->cuestionarioRespondido() ? 'Respondido' : 'Sin responder',
+                'listo' => $this->cuestionarioRespondido(),
                 'seccion' => 'preanestesica',
             ],
             [

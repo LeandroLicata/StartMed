@@ -9,6 +9,13 @@
 
 @section('titulo', $caso->procedimiento())
 
+{{--
+    Cuando la cirugia que se esta mostrando es anterior, el nav del layout
+    debe marcar "Historial" en vez de "Proximas". Se usa $navSeccionActiva
+    que el layout lee si existe.
+--}}
+@php($navSeccionActiva = $soloLectura ? 'portal.historial' : null)
+
 @section('contenido')
     <a
         href="{{ $soloLectura ? route('portal.historial') : route('portal.inicio') }}"
@@ -54,9 +61,9 @@
         @include('portal.cirugias.asistencia')
     @endif
 
-    {{-- Una sola fila de pestañas; en pantallas angostas se desplaza en vez de cortarse. --}}
-    <nav class="-mx-4 mt-4 overflow-x-auto px-4 [scrollbar-width:thin] sm:mx-0 sm:px-0" aria-label="Secciones de la cirugía">
-        <ul class="flex gap-2 whitespace-nowrap pb-1">
+    {{-- En celular: una fila con scroll horizontal tactil. En desktop: flex-wrap para que entren todas sin scroll. --}}
+    <nav class="-mx-4 mt-4 overflow-x-auto px-4 [scrollbar-width:thin] sm:mx-0 sm:px-0 lg:overflow-x-visible" aria-label="Secciones de la cirugía">
+        <ul class="flex gap-2 whitespace-nowrap pb-1 lg:flex-wrap lg:whitespace-normal">
             @foreach ($secciones as $clave => [$etiqueta, $icono])
                 @php($activa = $seccion === $clave)
                 <li>

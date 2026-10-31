@@ -15,7 +15,7 @@
             </div>
         </x-tarjeta>
     @else
-        <ul class="flex flex-col gap-3">
+        <ul class="grid gap-3 lg:grid-cols-2">
             @foreach ($casos as $caso)
                 <li>
                     <a

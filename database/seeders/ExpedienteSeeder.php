@@ -34,6 +34,12 @@ class ExpedienteSeeder extends Seeder
 {
     use WithoutModelEvents;
 
+    /**
+     * DNI del paciente que se deja intencionalmente sin indicaciones de preparación
+     * (Jorge Vidal) para poder probar y verificar el estado vacío en cirugías futuras.
+     */
+    public const PACIENTE_SIN_PREPARACION = '20114523';
+
     public function run(): void
     {
         $banco = Establecimiento::firstOrCreate(
@@ -53,7 +59,10 @@ class ExpedienteSeeder extends Seeder
         $config = $this->cuestionario();
 
         foreach (Cirugia::with('paciente', 'tipoCirugia', 'cirugiaEstados.estadoCirugia')->get() as $cirugia) {
-            $this->preparacion($cirugia);
+            // Dejar al menos una cirugía futura sin preparación para probar el estado vacío.
+            if ($cirugia->paciente?->documento !== self::PACIENTE_SIN_PREPARACION) {
+                $this->preparacion($cirugia);
+            }
             $this->consentimiento($cirugia);
             $this->examen($cirugia, $config);
         }
