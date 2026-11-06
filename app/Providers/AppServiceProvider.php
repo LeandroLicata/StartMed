@@ -6,7 +6,11 @@ use App\Support\GestorDocumental;
 use App\Support\GestorDocumentalCloudinary;
 use App\Support\GestorDocumentalLocal;
 use Cloudinary\Cloudinary;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
+use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoTransportFactory;
+use Symfony\Component\Mailer\Transport\Dsn;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,6 +47,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        /*
+         * Brevo no viene como transporte nativo de Laravel; Symfony si lo
+         * trae. Va por la API (`brevo+api`, HTTPS 443) y no por SMTP porque el
+         * plan free de Render bloquea los puertos SMTP salientes.
+         */
+        Mail::extend('brevo', function () {
+            $clave = config('services.brevo.key');
+
+            if (blank($clave)) {
+                throw new InvalidArgumentException('MAIL_MAILER=brevo necesita BREVO_API_KEY.');
+            }
+
+            return (new BrevoTransportFactory)->create(new Dsn('brevo+api', 'default', (string) $clave));
+        });
     }
 }

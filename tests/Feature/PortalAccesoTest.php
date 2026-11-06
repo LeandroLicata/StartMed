@@ -463,6 +463,7 @@ class PortalAccesoTest extends TestCase
             'failover que incluye log' => ['production', 'failover', true],
             'roundrobin sin log ni array' => ['production', 'roundrobin', false],
             'produccion con smtp' => ['production', 'smtp', false],
+            'produccion con brevo' => ['production', 'brevo', false],
             'local con log sigue enviando' => ['local', 'log', false],
             'testing con log sigue enviando' => ['testing', 'log', false],
         ];

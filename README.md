@@ -377,7 +377,57 @@ igual que el resto de las variables sin valor del Blueprint.
 El **mensaje para el equipo** de Contacto no se guarda en la base: se manda por email a
 los gestores de quirófano que tengan `mailInstitucional` cargado. Con
 `MAIL_MAILER=log` (el valor de desarrollo) el mail queda en `storage/logs/laravel.log`
-y no llega a nadie, así que para que funcione de verdad hace falta un SMTP real.
+y no llega a nadie; en el deploy sale por Brevo (ver la sección siguiente).
+
+---
+
+## Envío de mails
+
+| Entorno | `MAIL_MAILER` | Dónde se ve el mail |
+|---|---|---|
+| Desarrollo | `log` (por defecto) | `storage/logs/laravel.log` |
+| Desarrollo, opcional | `smtp` con Mailpit (`MAIL_HOST=127.0.0.1`, `MAIL_PORT=1025`) | `http://localhost:8025`, con formato y links clickeables |
+| Tests | `array` (fijado en `phpunit.xml`) | En memoria, nunca sale |
+| Render | `brevo` | La casilla del destinatario |
+
+**Por qué Brevo y por qué por API.** El plan free de Render bloquea la salida a los
+puertos SMTP (25, 465 y 587) desde septiembre de 2025, así que cualquier SMTP —Gmail,
+o el propio SMTP de Brevo— nunca conecta desde el deploy. Brevo se usa por su API
+HTTPS (puerto 443), que no está bloqueada. Se eligió Brevo porque no hay dominio
+propio: su plan gratis (300 mails/día) deja mandar desde una dirección verificada,
+mientras que Resend o Mailgun exigen un dominio. Laravel no trae Brevo de fábrica: el
+transporte es `symfony/brevo-mailer`, registrado en `AppServiceProvider::boot()`.
+
+**Puesta en marcha (una vez):**
+
+1. Crear la cuenta en [brevo.com](https://www.brevo.com) (plan Free, sin tarjeta).
+2. *Senders, Domains & Dedicated IPs → Senders → Add a sender*: cargar la dirección
+   que va a figurar como remitente y confirmar el mail que Brevo le manda.
+3. *SMTP & API → API keys → Generate a new API key* (empieza con `xkeysib-`). Es la
+   API key, **no** la SMTP key de la misma pantalla.
+4. En el dashboard de Render: `BREVO_API_KEY` con esa clave y `MAIL_FROM_ADDRESS`
+   con el remitente del paso 2, exactamente igual. `MAIL_MAILER=brevo` ya viene del
+   Blueprint.
+
+Para probarlo desde local sin tocar el deploy: poné las dos variables en tu `.env`,
+`MAIL_MAILER=brevo`, `php artisan config:clear`, y pedí el enlace del portal con un DNI
+cuyo `contacto_email_direccion` sea una casilla tuya.
+
+**Si no llega:**
+
+- El error queda en los logs de Render (`LOG_CHANNEL=stderr`), nunca en pantalla: el
+  envío corre después de responder. `MAIL_MAILER=brevo necesita BREVO_API_KEY` es la
+  variable vacía; un `401` es una clave mal copiada o una SMTP key en lugar de la API
+  key; un error de *sender* es un `MAIL_FROM_ADDRESS` que no coincide con el remitente
+  verificado.
+- Una cuenta Brevo nueva puede quedar en revisión unas horas antes de poder enviar.
+- Remitente `@gmail.com` o similar: Brevo no puede firmar por un dominio ajeno, así
+  que **reescribe el remitente** a `<usuario>@<id>.brevosend.com` (el panel de Brevo
+  lo avisa como alerta de DKIM/DMARC). Así llega a la bandeja de entrada, pero el
+  paciente ve esa dirección y un link de "Anular la suscripción" que agrega Brevo.
+  Sirve para la demo; para pacientes reales hace falta un dominio propio autenticado
+  en Brevo (pestaña *Dominios*), y entonces solo cambia `MAIL_FROM_ADDRESS`.
+- El plan gratis agrega el pie de Brevo a cada mail y corta en 300 por día.
 
 ---
 
