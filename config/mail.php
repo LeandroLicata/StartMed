@@ -53,6 +53,15 @@ return [
             'transport' => 'ses',
         ],
 
+        /*
+         * Brevo por su API HTTPS, no por SMTP: el plan free de Render bloquea
+         * la salida a los puertos 25/465/587, asi que un SMTP nunca conecta
+         * desde el deploy. El transporte se registra en AppServiceProvider.
+         */
+        'brevo' => [
+            'transport' => 'brevo',
+        ],
+
         'postmark' => [
             'transport' => 'postmark',
             // 'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
