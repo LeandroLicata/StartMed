@@ -333,8 +333,17 @@ stays open. Decisions that are deliberate, not oversights:
   `local` and `testing`, if the default mailer is `log` or `array` (or a `failover` /
   `roundrobin` that includes one of them, resolved recursively), nothing is emitted or
   sent and a `Log::error` is written **without** link, token or DNI. In those environments
-  patients get no email until a real SMTP is configured. Known limit: only the `log` and
+  patients get no email until a real mailer is configured. Known limit: only the `log` and
   `array` transports are recognised; a custom mailer that dumps mail elsewhere is not.
+
+**Mail in production goes through Brevo's HTTP API, not SMTP** (`MAIL_MAILER=brevo`,
+`BREVO_API_KEY`). Render's free plan blocks outbound SMTP ports (25/465/587), so no SMTP
+server ever connects from the deploy — do not "simplify" this to `smtp`. Laravel has no
+native Brevo transport: `symfony/brevo-mailer` is registered with `Mail::extend('brevo')`
+in `AppServiceProvider::boot()`, and it throws naming `BREVO_API_KEY` when the key is
+missing. Brevo was chosen because there is no own domain: its free plan sends from a
+single verified address, which must match `MAIL_FROM_ADDRESS`. Local stays on `log`
+(or Mailpit), tests on `array`. Setup and troubleshooting are in the README.
 
 Password reset by email is **not** configured (`config/auth.php` `'passwords' => []`) —
 `Usuario` has no email column; the address lives in `Personal.mailInstitucional` /

@@ -41,7 +41,9 @@ envVarGroups:
       - key: CLOUDINARY_MINUTOS_URL
         value: "10"
       - key: MAIL_MAILER
-        value: log
+        value: brevo # por API HTTPS: el plan free bloquea los puertos SMTP (25/465/587); ver README
+      - key: MAIL_FROM_NAME
+        value: StartMed
 
 services:
   - type: web
@@ -76,6 +78,10 @@ services:
         sync: false # ruta al CA cert si el proveedor de MySQL exige TLS (p.ej. Aiven); ver guía
       - key: CLOUDINARY_URL
         sync: false
+      - key: BREVO_API_KEY
+        sync: false # Brevo > SMTP & API > API keys (empieza con xkeysib-); sin ella no sale ningun mail
+      - key: MAIL_FROM_ADDRESS
+        sync: false # tiene que ser el remitente verificado en Brevo (Senders), o Brevo rechaza el envio
       - key: PORTAL_DIRECCION_HOSPITAL
         sync: false # la que ve el paciente en su cirugia; vacia, no se muestra
       - key: PORTAL_WHATSAPP_HOSPITAL
