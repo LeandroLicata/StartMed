@@ -299,7 +299,7 @@ class DemoSeeder extends Seeder
      */
     private function emailDeLaPacienteDemo(): void
     {
-        $persona = $this->persona('García', 'María', '28456789');
+        $persona = $this->persona('García', 'María', '28456789', 'F', '1976-03-14', 'A+');
 
         // Direccion de ejemplo (example.com no existe). Solo se carga si esta
         // vacia, para no pisar un email que alguien le haya puesto.

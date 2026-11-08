@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\AgregarObraSocialRequest;
 use App\Models\Plan;
 use App\Models\PlanObraSocial;
-use App\Services\AvisoCambioCoberturaService; // nuevo
+use App\Services\AvisoCambioCoberturaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -30,6 +30,7 @@ class PerfilController extends Controller
         $planes = Plan::disponiblesParaPaciente();
 
         return view('portal.perfil', [
+            'persona' => $persona->load('grupoSanguineo'),
             'vigentes' => $vigentes,
             'historicas' => $historicas,
             'planes' => $planes,
@@ -46,7 +47,7 @@ class PerfilController extends Controller
             return back()->with('error', 'Solo podés elegir una obra social vigente.');
         }
 
-        $antes = AvisoCambioCoberturaService::predeterminadaDe($persona->idPersona); // nuevo
+        $antes = AvisoCambioCoberturaService::predeterminadaDe($persona->idPersona); 
 
         DB::transaction(function () use ($persona, $elegida) {
             // Se desmarcan solo las demas: si la elegida ya tenia el flag en
@@ -57,7 +58,7 @@ class PerfilController extends Controller
             $elegida->update(['esPredeterminadaPlanObraSocial' => true]);
         });
 
-        AvisoCambioCoberturaService::avisarSiCambio($persona->idPersona, $antes); // nuevo
+        AvisoCambioCoberturaService::avisarSiCambio($persona->idPersona, $antes); 
 
         return redirect()->route('portal.perfil')
             ->with('exito', 'Listo, quedó como tu obra social predeterminada.');
@@ -73,7 +74,7 @@ class PerfilController extends Controller
             return back()->with('error', 'Esa obra social ya estaba dada de baja.');
         }
 
-        $antes = AvisoCambioCoberturaService::predeterminadaDe($persona->idPersona); // nuevo
+        $antes = AvisoCambioCoberturaService::predeterminadaDe($persona->idPersona); 
 
         $eraPredeterminada = $baja->esPredeterminadaPlanObraSocial;
 
@@ -82,7 +83,7 @@ class PerfilController extends Controller
             'esPredeterminadaPlanObraSocial' => false,
         ]);
 
-        AvisoCambioCoberturaService::avisarSiCambio($persona->idPersona, $antes); // nuevo
+        AvisoCambioCoberturaService::avisarSiCambio($persona->idPersona, $antes);
 
         if ($eraPredeterminada) {
             return redirect()->route('portal.perfil')
@@ -106,7 +107,7 @@ class PerfilController extends Controller
             return back()->withInput()->with('error', 'Ya tenés ese plan entre tus obras sociales vigentes.');
         }
 
-        $antes = AvisoCambioCoberturaService::predeterminadaDe($persona->idPersona); // nuevo
+        $antes = AvisoCambioCoberturaService::predeterminadaDe($persona->idPersona);
 
         $nueva = PlanObraSocial::agregar(
             $persona->idPersona,
@@ -114,7 +115,7 @@ class PerfilController extends Controller
             $request->input('nroBeneficiario'),
         );
 
-        AvisoCambioCoberturaService::avisarSiCambio($persona->idPersona, $antes); // nuevo
+        AvisoCambioCoberturaService::avisarSiCambio($persona->idPersona, $antes); 
 
         return redirect()->route('portal.perfil')
             ->with('exito', $nueva->esPredeterminadaPlanObraSocial

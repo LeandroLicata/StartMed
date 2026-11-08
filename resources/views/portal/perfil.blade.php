@@ -84,20 +84,46 @@
             </x-tarjeta>
         </div>
 
-        {{-- Columna derecha: obras sociales anteriores (solo si existen) --}}
-        @if ($historicas->isNotEmpty())
-            <x-tarjeta titulo="Obras sociales anteriores" icono="history">
-                @foreach ($historicas as $cobertura)
-                    <div class="border-b border-hu-gris-suave/60 py-3 last:border-0">
-                        <p class="font-semibold text-hu-gris">
-                            {{ $cobertura->plan?->obrasocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
-                        </p>
-                        <p class="text-sm text-hu-gris-medio">
-                            Dada de baja el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
-                        </p>
+        {{-- Columna derecha: datos personales y obras sociales anteriores --}}
+        <div class="space-y-6">
+            <x-tarjeta titulo="Mis datos" icono="person">
+                <dl class="space-y-3 text-sm">
+                    <div>
+                        <dt class="text-hu-gris-medio">Nombre</dt>
+                        <dd class="font-semibold text-hu-azul">{{ $persona->nombre_completo }}</dd>
                     </div>
-                @endforeach
+                    <div>
+                        <dt class="text-hu-gris-medio">DNI</dt>
+                        <dd class="font-semibold text-hu-azul">{{ $persona->documento }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-hu-gris-medio">Fecha de nacimiento</dt>
+                        <dd class="font-semibold text-hu-azul">{{ $persona->fecha_nacimiento?->format('d/m/Y') ?? 'Sin cargar' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-hu-gris-medio">Grupo sanguíneo</dt>
+                        <dd class="font-semibold text-hu-azul">{{ $persona->grupoSanguineo?->nombreGrupoSanguineo ?? 'Sin cargar' }}</dd>
+                    </div>
+                </dl>
+                <p class="mt-4 text-xs text-hu-gris-medio">
+                    Si algún dato está mal, avisale al hospital desde la pestaña Contacto de tu cirugía.
+                </p>
             </x-tarjeta>
-        @endif
+            @if ($historicas->isNotEmpty())
+                <x-tarjeta titulo="Obras sociales anteriores" icono="history">
+                    @foreach ($historicas as $cobertura)
+                        <div class="border-b border-hu-gris-suave/60 py-3 last:border-0">
+                            <p class="font-semibold text-hu-gris">
+                                {{ $cobertura->plan?->obrasocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
+                            </p>
+                            <p class="text-sm text-hu-gris-medio">
+                                Dada de baja el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
+                            </p>
+                        </div>
+                    @endforeach
+                </x-tarjeta>
+            @endif
+        </div>
+
     </div>
 @endsection
