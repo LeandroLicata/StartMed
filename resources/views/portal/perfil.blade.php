@@ -109,6 +109,59 @@
                     Si algún dato está mal, avisale al hospital desde la pestaña Contacto de tu cirugía.
                 </p>
             </x-tarjeta>
+            <x-tarjeta titulo="Mis datos de contacto" icono="call">
+                <form method="POST" action="{{ route('portal.perfil.datos') }}" class="space-y-4">
+                    @csrf
+                    @method('PATCH')
+
+                    {{--Teléfono fijo: código de área chico, número más ancho --}}
+                    <div class="grid grid-cols-3 gap-3">
+                        <x-input
+                            nombre="telefono_codigo"
+                            etiqueta="Código de área" 
+                            placeholder="261"
+                            :valor="$persona->telefono_codigo"
+                        />
+                        <div class="col-span-2">
+                            <x-input
+                                nombre="telefono_numero"
+                                etiqueta="Teléfono fijo" 
+                                placeholder="4251234"
+                                :valor="$persona->telefono_numero"
+                            />
+                        </div>
+                    </div>
+
+                    {{-- Celular: mismo formato --}}
+                    <div class="grid grid-cols-3 gap-3">
+                        <x-input
+                            nombre="contacto_celular_codigo"
+                            etiqueta="Código de área" 
+                            placeholder="261"
+                            :valor="$persona->contacto_celular_codigo"
+                        />
+                        <div class="col-span-2">
+                            <x-input
+                                nombre="contacto_celular_numero"
+                                etiqueta="Celular"
+                                placeholder="5551234"
+                                :valor="$persona->contacto_celular_numero"
+                            />
+                        </div>
+                    </div>
+
+                    <x-checkbox
+                        nombre="no_acepta_donacion_sanguinea"
+                        etiqueta="No acepto recibir transfusiones de sangre"
+                        ayuda="El equipo médico lo tiene en cuenta antes de tu cirugía."
+                        :valor="$persona->no_acepta_donacion_sanguinea"
+                    />
+
+                    <div class="flex justify-end">
+                        <x-boton forma="grupo">Guardar</x-boton>
+                    </div>
+                </form>
+            </x-tarjeta>
             @if ($historicas->isNotEmpty())
                 <x-tarjeta titulo="Obras sociales anteriores" icono="history">
                     @foreach ($historicas as $cobertura)
