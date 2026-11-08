@@ -10,6 +10,7 @@ use App\Services\AvisoCambioCoberturaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use App\Http\Requests\Portal\ActualizarDatosRequest;
 
 /**
  * Perfil del paciente: datos personales y obras sociales.
@@ -35,6 +36,21 @@ class PerfilController extends Controller
             'historicas' => $historicas,
             'planes' => $planes,
         ]);
+    }
+    
+    /**
+     * Guarda solo los datos que el paciente puede editar: teléfonos y donación.
+     * Lo de solo lectura (DNI, nacimiento, grupo) queda afuera porque no está
+     * en las reglas del request, y validated() devuelve solo lo validado.
+     */
+    public function actualizarDatos(ActualizarDatosRequest $request): RedirectResponse
+    {
+        $persona = auth('paciente')->user();
+
+        $persona->update($request->validated());
+
+        return redirect()->route('portal.perfil')
+            ->with('exito', 'Tus datos quedaron guardados.');
     }
 
     public function marcarPredeterminada(int $cobertura): RedirectResponse

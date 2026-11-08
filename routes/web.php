@@ -330,8 +330,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/', [PortalCirugiaController::class, 'proximas'])->name('inicio');
         Route::get('/historial', [PortalCirugiaController::class, 'historial'])->name('historial');
 
-        // --- Perfil y obras sociales ----------------------------------------
+        // --- Perfil: datos personales y obras sociales ----------------------
         Route::get('/perfil', [PortalPerfilController::class, 'show'])->name('perfil');
+        Route::patch('/perfil/datos', [PortalPerfilController::class, 'actualizarDatos'])->name('perfil.datos');
         Route::patch('/perfil/obras-sociales/{cobertura}/predeterminada', [PortalPerfilController::class, 'marcarPredeterminada'])
             ->whereNumber('cobertura')
             ->name('perfil.predeterminada');
@@ -379,6 +380,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
                 Route::post('/contacto', [PortalContactoController::class, 'enviar'])
                     ->middleware('throttle:5,1')
                     ->name('contacto');
+
+                
+                Route::patch('/perfil/datos', [PortalPerfilController::class, 'actualizarDatos'])->name('perfil.datos');
             });
     });
 });
