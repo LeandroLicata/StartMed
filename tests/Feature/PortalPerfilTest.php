@@ -259,4 +259,81 @@ class PortalPerfilTest extends TestCase
             'nroBeneficiario' => '',
         ])->assertSessionHasErrors('nroBeneficiario');
     }
+        // --- Mis datos y datos de contacto ------------------------------------
+
+    public function test_el_perfil_muestra_los_datos_de_solo_lectura(): void
+    {
+        $this->get(route('portal.perfil'))
+            ->assertOk()
+            ->assertSee('28456789')
+            ->assertSee('14/03/1976')
+            ->assertSee('A+');
+    }
+
+    public function test_el_paciente_actualiza_telefonos_y_donacion(): void
+    {
+        $this->patch(route('portal.perfil.datos'), [
+            'telefono_codigo' => '261',
+            'telefono_numero' => '4251234',
+            'contacto_celular_codigo' => '261',
+            'contacto_celular_numero' => '5551234',
+            'no_acepta_donacion_sanguinea' => '1',
+        ])
+            ->assertRedirect(route('portal.perfil'))
+            ->assertSessionHas('exito');
+
+        $maria = $this->maria->fresh();
+
+        $this->assertSame('4251234', $maria->telefono_numero);
+        $this->assertSame('5551234', $maria->contacto_celular_numero);
+        $this->assertTrue($maria->no_acepta_donacion_sanguinea);
+    }
+
+    public function test_destildar_la_donacion_la_guarda_en_falso(): void
+    {
+        $this->maria->update(['no_acepta_donacion_sanguinea' => true]);
+
+        // Una casilla destildada no viaja en el formulario: no mandamos el campo.
+        $this->patch(route('portal.perfil.datos'), [
+            'contacto_celular_numero' => '5551234',
+        ]);
+
+        $this->assertFalse($this->maria->fresh()->no_acepta_donacion_sanguinea);
+    }
+
+    public function test_un_patch_con_campos_de_solo_lectura_no_los_cambia(): void
+    {
+        $antes = $this->maria->fresh();
+
+        $this->patch(route('portal.perfil.datos'), [
+            'contacto_celular_numero' => '5551234',
+            // Todo esto es "trampa": no está en las reglas del request.
+            'documento' => '99999999',
+            'nombres' => 'Otra',
+            'fecha_nacimiento' => '2000-01-01',
+            'grupo_sanguineo_id' => null,
+            'contacto_email_direccion' => 'trucho@example.com',
+        ])->assertRedirect(route('portal.perfil'));
+
+        $despues = $this->maria->fresh();
+
+        // Lo editable sí se guardó...
+        $this->assertSame('5551234', $despues->contacto_celular_numero);
+
+        // ...pero lo de solo lectura quedó igual.
+        $this->assertSame($antes->documento, $despues->documento);
+        $this->assertSame($antes->nombres, $despues->nombres);
+        $this->assertEquals($antes->fecha_nacimiento, $despues->fecha_nacimiento);
+        $this->assertSame($antes->grupo_sanguineo_id, $despues->grupo_sanguineo_id);
+        $this->assertSame($antes->contacto_email_direccion, $despues->contacto_email_direccion);
+    }
+
+    public function test_un_telefono_con_letras_no_se_guarda(): void
+    {
+        $this->patch(route('portal.perfil.datos'), [
+            'contacto_celular_numero' => 'abc123',
+        ])->assertSessionHasErrors('contacto_celular_numero');
+
+        $this->assertNull($this->maria->fresh()->contacto_celular_numero);
+    }
 }
