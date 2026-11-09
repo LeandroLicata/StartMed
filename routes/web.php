@@ -340,6 +340,13 @@ Route::prefix('portal')->name('portal.')->group(function () {
             ->whereNumber('cobertura')
             ->name('perfil.baja');
         Route::post('/perfil/obras-sociales', [PortalPerfilController::class, 'agregar'])->name('perfil.agregar');
+        Route::post('/perfil/email', [PortalPerfilController::class, 'solicitarCambioEmail'])
+            ->middleware('throttle:5,1')
+            ->name('perfil.email');
+        Route::get('/perfil/email/confirmar/{persona}', [PortalPerfilController::class, 'confirmarCambioEmail'])
+            ->whereNumber('persona')
+            ->middleware('signed')
+            ->name('perfil.email.confirmar');
 
         // --- Detalle de una cirugia (pertenencia verificada) -----------------
         Route::prefix('cirugias/{cirugia}')

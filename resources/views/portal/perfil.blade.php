@@ -162,6 +162,27 @@
                     </div>
                 </form>
             </x-tarjeta>
+            <x-tarjeta titulo="Mi email" icono="mail">
+                <p class="text-sm text-hu-gris-medio">Email actual</p>
+                <p class="mb-4 font-semibold text-hu-azul">{{ $persona->contacto_email_direccion ?? 'Sin cargar' }}</p>
+
+                <form method="POST" action="{{ route('portal.perfil.email') }}" class="space-y-4">
+                    @csrf
+
+                    <x-input
+                        nombre="email_nuevo"
+                        tipo="email"
+                        etiqueta="Email nuevo"
+                        placeholder="nombre@ejemplo.com"
+                        ayuda="Te vamos a mandar un link a este email para confirmar que es tuyo."
+                        requerido
+                    />
+
+                    <div class="flex justify-end">
+                        <x-boton forma="grupo">Cambiar email</x-boton>
+                    </div>
+                </form>
+            </x-tarjeta>
             @if ($historicas->isNotEmpty())
                 <x-tarjeta titulo="Obras sociales anteriores" icono="history">
                     @foreach ($historicas as $cobertura)
