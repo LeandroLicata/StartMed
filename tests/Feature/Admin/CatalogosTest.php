@@ -12,6 +12,7 @@ use App\Support\Catalogos;
 use App\Support\FiltroBaja;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -641,13 +642,13 @@ class CatalogosTest extends TestCase
     public function test_el_conteo_de_usos_no_dispara_una_consulta_por_fila(): void
     {
         $contar = function (): int {
-            \DB::flushQueryLog();
-            \DB::enableQueryLog();
+            DB::flushQueryLog();
+            DB::enableQueryLog();
             $this->actingAs($this->admin())
                 ->get(route('admin.catalogos.index', 'tipo-estudio'))
                 ->assertOk();
-            $n = count(\DB::getQueryLog());
-            \DB::disableQueryLog();
+            $n = count(DB::getQueryLog());
+            DB::disableQueryLog();
 
             return $n;
         };
