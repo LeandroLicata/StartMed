@@ -401,7 +401,8 @@ option in the user form.
 ### Routing / frontend
 
 Server-rendered Blade — there is no React and no JSON API. The only app JavaScript is
-the mobile sidebar toggle in `resources/js/app.js`.
+`resources/js/app.js`: the mobile sidebar toggle and the `<dialog>` confirmation handler
+(see Brand and UI components).
 
 | route | role | view |
 |---|---|---|
@@ -415,8 +416,31 @@ the mobile sidebar toggle in `resources/js/app.js`.
 | `/admin/usuarios/…`, `/admin/consentimientos/…`, `/admin/precios/…`, `/admin/auditoria` | Administrador | `admin/*` |
 | `/admin/cuestionario/…` | Administrador, **Anestesista** | `admin/cuestionario/*` |
 
-Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
-`layouts/guest` (login). Views use `@extends` / `@section('contenido')`.
+The patient portal (guard `paciente`, see Authentication) has its own table. Route names
+are `portal.*`; everything except the access and email-confirmation links requires
+`auth:paciente`.
+
+| route | access | view |
+|---|---|---|
+| `/portal/ingresar`, `/portal/acceso/{persona}/{nonce}` | public (DNI → one-time link) | `portal/ingresar`, `portal/acceso-confirmar` |
+| `/portal/entrar-local/{documento?}` | public, **`local` only** | — (logs in as a demo patient) |
+| `/portal` (próximas), `/portal/historial` | patient | `portal/cirugias/lista` |
+| `/portal/cirugias/{cirugia}/{seccion?}` | patient, **own surgery** (else 404) | `portal/cirugias/show` + `secciones/*` |
+| `/portal/perfil` (data, contact, coverages, email) | patient | `portal/perfil` |
+| `/portal/perfil/email/confirmar/{persona}/{nonce}` | public (one-time link) | `portal/cambio-email-confirmar` |
+
+The surgery detail is one view with a tab per section, each a partial in
+`portal/cirugias/secciones/`: `resumen`, `estudios`, `preanestesica`, `preparacion`,
+`consentimiento`, `turnos`, `contacto`. They are declared in
+`Portal\CirugiaController::SECCIONES` (label + icon), which also constrains `{seccion}`;
+a new tab goes there plus its partial. Its writes (asistencia, estudios, preanestésica,
+consentimiento, contacto) are POSTs under the same `cirugias/{cirugia}` subgroup.
+
+Three layouts: `layouts/app` (sidebar + header, for staff screens), `layouts/guest`
+(staff login) and `layouts/portal` (the patient portal: top nav with Próximas /
+Historial / Perfil; with `@section('pantalla-ingreso')` it drops the nav and centres a
+card over the institutional background, for screens reachable without a session). Views
+use `@extends` / `@section('contenido')`.
 
 ### Administración — the only write side of the app
 
@@ -619,8 +643,10 @@ file is still the app's entire JavaScript — keep it that way; a confirmation l
 would outweigh the whole bundle and fight the brand tokens.
 
 Icons are Material Symbols, loaded from a **subsetted** stylesheet. **A new icon must
-be added to the `icon_names` list in `layouts/app.blade.php` or it silently will not
-render.** The `FILL` axis is what makes the active nav item solid and the rest outline.
+be added to the `icon_names` list of the layout that renders it or it silently will not
+render** — each of `layouts/app`, `layouts/guest` and `layouts/portal` carries its own
+list, so an icon used in the portal goes in `layouts/portal.blade.php`. The `FILL` axis
+is what makes the active nav item solid and the rest outline.
 
 ### Known gaps — do not assume these work
 
@@ -653,6 +679,10 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   coverages, mark the default one, end one and add a new one.
 - **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
   disabled; a `Persona` who is not staff has no screen of its own.
+- **Gender is not shown in the patient profile.** `Persona.genero` exists (one letter,
+  nullable) and the demo seeds it, but `/portal/perfil` neither shows nor edits it: the
+  requirements leave it «A definir» (read-only like the DNI? editable? which values?).
+  Pending a team decision, not an oversight.
 - **Nobody is told when a patient changes their transfusion refusal.** From
   `/portal/perfil` the patient edits `Persona.no_acepta_donacion_sanguinea` (the column
   name says "donación" but it means *refuses to receive* blood), and it is saved silently
