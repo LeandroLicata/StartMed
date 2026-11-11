@@ -335,6 +335,9 @@ stays open. Decisions that are deliberate, not oversights:
   sent and a `Log::error` is written **without** link, token or DNI. In those environments
   patients get no email until a real mailer is configured. Known limit: only the `log` and
   `array` transports are recognised; a custom mailer that dumps mail elsewhere is not.
+  The check is `App\Support\MailerSeguro::exponeLosMails()`, shared on purpose: **any
+  mail carrying a link that grants something** (logging in, confirming a new email) asks
+  it before emitting the link, not just the access flow.
 
 **Mail in production goes through Brevo's HTTP API, not SMTP** (`MAIL_MAILER=brevo`,
 `BREVO_API_KEY`). Render's free plan blocks outbound SMTP ports (25/465/587), so no SMTP

@@ -357,7 +357,7 @@ class CatalogosTest extends TestCase
      * estados y roles se administran con normalidad.
      */
     #[DataProvider('filasDelSistema')]
-    public function test_las_demas_filas_del_mismo_catalogo_si_se_editan(string $slug): void
+    public function test_las_demas_filas_del_mismo_catalogo_si_se_editan(string $slug, string $protegida): void
     {
         $config = Catalogos::buscar($slug);
         $columna = Catalogos::columnaTitulo($config);
@@ -371,6 +371,7 @@ class CatalogosTest extends TestCase
             ->assertSessionHas('exito');
 
         $this->assertSame('Fila de prueba revisada', $registro->fresh()->$columna);
+        $this->assertTrue($config['modelo']::where($columna, $protegida)->exists(), 'La fila protegida de al lado no se toca.');
 
         $this->actingAs($this->admin())
             ->delete(route('admin.catalogos.destroy', [$slug, $registro->getKey()]))
