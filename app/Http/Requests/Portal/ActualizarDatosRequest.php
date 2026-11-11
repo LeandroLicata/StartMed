@@ -42,6 +42,7 @@ class ActualizarDatosRequest extends FormRequest
             'contacto_celular_numero' => 'número de celular',
         ];
     }
+
     public function messages(): array
     {
         return [

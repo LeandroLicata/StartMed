@@ -259,7 +259,7 @@ class PortalPerfilTest extends TestCase
             'nroBeneficiario' => '',
         ])->assertSessionHasErrors('nroBeneficiario');
     }
-        // --- Mis datos y datos de contacto ------------------------------------
+    // --- Mis datos y datos de contacto ------------------------------------
 
     public function test_el_perfil_muestra_los_datos_de_solo_lectura(): void
     {

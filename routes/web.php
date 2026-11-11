@@ -387,9 +387,6 @@ Route::prefix('portal')->name('portal.')->group(function () {
                 Route::post('/contacto', [PortalContactoController::class, 'enviar'])
                     ->middleware('throttle:5,1')
                     ->name('contacto');
-
-                
-                Route::patch('/perfil/datos', [PortalPerfilController::class, 'actualizarDatos'])->name('perfil.datos');
             });
     });
 });
