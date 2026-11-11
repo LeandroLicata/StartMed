@@ -12,6 +12,7 @@ use App\Support\Catalogos;
 use App\Support\FiltroBaja;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -356,7 +357,7 @@ class CatalogosTest extends TestCase
      * estados y roles se administran con normalidad.
      */
     #[DataProvider('filasDelSistema')]
-    public function test_las_demas_filas_del_mismo_catalogo_si_se_editan(string $slug): void
+    public function test_las_demas_filas_del_mismo_catalogo_si_se_editan(string $slug, string $protegida): void
     {
         $config = Catalogos::buscar($slug);
         $columna = Catalogos::columnaTitulo($config);
@@ -370,6 +371,7 @@ class CatalogosTest extends TestCase
             ->assertSessionHas('exito');
 
         $this->assertSame('Fila de prueba revisada', $registro->fresh()->$columna);
+        $this->assertTrue($config['modelo']::where($columna, $protegida)->exists(), 'La fila protegida de al lado no se toca.');
 
         $this->actingAs($this->admin())
             ->delete(route('admin.catalogos.destroy', [$slug, $registro->getKey()]))
@@ -641,13 +643,13 @@ class CatalogosTest extends TestCase
     public function test_el_conteo_de_usos_no_dispara_una_consulta_por_fila(): void
     {
         $contar = function (): int {
-            \DB::flushQueryLog();
-            \DB::enableQueryLog();
+            DB::flushQueryLog();
+            DB::enableQueryLog();
             $this->actingAs($this->admin())
                 ->get(route('admin.catalogos.index', 'tipo-estudio'))
                 ->assertOk();
-            $n = count(\DB::getQueryLog());
-            \DB::disableQueryLog();
+            $n = count(DB::getQueryLog());
+            DB::disableQueryLog();
 
             return $n;
         };

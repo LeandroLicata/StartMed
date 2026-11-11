@@ -9,6 +9,7 @@ use Database\Seeders\ExpedienteSeeder;
 use Database\Seeders\HistorialSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PanelesTest extends TestCase
@@ -243,11 +244,11 @@ class PanelesTest extends TestCase
         $usuario = $this->usuario('gonzalez');
 
         $contar = function (string $ruta) use ($usuario): int {
-            \DB::flushQueryLog();
-            \DB::enableQueryLog();
+            DB::flushQueryLog();
+            DB::enableQueryLog();
             $this->actingAs($usuario)->get($ruta)->assertOk();
-            $n = count(\DB::getQueryLog());
-            \DB::disableQueryLog();
+            $n = count(DB::getQueryLog());
+            DB::disableQueryLog();
 
             return $n;
         };

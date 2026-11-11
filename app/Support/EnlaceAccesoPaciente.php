@@ -42,12 +42,6 @@ class EnlaceAccesoPaciente
     /** Cuanto espera un pedido por el lock antes de rendirse. */
     private const ESPERA_LOCK_SEGUNDOS = 2;
 
-    /** Transportes que dejan el mail legible en el servidor en vez de entregarlo. */
-    private const TRANSPORTES_QUE_EXPONEN = ['log', 'array'];
-
-    /** Transportes que delegan en otros mailers de `config('mail.mailers')`. */
-    private const TRANSPORTES_COMPUESTOS = ['failover', 'roundrobin'];
-
     /**
      * Devuelve la URL firmada que se manda por mail.
      *
@@ -100,50 +94,6 @@ class EnlaceAccesoPaciente
             // No se pudo verificar con seguridad: el link no sirve (se pide otro).
             return false;
         }
-    }
-
-    /**
-     * ¿El mailer por defecto dejaria el link legible en el servidor? Con
-     * `log` el mail entero, link incluido, se escribe en el log, y quien lo lea
-     * entra como el paciente: por eso fuera de `local` y `testing` no se emite
-     * ni se manda nada. Tambien mira `failover` y `roundrobin`, que valen lo que
-     * valga el peor de sus mailers.
-     *
-     * Limite conocido: solo ve los transportes `log` y `array`. Un mailer
-     * propio que escriba el mail en otro lado no se detecta.
-     */
-    public static function mailerExponeElEnlace(): bool
-    {
-        if (app()->environment('local', 'testing')) {
-            return false;
-        }
-
-        return self::exponeElMail((string) config('mail.default'));
-    }
-
-    /** @param  list<string>  $visitados  corta los ciclos entre mailers compuestos */
-    private static function exponeElMail(string $mailer, array $visitados = []): bool
-    {
-        if (in_array($mailer, $visitados, true)) {
-            return false;
-        }
-
-        $config = config("mail.mailers.{$mailer}") ?? [];
-        $transporte = $config['transport'] ?? $mailer;
-
-        if (in_array($transporte, self::TRANSPORTES_QUE_EXPONEN, true)) {
-            return true;
-        }
-
-        if (in_array($transporte, self::TRANSPORTES_COMPUESTOS, true)) {
-            foreach ($config['mailers'] ?? [] as $hijo) {
-                if (self::exponeElMail((string) $hijo, [...$visitados, $mailer])) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     /** @throws LockTimeoutException */
