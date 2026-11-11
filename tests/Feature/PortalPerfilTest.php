@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\PlanObraSocial;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -354,5 +355,18 @@ class PortalPerfilTest extends TestCase
         ])->assertSessionHasErrors('contacto_celular_numero');
 
         $this->assertNull($this->maria->fresh()->contacto_celular_numero);
+    }
+
+    // --- Cambio de email ---------------------------------------------------
+
+    public function test_pedir_el_mismo_email_con_otras_mayusculas_se_rechaza(): void
+    {
+        Mail::fake();
+
+        $this->post(route('portal.perfil.email'), [
+            'email_nuevo' => strtoupper($this->maria->contacto_email_direccion),
+        ])->assertSessionHasErrors(['email_nuevo' => 'Ese ya es tu email actual.']);
+
+        Mail::assertNothingSent();
     }
 }
