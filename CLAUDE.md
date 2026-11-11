@@ -653,6 +653,13 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   coverages, mark the default one, end one and add a new one.
 - **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
   disabled; a `Persona` who is not staff has no screen of its own.
+- **Nobody is told when a patient changes their transfusion refusal.** From
+  `/portal/perfil` the patient edits `Persona.no_acepta_donacion_sanguinea` (the column
+  name says "donación" but it means *refuses to receive* blood), and it is saved silently
+  — unlike a change of default coverage, which `AvisoCambioCoberturaService` mails to the
+  gestores. A patient ticking it the day before a surgery with hemoderivados requested
+  goes unnoticed. Whether to notify (gestor? cirujano? anestesista?) and whether to show
+  it in the expediente is an open team decision, left out of the profile PR on purpose.
 - **Domain dates are local time, not UTC.** Everything except the audit trail is
   stored as Argentine time with no zone (see Schema conventions). It is consistent
   and correct today, but it relies on Argentina keeping a fixed offset with no daylight
