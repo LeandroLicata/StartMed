@@ -12,16 +12,11 @@ class ActualizarDatosRequest extends FormRequest
     }
 
     /**
-     * Una casilla destildada no se manda en el formulario.
-     * Acá la convertimos en true/false para que siempre llegue.
+     * Un campo que no viene queda como estaba. La casilla destildada igual
+     * llega, como 0: `<x-checkbox>` manda un hidden antes del checkbox. Por eso
+     * no se rellena la ausencia con false, que borraria el rechazo de
+     * transfusiones ante cualquier pedido que no lo incluya.
      */
-    protected function prepareForValidation(): void
-    {
-        $this->merge([
-            'no_acepta_donacion_sanguinea' => $this->boolean('no_acepta_donacion_sanguinea'),
-        ]);
-    }
-
     public function rules(): array
     {
         return [
@@ -29,7 +24,7 @@ class ActualizarDatosRequest extends FormRequest
             'telefono_numero' => ['nullable', 'regex:/^\d+$/', 'max:20'],
             'contacto_celular_codigo' => ['nullable', 'regex:/^\d+$/', 'max:10'],
             'contacto_celular_numero' => ['nullable', 'regex:/^\d+$/', 'max:20'],
-            'no_acepta_donacion_sanguinea' => ['required', 'boolean'],
+            'no_acepta_donacion_sanguinea' => ['sometimes', 'boolean'],
         ];
     }
 

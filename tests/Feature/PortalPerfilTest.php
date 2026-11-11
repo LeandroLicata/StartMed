@@ -293,12 +293,31 @@ class PortalPerfilTest extends TestCase
     {
         $this->maria->update(['no_acepta_donacion_sanguinea' => true]);
 
-        // Una casilla destildada no viaja en el formulario: no mandamos el campo.
+        // Destildada llega como 0: <x-checkbox> manda un hidden antes del checkbox.
         $this->patch(route('portal.perfil.datos'), [
             'contacto_celular_numero' => '5551234',
-        ]);
+            'no_acepta_donacion_sanguinea' => '0',
+        ])->assertSessionHasNoErrors();
 
         $this->assertFalse($this->maria->fresh()->no_acepta_donacion_sanguinea);
+    }
+
+    public function test_un_patch_sin_la_casilla_no_borra_el_rechazo_de_transfusiones(): void
+    {
+        $this->maria->update(['no_acepta_donacion_sanguinea' => true]);
+
+        $this->patch(route('portal.perfil.datos'), [
+            'contacto_celular_numero' => '5551234',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertTrue($this->maria->fresh()->no_acepta_donacion_sanguinea);
+    }
+
+    public function test_el_formulario_manda_la_casilla_aunque_este_destildada(): void
+    {
+        $this->get(route('portal.perfil'))
+            ->assertOk()
+            ->assertSee('<input type="hidden" name="no_acepta_donacion_sanguinea" value="0">', false);
     }
 
     public function test_un_patch_con_campos_de_solo_lectura_no_los_cambia(): void
