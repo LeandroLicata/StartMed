@@ -7,6 +7,7 @@ use App\Http\Requests\Portal\SolicitarAccesoRequest;
 use App\Mail\EnlaceAccesoPortal;
 use App\Models\Persona;
 use App\Support\EnlaceAccesoPaciente;
+use App\Support\MailerSeguro;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -186,7 +187,7 @@ class AccesoController extends Controller
             // Con un mailer que escribe el mail en el servidor (`log`) el link
             // quedaria legible y serviria para entrar: ni se emite ni se manda.
             // Nada del link, del nonce ni del DNI va al log.
-            if (EnlaceAccesoPaciente::mailerExponeElEnlace()) {
+            if (MailerSeguro::exponeLosMails()) {
                 Log::error('Portal: el mailer por defecto («'.config('mail.default').'») deja los mails legibles en el servidor; '
                     .'no se emitió ni se envió el enlace de acceso. Configurá un mailer real (MAIL_MAILER).');
 

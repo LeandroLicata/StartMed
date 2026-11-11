@@ -454,49 +454,6 @@ class PortalAccesoTest extends TestCase
         $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
-    public static function mailers(): array
-    {
-        return [
-            'produccion con log' => ['production', 'log', true],
-            'produccion con array' => ['production', 'array', true],
-            'staging con log' => ['staging', 'log', true],
-            'failover que incluye log' => ['production', 'failover', true],
-            'roundrobin sin log ni array' => ['production', 'roundrobin', false],
-            'produccion con smtp' => ['production', 'smtp', false],
-            'produccion con brevo' => ['production', 'brevo', false],
-            'local con log sigue enviando' => ['local', 'log', false],
-            'testing con log sigue enviando' => ['testing', 'log', false],
-        ];
-    }
-
-    #[DataProvider('mailers')]
-    public function test_detecta_si_el_mailer_deja_el_enlace_legible(string $entorno, string $mailer, bool $expone): void
-    {
-        $this->app['env'] = $entorno;
-        config(['mail.default' => $mailer]);
-
-        $this->assertSame($expone, EnlaceAccesoPaciente::mailerExponeElEnlace());
-    }
-
-    public function test_un_failover_o_roundrobin_se_revisa_mailer_por_mailer(): void
-    {
-        $this->app['env'] = 'production';
-        config([
-            'mail.default' => 'compuesto',
-            'mail.mailers.compuesto' => ['transport' => 'failover', 'mailers' => ['smtp', 'anidado']],
-            'mail.mailers.anidado' => ['transport' => 'roundrobin', 'mailers' => ['ses', 'log']],
-        ]);
-
-        $this->assertTrue(EnlaceAccesoPaciente::mailerExponeElEnlace());
-
-        config(['mail.mailers.anidado.mailers' => ['ses', 'postmark']]);
-        $this->assertFalse(EnlaceAccesoPaciente::mailerExponeElEnlace());
-
-        // Un ciclo entre mailers no cuelga la verificacion.
-        config(['mail.mailers.anidado.mailers' => ['compuesto']]);
-        $this->assertFalse(EnlaceAccesoPaciente::mailerExponeElEnlace());
-    }
-
     #[DataProvider('mailersQueExponen')]
     public function test_con_un_mailer_que_deja_el_enlace_legible_no_se_emite_ni_se_manda_nada(string $entorno, string $mailer): void
     {

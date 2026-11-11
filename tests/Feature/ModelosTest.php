@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use ReflectionClass;
 use ReflectionMethod;
@@ -73,7 +74,7 @@ class ModelosTest extends TestCase
             'strtolower',
             array_column(
                 json_decode(json_encode(
-                    \DB::connection()->getSchemaBuilder()->getTables()
+                    DB::connection()->getSchemaBuilder()->getTables()
                 ), true),
                 'name'
             )

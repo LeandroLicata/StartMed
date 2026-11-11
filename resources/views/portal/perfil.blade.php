@@ -84,20 +84,120 @@
             </x-tarjeta>
         </div>
 
-        {{-- Columna derecha: obras sociales anteriores (solo si existen) --}}
-        @if ($historicas->isNotEmpty())
-            <x-tarjeta titulo="Obras sociales anteriores" icono="history">
-                @foreach ($historicas as $cobertura)
-                    <div class="border-b border-hu-gris-suave/60 py-3 last:border-0">
-                        <p class="font-semibold text-hu-gris">
-                            {{ $cobertura->plan?->obrasocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
-                        </p>
-                        <p class="text-sm text-hu-gris-medio">
-                            Dada de baja el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
-                        </p>
+        {{-- Columna derecha: datos personales y obras sociales anteriores --}}
+        <div class="space-y-6">
+            <x-tarjeta titulo="Mis datos" icono="person">
+                <dl class="space-y-3 text-sm">
+                    <div>
+                        <dt class="text-hu-gris-medio">Nombre</dt>
+                        <dd class="font-semibold text-hu-azul">{{ $persona->nombre_completo }}</dd>
                     </div>
-                @endforeach
+                    <div>
+                        <dt class="text-hu-gris-medio">DNI</dt>
+                        <dd class="font-semibold text-hu-azul">{{ $persona->documento }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-hu-gris-medio">Fecha de nacimiento</dt>
+                        <dd class="font-semibold text-hu-azul">{{ $persona->fecha_nacimiento?->format('d/m/Y') ?? 'Sin cargar' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-hu-gris-medio">Grupo sanguíneo</dt>
+                        <dd class="font-semibold text-hu-azul">{{ $persona->grupoSanguineo?->nombreGrupoSanguineo ?? 'Sin cargar' }}</dd>
+                    </div>
+                </dl>
+                <p class="mt-4 text-xs text-hu-gris-medio">
+                    Si algún dato está mal, avisale al hospital desde la pestaña Contacto de tu cirugía.
+                </p>
             </x-tarjeta>
-        @endif
+            <x-tarjeta titulo="Mis datos de contacto" icono="call">
+                <form method="POST" action="{{ route('portal.perfil.datos') }}" class="space-y-4">
+                    @csrf
+                    @method('PATCH')
+
+                    {{--Teléfono fijo: código de área chico, número más ancho --}}
+                    <div class="grid grid-cols-3 gap-3">
+                        <x-input
+                            nombre="telefono_codigo"
+                            etiqueta="Código de área" 
+                            placeholder="261"
+                            :valor="$persona->telefono_codigo"
+                        />
+                        <div class="col-span-2">
+                            <x-input
+                                nombre="telefono_numero"
+                                etiqueta="Teléfono fijo" 
+                                placeholder="4251234"
+                                :valor="$persona->telefono_numero"
+                            />
+                        </div>
+                    </div>
+
+                    {{-- Celular: mismo formato --}}
+                    <div class="grid grid-cols-3 gap-3">
+                        <x-input
+                            nombre="contacto_celular_codigo"
+                            etiqueta="Código de área" 
+                            placeholder="261"
+                            :valor="$persona->contacto_celular_codigo"
+                        />
+                        <div class="col-span-2">
+                            <x-input
+                                nombre="contacto_celular_numero"
+                                etiqueta="Celular"
+                                placeholder="5551234"
+                                :valor="$persona->contacto_celular_numero"
+                            />
+                        </div>
+                    </div>
+
+                    <x-checkbox
+                        nombre="no_acepta_donacion_sanguinea"
+                        etiqueta="No acepto recibir transfusiones de sangre"
+                        ayuda="El equipo médico lo tiene en cuenta antes de tu cirugía."
+                        :valor="$persona->no_acepta_donacion_sanguinea"
+                    />
+
+                    <div class="flex justify-end">
+                        <x-boton forma="grupo">Guardar</x-boton>
+                    </div>
+                </form>
+            </x-tarjeta>
+            <x-tarjeta titulo="Mi email" icono="mail">
+                <p class="text-sm text-hu-gris-medio">Email actual</p>
+                <p class="mb-4 font-semibold text-hu-azul">{{ $persona->contacto_email_direccion ?? 'Sin cargar' }}</p>
+
+                <form method="POST" action="{{ route('portal.perfil.email') }}" class="space-y-4">
+                    @csrf
+
+                    <x-input
+                        nombre="email_nuevo"
+                        tipo="email"
+                        etiqueta="Email nuevo"
+                        placeholder="nombre@ejemplo.com"
+                        ayuda="Te vamos a mandar un link a este email para confirmar que es tuyo."
+                        requerido
+                    />
+
+                    <div class="flex justify-end">
+                        <x-boton forma="grupo">Cambiar email</x-boton>
+                    </div>
+                </form>
+            </x-tarjeta>
+            @if ($historicas->isNotEmpty())
+                <x-tarjeta titulo="Obras sociales anteriores" icono="history">
+                    @foreach ($historicas as $cobertura)
+                        <div class="border-b border-hu-gris-suave/60 py-3 last:border-0">
+                            <p class="font-semibold text-hu-gris">
+                                {{ $cobertura->plan?->obrasocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
+                            </p>
+                            <p class="text-sm text-hu-gris-medio">
+                                Dada de baja el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
+                            </p>
+                        </div>
+                    @endforeach
+                </x-tarjeta>
+            @endif
+        </div>
+
     </div>
 @endsection

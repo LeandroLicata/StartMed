@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Http\Controllers\Portal\AccesoController;
 use App\Models\AutCirugia;
 use App\Models\AutoCirugiaEstado;
 use App\Models\Cirugia;
@@ -64,6 +65,17 @@ class DemoSeeder extends Seeder
 {
     use WithoutModelEvents;
 
+    /**
+     * La paciente demo del portal: tiene dos cirugias y es a quien
+     * `emailDeLaPacienteDemo()` le carga el email. Los tres lugares que la
+     * crean usan esta misma lista porque `persona()` es un firstOrCreate: el
+     * primero que llega decide sus datos, y si alguno los omite (como pasaba)
+     * se queda sin fecha de nacimiento ni grupo sanguineo.
+     *
+     * @var array{string, string, string, string, string, string}
+     */
+    private const MARIA = ['García', 'María', AccesoController::DOCUMENTO_DEMO, 'F', '1976-03-14', 'A+'];
+
     public function run(): void
     {
         $hoy = Carbon::today();
@@ -75,7 +87,7 @@ class DemoSeeder extends Seeder
 
         $casos = [
             [
-                'paciente' => ['García', 'María', '28456789', 'F', '1976-03-14', 'A+'],
+                'paciente' => self::MARIA,
                 'tipo' => 'Colecistectomía laparoscópica',
                 'cirujano' => 'perez',
                 'anestesista' => 'ramos',
@@ -176,7 +188,7 @@ class DemoSeeder extends Seeder
             // 48 h para mostrar la confirmacion de asistencia, con algo
             // pendiente para que el resto de las pestañas tenga que hacer.
             [
-                'paciente' => ['García', 'María', '28456789', 'F', '1976-03-14', 'A+'],
+                'paciente' => self::MARIA,
                 'tipo' => 'Hernioplastia inguinal',
                 'cirujano' => 'lopez',
                 'anestesista' => 'ramos',
@@ -299,7 +311,7 @@ class DemoSeeder extends Seeder
      */
     private function emailDeLaPacienteDemo(): void
     {
-        $persona = $this->persona('García', 'María', '28456789');
+        $persona = $this->persona(...self::MARIA);
 
         // Direccion de ejemplo (example.com no existe). Solo se carga si esta
         // vacia, para no pisar un email que alguien le haya puesto.
