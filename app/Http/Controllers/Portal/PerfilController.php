@@ -5,23 +5,16 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\ActualizarDatosRequest;
 use App\Http\Requests\Portal\AgregarObraSocialRequest;
-use App\Http\Requests\Portal\SolicitarCambioEmailRequest;
-use App\Mail\ConfirmarCambioEmail;
 use App\Models\Plan;
 use App\Models\PlanObraSocial;
 use App\Services\AvisoCambioCoberturaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
-use Throwable;
-
-use function Illuminate\Support\defer;
 
 /**
- * Perfil del paciente: datos personales y obras sociales.
+ * Perfil del paciente: datos personales y obras sociales. El cambio de email
+ * esta en CambioEmailController, porque su confirmacion no pide sesion.
  */
 class PerfilController extends Controller
 {
@@ -59,39 +52,6 @@ class PerfilController extends Controller
 
         return redirect()->route('portal.perfil')
             ->with('exito', 'Tus datos quedaron guardados.');
-    }
-
-    /**
-     * No cambia el email: manda un link firmado al correo NUEVO. Recién cuando
-     * lo abre (confirmarCambioEmail) se guarda. Así un email mal escrito no deja
-     * al paciente sin poder entrar al portal.
-     */
-    public function solicitarCambioEmail(SolicitarCambioEmailRequest $request): RedirectResponse
-    {
-        $persona = auth('paciente')->user();
-        $emailNuevo = $request->validated('email_nuevo');
-        $nombre = $persona->nombres;
-
-        // El email viaja dentro del link; la firma impide que alguien lo cambie.
-        $enlace = URL::temporarySignedRoute(
-            'portal.perfil.email.confirmar',
-            now()->addMinutes(ConfirmarCambioEmail::VIGENCIA_MINUTOS),
-            ['persona' => $persona->idPersona, 'email' => $emailNuevo],
-        );
-
-        // Se manda después de responder, como el enlace de acceso: no hay cola en el deploy.
-        defer(static function () use ($emailNuevo, $enlace, $nombre) {
-            try {
-                Mail::to($emailNuevo)->send(new ConfirmarCambioEmail($enlace, $nombre));
-            } catch (Throwable $e) {
-                Log::error('Portal: no se pudo enviar la confirmación de cambio de email.', [
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        });
-
-        return redirect()->route('portal.perfil')
-            ->with('info', "Te mandamos un link a {$emailNuevo}. Abrilo para confirmar el cambio.");
     }
 
     public function marcarPredeterminada(int $cobertura): RedirectResponse

@@ -18,6 +18,7 @@ use App\Http\Controllers\DireccionController;
 use App\Http\Controllers\PacienteController;
 use App\Http\Controllers\Portal\AccesoController as PortalAccesoController;
 use App\Http\Controllers\Portal\AsistenciaController as PortalAsistenciaController;
+use App\Http\Controllers\Portal\CambioEmailController as PortalCambioEmailController;
 use App\Http\Controllers\Portal\CirugiaController as PortalCirugiaController;
 use App\Http\Controllers\Portal\ConsentimientoController as PortalConsentimientoController;
 use App\Http\Controllers\Portal\ContactoController as PortalContactoController;
@@ -323,6 +324,18 @@ Route::prefix('portal')->name('portal.')->group(function () {
         ->middleware('throttle:10,1')
         ->name('acceso.confirmar');
 
+    // --- Confirmacion del email nuevo (link de un solo uso) ----------------
+    // Publicas por la misma razon: el paciente puede abrir el mail en otro
+    // dispositivo, sin sesion. Pedir el cambio si exige sesion (perfil.email).
+    // Mismo par que el acceso: el GET muestra el boton, el POST consume.
+    Route::get('/perfil/email/confirmar/{persona}/{nonce}', [PortalCambioEmailController::class, 'mostrar'])
+        ->whereNumber('persona')
+        ->name('perfil.email.confirmar');
+    Route::post('/perfil/email/confirmar/{persona}/{nonce}', [PortalCambioEmailController::class, 'confirmar'])
+        ->whereNumber('persona')
+        ->middleware('throttle:10,1')
+        ->name('perfil.email.aplicar');
+
     Route::middleware('auth:paciente')->group(function () {
         Route::post('/salir', [PortalAccesoController::class, 'salir'])->name('salir');
 
@@ -340,13 +353,9 @@ Route::prefix('portal')->name('portal.')->group(function () {
             ->whereNumber('cobertura')
             ->name('perfil.baja');
         Route::post('/perfil/obras-sociales', [PortalPerfilController::class, 'agregar'])->name('perfil.agregar');
-        Route::post('/perfil/email', [PortalPerfilController::class, 'solicitarCambioEmail'])
+        Route::post('/perfil/email', [PortalCambioEmailController::class, 'solicitar'])
             ->middleware('throttle:5,1')
             ->name('perfil.email');
-        Route::get('/perfil/email/confirmar/{persona}', [PortalPerfilController::class, 'confirmarCambioEmail'])
-            ->whereNumber('persona')
-            ->middleware('signed')
-            ->name('perfil.email.confirmar');
 
         // --- Detalle de una cirugia (pertenencia verificada) -----------------
         Route::prefix('cirugias/{cirugia}')

@@ -15,7 +15,8 @@
         </p>
 
         <p style="margin:0 0 8px;font-size:12px;line-height:1.5;">
-            El enlace vale {{ \App\Mail\ConfirmarCambioEmail::VIGENCIA_MINUTOS }} minutos. Hasta que lo confirmes, seguimos usando tu email anterior.
+            El enlace vale {{ $minutos }} minutos y sirve una sola vez. Si pedís otro cambio, este deja de funcionar.
+            Hasta que lo confirmes, seguimos usando tu email anterior.
         </p>
         <p style="margin:0;font-size:12px;line-height:1.5;">
             Si no fuiste vos, ignorá este mensaje: sin hacer clic en el enlace no cambia nada.

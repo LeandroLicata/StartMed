@@ -339,6 +339,22 @@ stays open. Decisions that are deliberate, not oversights:
   mail carrying a link that grants something** (logging in, confirming a new email) asks
   it before emitting the link, not just the access flow.
 
+**Changing the email is the same pattern, one more time** (`Portal\CambioEmailController`,
+`App\Support\EnlaceCambioEmail`). The patient asks from `/portal/perfil` (with a session);
+a one-time signed link goes to the **new** address, and the stored email does not change
+until it is confirmed — a typo must not lock the patient out of the portal. Same nonce +
+`Cache::lock` + GET-shows/POST-consumes as the access link, so a newer request voids an
+older link and an old link can never overwrite a later change. Deliberate differences:
+
+- **Confirming needs no session** (its routes sit next to `acceso.*`, outside
+  `auth:paciente`): the patient may open the mail on a phone where they never logged in.
+  Receiving the link in that mailbox is the proof; the request itself was made logged in.
+- **The new address lives in Cache with the nonce, not in the URL.** What gets confirmed
+  is what the patient asked for, not what the link says.
+- **The old address gets `AvisoEmailCambiado`**, with no link and without naming the new
+  address. Since access links follow the email, this is the owner's only signal if someone
+  with their open session redirected them elsewhere.
+
 **Mail in production goes through Brevo's HTTP API, not SMTP** (`MAIL_MAILER=brevo`,
 `BREVO_API_KEY`). Render's free plan blocks outbound SMTP ports (25/465/587), so no SMTP
 server ever connects from the deploy — do not "simplify" this to `smtp`. Laravel has no

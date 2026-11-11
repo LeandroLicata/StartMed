@@ -2,23 +2,22 @@
 
 namespace App\Mail;
 
+use App\Support\EnlaceCambioEmail;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
 /**
- * Link firmado para confirmar un email nuevo del paciente. Se manda al correo
- * NUEVO: si llega y lo abre, el correo es suyo. No es ShouldQueue: se manda
- * con defer(), como EnlaceAccesoPortal.
+ * Link de un solo uso para confirmar un email nuevo del paciente. Se manda al
+ * correo NUEVO: si llega y lo abre, el correo es suyo. No es ShouldQueue: se
+ * manda con defer(), como EnlaceAccesoPortal.
  */
 class ConfirmarCambioEmail extends Mailable
 {
-    /** Cuánto dura el link antes de vencer. */
-    public const VIGENCIA_MINUTOS = 60;
-
     public function __construct(
         public string $enlace,
         public string $nombre,
+        public int $minutos = EnlaceCambioEmail::VIGENCIA_MINUTOS,
     ) {}
 
     public function envelope(): Envelope
