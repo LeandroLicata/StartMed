@@ -339,6 +339,22 @@ stays open. Decisions that are deliberate, not oversights:
   mail carrying a link that grants something** (logging in, confirming a new email) asks
   it before emitting the link, not just the access flow.
 
+**Changing the email is the same pattern, one more time** (`Portal\CambioEmailController`,
+`App\Support\EnlaceCambioEmail`). The patient asks from `/portal/perfil` (with a session);
+a one-time signed link goes to the **new** address, and the stored email does not change
+until it is confirmed — a typo must not lock the patient out of the portal. Same nonce +
+`Cache::lock` + GET-shows/POST-consumes as the access link, so a newer request voids an
+older link and an old link can never overwrite a later change. Deliberate differences:
+
+- **Confirming needs no session** (its routes sit next to `acceso.*`, outside
+  `auth:paciente`): the patient may open the mail on a phone where they never logged in.
+  Receiving the link in that mailbox is the proof; the request itself was made logged in.
+- **The new address lives in Cache with the nonce, not in the URL.** What gets confirmed
+  is what the patient asked for, not what the link says.
+- **The old address gets `AvisoEmailCambiado`**, with no link and without naming the new
+  address. Since access links follow the email, this is the owner's only signal if someone
+  with their open session redirected them elsewhere.
+
 **Mail in production goes through Brevo's HTTP API, not SMTP** (`MAIL_MAILER=brevo`,
 `BREVO_API_KEY`). Render's free plan blocks outbound SMTP ports (25/465/587), so no SMTP
 server ever connects from the deploy — do not "simplify" this to `smtp`. Laravel has no
@@ -637,6 +653,13 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   coverages, mark the default one, end one and add a new one.
 - **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
   disabled; a `Persona` who is not staff has no screen of its own.
+- **Nobody is told when a patient changes their transfusion refusal.** From
+  `/portal/perfil` the patient edits `Persona.no_acepta_donacion_sanguinea` (the column
+  name says "donación" but it means *refuses to receive* blood), and it is saved silently
+  — unlike a change of default coverage, which `AvisoCambioCoberturaService` mails to the
+  gestores. A patient ticking it the day before a surgery with hemoderivados requested
+  goes unnoticed. Whether to notify (gestor? cirujano? anestesista?) and whether to show
+  it in the expediente is an open team decision, left out of the profile PR on purpose.
 - **Domain dates are local time, not UTC.** Everything except the audit trail is
   stored as Argentine time with no zone (see Schema conventions). It is consistent
   and correct today, but it relies on Argentina keeping a fixed offset with no daylight
