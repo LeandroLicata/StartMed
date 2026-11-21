@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CatalogoController;
 use App\Http\Controllers\Admin\ConsentimientoController;
 use App\Http\Controllers\Admin\CuestionarioController;
+use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\PrecioController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\AgendaController;
@@ -57,6 +58,13 @@ Route::middleware('auth:web')->group(function () {
     Route::get('/dashboard', DashboardController::class)
         ->middleware('rol:Gestor de quirófano,Dirección médica')
         ->name('dashboard');
+
+    Route::middleware('rol:Gestor de quirófano')->group(function () {
+        Route::get('/pacientes/nuevo', [PacienteController::class, 'create'])->name('pacientes.create');
+        Route::post('/pacientes', [PacienteController::class, 'store'])->name('pacientes.store');
+        Route::get('/pacientes/{paciente}/editar', [PacienteController::class, 'edit'])->name('pacientes.edit');
+        Route::put('/pacientes/{paciente}', [PacienteController::class, 'update'])->name('pacientes.update');
+    });
 
     Route::resource('pacientes', PacienteController::class)
         ->only(['index', 'show'])
@@ -259,6 +267,14 @@ Route::middleware('auth:web')->group(function () {
         Route::put('usuarios/{usuario}/clave', [UsuarioController::class, 'clave'])->name('usuarios.clave');
         Route::delete('usuarios/{usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
         Route::post('usuarios/{usuario}/reactivar', [UsuarioController::class, 'restore'])->name('usuarios.restore');
+
+        Route::get('personas', [PersonaController::class, 'index'])->name('personas.index');
+        Route::get('personas/nueva', [PersonaController::class, 'create'])->name('personas.create');
+        Route::post('personas', [PersonaController::class, 'store'])->name('personas.store');
+        Route::get('personas/{persona}/editar', [PersonaController::class, 'edit'])->name('personas.edit');
+        Route::put('personas/{persona}', [PersonaController::class, 'update'])->name('personas.update');
+        Route::delete('personas/{persona}', [PersonaController::class, 'destroy'])->name('personas.destroy');
+        Route::post('personas/{persona}/reactivar', [PersonaController::class, 'restore'])->name('personas.restore');
     });
 
     /*

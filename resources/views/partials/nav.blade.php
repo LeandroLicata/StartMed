@@ -47,7 +47,7 @@
             'roles' => ['Anestesista'],
         ],
         // Pacientes, disponible para Gestor, Cirujano y Anestesista
-        ['etiqueta' => 'Pacientes', 'icono' => 'groups', 'ruta' => 'pacientes.index', 'roles' => ['Gestor de quirófano', 'Cirujano', 'Anestesista']],
+        ['etiqueta' => 'Pacientes', 'icono' => 'groups', 'ruta' => 'pacientes.index', 'activaEn' => 'pacientes.*', 'roles' => ['Gestor de quirófano', 'Cirujano', 'Anestesista']],
         [
             'etiqueta' => 'Agenda',
             'icono' => 'schedule',
@@ -79,6 +79,13 @@
             'ruta' => 'admin.usuarios.index',
             'activaEn' => 'admin.usuarios.*',
             'titulo' => 'Administración',
+            'roles' => ['Administrador'],
+        ],
+        [
+            'etiqueta' => 'Personas',
+            'icono' => 'badge',
+            'ruta' => 'admin.personas.index',
+            'activaEn' => 'admin.personas.*',
             'roles' => ['Administrador'],
         ],
         [
