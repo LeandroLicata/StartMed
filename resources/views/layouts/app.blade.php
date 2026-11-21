@@ -53,6 +53,11 @@
         <div class="border-t border-white/10 px-5 py-4">
             <p class="text-[11px] uppercase tracking-widest text-white/40">StartMed</p>
             <p class="text-xs text-white/60">Gestión de cirugías</p>
+            @if ($versionApp = \App\Support\VersionApp::actual())
+                <p class="mt-1 font-mono text-[11px] text-white/40" title="Versión desplegada según el repositorio">
+                    {{ $versionApp }}
+                </p>
+            @endif
         </div>
     </aside>
 
