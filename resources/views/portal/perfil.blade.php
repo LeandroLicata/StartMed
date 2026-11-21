@@ -4,7 +4,7 @@
 
 @section('contenido')
     <div class="grid items-start gap-6 lg:grid-cols-2">
-        {{-- Columna izquierda: obras sociales vigentes + agregar --}}
+        {{-- Columna izquierda: obras sociales vigentes (solo elección de predeterminada) --}}
         <div class="space-y-6">
             <x-tarjeta titulo="Mis obras sociales" icono="shield">
                 @forelse ($vigentes as $cobertura)
@@ -36,20 +36,6 @@
                                     </x-boton>
                                 </form>
                             @endif
-
-                            <form
-                                method="POST"
-                                action="{{ route('portal.perfil.baja', $cobertura->idPlanObraSocial) }}"
-                                data-confirmar-titulo="Dar de baja «{{ $cobertura->plan?->obrasocial?->nombreObraSocial }}»"
-                                data-confirmar="Va a pasar a tus obras sociales anteriores. Desde el portal no se puede deshacer."
-                                data-confirmar-accion="Dar de baja"
-                            >
-                                @csrf
-                                @method('PATCH')
-                                <x-boton variante="fantasma" forma="grupo" class="px-3 py-1.5 text-xs">
-                                    Dar de baja
-                                </x-boton>
-                            </form>
                         </div>
                     </div>
                 @empty
@@ -57,34 +43,29 @@
                         No tenés obras sociales vigentes.
                     </p>
                 @endforelse
+
+                <p class="mt-4 border-t border-hu-gris-suave/60 pt-3 text-xs text-hu-gris-medio">
+                    Solo podés elegir tu obra social predeterminada. Si necesitás agregar o dar de baja una cobertura, solicitalo en recepción o al gestor de quirófano.
+                </p>
             </x-tarjeta>
 
-            <x-tarjeta titulo="Agregar una obra social" icono="shield">
-                <form method="POST" action="{{ route('portal.perfil.agregar') }}" class="space-y-4">
-                    @csrf
-
-                    <x-select
-                        nombre="idPlan"
-                        etiqueta="Obra social y plan"
-                        :opciones="$planes"
-                        requerido
-                    />
-
-                    <x-input
-                        nombre="nroBeneficiario"
-                        etiqueta="Número de afiliado"
-                        placeholder="Como figura en tu credencial"
-                        requerido
-                    />
-
-                    <div class="flex justify-end">
-                        <x-boton forma="grupo">Agregar</x-boton>
-                    </div>
-                </form>
-            </x-tarjeta>
+            @if ($historicas->isNotEmpty())
+                <x-tarjeta titulo="Obras sociales anteriores" icono="history">
+                    @foreach ($historicas as $cobertura)
+                        <div class="border-b border-hu-gris-suave/60 py-3 last:border-0">
+                            <p class="font-semibold text-hu-gris">
+                                {{ $cobertura->plan?->obrasocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
+                            </p>
+                            <p class="text-sm text-hu-gris-medio">
+                                Dada de baja el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
+                            </p>
+                        </div>
+                    @endforeach
+                </x-tarjeta>
+            @endif
         </div>
 
-        {{-- Columna derecha: datos personales y obras sociales anteriores --}}
+        {{-- Columna derecha: datos personales, contacto y email --}}
         <div class="space-y-6">
             <x-tarjeta titulo="Mis datos" icono="person">
                 <dl class="space-y-3 text-sm">
@@ -118,14 +99,14 @@
                     <div class="grid grid-cols-3 gap-3">
                         <x-input
                             nombre="telefono_codigo"
-                            etiqueta="Código de área" 
+                            etiqueta="Código de área"
                             placeholder="261"
                             :valor="$persona->telefono_codigo"
                         />
                         <div class="col-span-2">
                             <x-input
                                 nombre="telefono_numero"
-                                etiqueta="Teléfono fijo" 
+                                etiqueta="Teléfono fijo"
                                 placeholder="4251234"
                                 :valor="$persona->telefono_numero"
                             />
@@ -136,7 +117,7 @@
                     <div class="grid grid-cols-3 gap-3">
                         <x-input
                             nombre="contacto_celular_codigo"
-                            etiqueta="Código de área" 
+                            etiqueta="Código de área"
                             placeholder="261"
                             :valor="$persona->contacto_celular_codigo"
                         />
@@ -183,20 +164,6 @@
                     </div>
                 </form>
             </x-tarjeta>
-            @if ($historicas->isNotEmpty())
-                <x-tarjeta titulo="Obras sociales anteriores" icono="history">
-                    @foreach ($historicas as $cobertura)
-                        <div class="border-b border-hu-gris-suave/60 py-3 last:border-0">
-                            <p class="font-semibold text-hu-gris">
-                                {{ $cobertura->plan?->obrasocial?->nombreObraSocial }} · {{ $cobertura->plan?->nombrePlan }}
-                            </p>
-                            <p class="text-sm text-hu-gris-medio">
-                                Dada de baja el {{ $cobertura->fechaFinPlanObraSocial->format('d/m/Y') }}
-                            </p>
-                        </div>
-                    @endforeach
-                </x-tarjeta>
-            @endif
         </div>
 
     </div>

@@ -63,7 +63,7 @@ class PersonaRequest extends FormRequest
             'direccionPersona' => ['required', 'string', 'max:255'],
 
             'apellido_materno' => ['nullable', 'string', 'max:120'],
-            'fecha_nacimiento' => ['nullable', 'date'],
+            'fecha_nacimiento' => ['nullable', 'date', 'before_or_equal:today'],
             'genero' => ['nullable', Rule::in(['M', 'F', 'X'])],
             'cuil' => ['nullable', 'string', 'max:60'],
             'grupo_sanguineo_id' => ['nullable', Rule::exists((new GrupoSanguineo)->getTable(), 'idGrupoSanguineo')],

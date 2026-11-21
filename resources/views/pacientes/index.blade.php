@@ -169,10 +169,6 @@
             @endforelse
         </div>
 
-        @if ($pacientes->hasPages())
-            <div class="border-t border-hu-gris-suave/60 bg-hu-gris-tenue/30 px-5 py-4">
-                {{ $pacientes->links() }}
-            </div>
-        @endif
+        <x-paginador :paginador="$pacientes" />
     </x-tarjeta>
 @endsection

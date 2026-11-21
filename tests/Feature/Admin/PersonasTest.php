@@ -7,6 +7,7 @@ use App\Mail\EnlaceAccesoPortal;
 use App\Models\Auditoria;
 use App\Models\Cirugia;
 use App\Models\Persona;
+use App\Models\Plan;
 use App\Models\Rol;
 use App\Models\TipoDocumento;
 use App\Models\Usuario;
@@ -249,5 +250,42 @@ class PersonasTest extends TestCase
             $this->actingAs($usuario)->put(route('admin.personas.update', $persona), $this->datosPersona())->assertForbidden();
             $this->actingAs($usuario)->delete(route('admin.personas.destroy', $persona))->assertForbidden();
         }
+    }
+
+    public function test_administrador_puede_gestionar_obras_sociales_desde_admin_personas(): void
+    {
+        $persona = Persona::create($this->datosPersona());
+        $planId = (int) Plan::disponiblesParaPaciente()->keys()->first();
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.personas.edit', $persona))
+            ->assertOk()
+            ->assertSee('Obras sociales')
+            ->assertSee('Agregar obra social');
+
+        $this->actingAs($this->admin())
+            ->post(route('personas.coberturas.store', $persona), [
+                'idPlan' => $planId,
+                'nroBeneficiario' => '888999',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('exito');
+
+        $cobertura = $persona->planObraSociales()->where('idPlan', $planId)->sole();
+
+        $this->actingAs($this->admin())
+            ->patch(route('personas.coberturas.baja', [$persona, $cobertura->idPlanObraSocial]))
+            ->assertRedirect();
+
+        $this->assertNotNull($cobertura->fresh()->fechaFinPlanObraSocial);
+    }
+
+    public function test_el_listado_de_personas_usa_paginacion_en_castellano(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('admin.personas.index'))
+            ->assertOk()
+            ->assertDontSee('pagination.previous')
+            ->assertDontSee('pagination.next');
     }
 }

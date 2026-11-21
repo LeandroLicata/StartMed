@@ -112,8 +112,13 @@
             </x-tarjeta>
         </div>
 
-        {{-- Historial de cirugías --}}
+        {{-- Obras sociales e historial de cirugías --}}
         <div class="lg:col-span-2 space-y-6">
+            @include('partials.persona-obras-sociales', [
+                'persona' => $paciente,
+                'puedeGestionar' => $puedeGestionarCoberturas,
+            ])
+
             <x-tarjeta titulo="Historial de Cirugías" icono="history">
                 <x-slot:acciones>
                     <x-estado tono="info">{{ $paciente->cirugias->count() }} cirugías</x-estado>

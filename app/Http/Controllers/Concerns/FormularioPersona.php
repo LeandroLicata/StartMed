@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Models\GrupoSanguineo;
 use App\Models\Persona;
+use App\Models\Plan;
+use App\Models\PlanObraSocial;
 use App\Models\TipoDocumento;
 use App\Support\Auditor;
+use Illuminate\Support\Collection;
 
 /**
- * Datos de catalogos y escritura auditada compartidos entre el padron de
- * pacientes (Gestor de quirofano) y la seccion Personas (Administrador).
+ * Datos de catalogos, coberturas y escritura auditada compartidos entre el
+ * padron de pacientes (Gestor de quirofano) y la seccion Personas (Admin).
  */
 trait FormularioPersona
 {
@@ -38,6 +41,28 @@ trait FormularioPersona
                 'F' => 'Femenino',
                 'X' => 'Otro',
             ],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     coberturasVigentes: Collection<int, PlanObraSocial>,
+     *     coberturasHistoricas: Collection<int, PlanObraSocial>,
+     *     planesDisponibles: Collection<int, string>,
+     * }
+     */
+    private function datosCoberturasPersona(Persona $persona, bool $cargarPlanes): array
+    {
+        $coberturas = $persona->planObraSociales()
+            ->with('plan.obrasocial')
+            ->orderByDesc('esPredeterminadaPlanObraSocial')
+            ->orderByDesc('idPlanObraSocial')
+            ->get();
+
+        return [
+            'coberturasVigentes' => $coberturas->filter(fn (PlanObraSocial $c) => $c->estaVigente()),
+            'coberturasHistoricas' => $coberturas->reject(fn (PlanObraSocial $c) => $c->estaVigente()),
+            'planesDisponibles' => $cargarPlanes ? Plan::disponiblesParaPaciente() : collect(),
         ];
     }
 

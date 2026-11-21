@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Auditoria;
 use App\Models\Persona;
+use App\Models\Plan;
+use App\Models\PlanObraSocial;
 use App\Models\TipoDocumento;
 use App\Models\Usuario;
 use App\Support\Auditor;
@@ -223,5 +225,128 @@ class PacienteTest extends TestCase
             $this->actingAs($profesional)->get(route('pacientes.edit', $paciente))->assertForbidden();
             $this->actingAs($profesional)->put(route('pacientes.update', $paciente), $this->datosPaciente())->assertForbidden();
         }
+    }
+
+    public function test_fecha_de_nacimiento_futura_se_rechaza(): void
+    {
+        $this->actingAs($this->gestor())
+            ->post(route('pacientes.store'), $this->datosPaciente([
+                'fecha_nacimiento' => now()->addDays(10)->format('Y-m-d'),
+            ]))
+            ->assertSessionHasErrors('fecha_nacimiento');
+    }
+
+    public function test_gestor_puede_agregar_marcar_predeterminada_y_dar_de_baja_obras_sociales(): void
+    {
+        $paciente = Persona::create($this->datosPaciente());
+        $planes = Plan::disponiblesParaPaciente()->keys()->values();
+        $plan1 = (int) $planes[0];
+        $plan2 = (int) $planes[1];
+        $particular = Plan::where('es_sin_cobertura', true)->firstOrFail();
+
+        // La primera obra social queda como predeterminada automáticamente.
+        $this->actingAs($this->gestor())
+            ->post(route('personas.coberturas.store', $paciente), [
+                'idPlan' => $plan1,
+                'nroBeneficiario' => '111222',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('exito');
+
+        $cob1 = $paciente->planObraSociales()->where('idPlan', $plan1)->sole();
+        $this->assertTrue($cob1->esPredeterminadaPlanObraSocial);
+        $this->assertSame(Auditor::ALTA, Auditoria::orderByDesc('idAuditoria')->firstOrFail()->accionAuditoria);
+
+        // No se puede duplicar un plan ya vigente ni agregar Particular.
+        $this->actingAs($this->gestor())
+            ->post(route('personas.coberturas.store', $paciente), [
+                'idPlan' => $plan1,
+                'nroBeneficiario' => '111222',
+            ])
+            ->assertSessionHas('error');
+
+        $this->actingAs($this->gestor())
+            ->post(route('personas.coberturas.store', $paciente), [
+                'idPlan' => $particular->idPlan,
+                'nroBeneficiario' => '999',
+            ])
+            ->assertSessionHasErrors('idPlan');
+
+        // Se agrega un segundo plan (no pisa la predeterminada) y luego se cambia la predeterminada.
+        $this->actingAs($this->gestor())
+            ->post(route('personas.coberturas.store', $paciente), [
+                'idPlan' => $plan2,
+                'nroBeneficiario' => '333444',
+            ])
+            ->assertRedirect();
+
+        $cob2 = $paciente->planObraSociales()->where('idPlan', $plan2)->sole();
+        $this->assertFalse($cob2->esPredeterminadaPlanObraSocial);
+
+        $this->actingAs($this->gestor())
+            ->patch(route('personas.coberturas.predeterminada', [$paciente, $cob2->idPlanObraSocial]))
+            ->assertRedirect()
+            ->assertSessionHas('exito');
+
+        $this->assertFalse($cob1->fresh()->esPredeterminadaPlanObraSocial);
+        $this->assertTrue($cob2->fresh()->esPredeterminadaPlanObraSocial);
+
+        // Baja de la predeterminada: cierra fecha y avisa.
+        $this->actingAs($this->gestor())
+            ->patch(route('personas.coberturas.baja', [$paciente, $cob2->idPlanObraSocial]))
+            ->assertRedirect()
+            ->assertSessionHas('aviso');
+
+        $this->assertNotNull($cob2->fresh()->fechaFinPlanObraSocial);
+        $this->assertFalse($cob2->fresh()->esPredeterminadaPlanObraSocial);
+
+        $this->actingAs($this->gestor())
+            ->get(route('pacientes.show', $paciente))
+            ->assertOk()
+            ->assertSee('Obras sociales')
+            ->assertSee('Obras sociales anteriores');
+    }
+
+    public function test_cirujano_y_anestesista_no_pueden_gestionar_obras_sociales(): void
+    {
+        $paciente = Persona::create($this->datosPaciente());
+        $planId = (int) Plan::disponiblesParaPaciente()->keys()->first();
+        $cobertura = PlanObraSocial::agregar($paciente->idPersona, $planId, '555666');
+
+        foreach ([$this->cirujano(), $this->anestesista()] as $profesional) {
+            $this->actingAs($profesional)
+                ->get(route('pacientes.show', $paciente))
+                ->assertOk()
+                ->assertSee('Obras sociales')
+                ->assertDontSee('Agregar obra social')
+                ->assertDontSee('Dar de baja');
+
+            $this->actingAs($profesional)
+                ->post(route('personas.coberturas.store', $paciente), [
+                    'idPlan' => $planId,
+                    'nroBeneficiario' => '777',
+                ])
+                ->assertForbidden();
+
+            $this->actingAs($profesional)
+                ->patch(route('personas.coberturas.predeterminada', [$paciente, $cobertura->idPlanObraSocial]))
+                ->assertForbidden();
+
+            $this->actingAs($profesional)
+                ->patch(route('personas.coberturas.baja', [$paciente, $cobertura->idPlanObraSocial]))
+                ->assertForbidden();
+        }
+    }
+
+    public function test_el_layout_incluye_los_iconos_nuevos_y_paginacion_en_castellano(): void
+    {
+        $this->actingAs($this->gestor())
+            ->get(route('pacientes.index'))
+            ->assertOk()
+            ->assertSee('location_on')
+            ->assertSee('person_add')
+            ->assertSee('smartphone')
+            ->assertDontSee('pagination.previous')
+            ->assertDontSee('pagination.next');
     }
 }
