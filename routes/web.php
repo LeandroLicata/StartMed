@@ -14,6 +14,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CirugiaController;
 use App\Http\Controllers\CirugiaCreacionController;
 use App\Http\Controllers\CirujanoController;
+use App\Http\Controllers\CoberturaPersonaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DireccionController;
 use App\Http\Controllers\PacienteController;
@@ -64,6 +65,15 @@ Route::middleware('auth:web')->group(function () {
         Route::post('/pacientes', [PacienteController::class, 'store'])->name('pacientes.store');
         Route::get('/pacientes/{paciente}/editar', [PacienteController::class, 'edit'])->name('pacientes.edit');
         Route::put('/pacientes/{paciente}', [PacienteController::class, 'update'])->name('pacientes.update');
+
+        Route::post('/personas/{persona}/obras-sociales', [CoberturaPersonaController::class, 'store'])
+            ->name('personas.coberturas.store');
+        Route::patch('/personas/{persona}/obras-sociales/{cobertura}/predeterminada', [CoberturaPersonaController::class, 'marcarPredeterminada'])
+            ->whereNumber('cobertura')
+            ->name('personas.coberturas.predeterminada');
+        Route::patch('/personas/{persona}/obras-sociales/{cobertura}/baja', [CoberturaPersonaController::class, 'darDeBaja'])
+            ->whereNumber('cobertura')
+            ->name('personas.coberturas.baja');
     });
 
     Route::resource('pacientes', PacienteController::class)
@@ -365,10 +375,6 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::patch('/perfil/obras-sociales/{cobertura}/predeterminada', [PortalPerfilController::class, 'marcarPredeterminada'])
             ->whereNumber('cobertura')
             ->name('perfil.predeterminada');
-        Route::patch('/perfil/obras-sociales/{cobertura}/baja', [PortalPerfilController::class, 'darDeBaja'])
-            ->whereNumber('cobertura')
-            ->name('perfil.baja');
-        Route::post('/perfil/obras-sociales', [PortalPerfilController::class, 'agregar'])->name('perfil.agregar');
         Route::post('/perfil/email', [PortalCambioEmailController::class, 'solicitar'])
             ->middleware('throttle:5,1')
             ->name('perfil.email');

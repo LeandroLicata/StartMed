@@ -79,7 +79,13 @@ class PacienteController extends Controller
             'cirugias.cirugiaEstados.estadoCirugia',
         ]);
 
-        return view('pacientes.show', compact('paciente'));
+        $puedeGestionarCoberturas = auth()->user()?->tieneRol('Gestor de quirófano') ?? false;
+
+        return view('pacientes.show', [
+            'paciente' => $paciente,
+            'puedeGestionarCoberturas' => $puedeGestionarCoberturas,
+            ...$this->datosCoberturasPersona($paciente, $puedeGestionarCoberturas),
+        ]);
     }
 
     public function edit(Persona $paciente): View

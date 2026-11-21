@@ -88,6 +88,7 @@ class PersonaController extends Controller
         return view('admin.personas.formulario', [
             'persona' => $persona,
             ...$this->catalogosPersona(),
+            ...$this->datosCoberturasPersona($persona, true),
         ]);
     }
 

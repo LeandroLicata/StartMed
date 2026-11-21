@@ -203,9 +203,7 @@
             </table>
         </div>
 
-        @if ($personas->hasPages())
-            <div class="pt-4">{{ $personas->links() }}</div>
-        @endif
+        <x-paginador :paginador="$personas" />
     </x-tarjeta>
 
 @endsection

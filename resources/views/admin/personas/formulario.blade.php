@@ -64,4 +64,13 @@
         </form>
     </x-tarjeta>
 
+    @unless ($esNuevo)
+        <div class="mt-6 max-w-3xl">
+            @include('partials.persona-obras-sociales', [
+                'persona' => $persona,
+                'puedeGestionar' => true,
+            ])
+        </div>
+    @endunless
+
 @endsection
