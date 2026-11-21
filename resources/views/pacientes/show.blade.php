@@ -4,10 +4,16 @@
 @section('subtitulo', $paciente->apellidos . ', ' . $paciente->nombres)
 
 @section('contenido')
-    <div class="mb-4 flex items-center justify-between">
-        <x-boton :href="route('pacientes.index')" variante="fantasma" icono="arrow_back">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <x-boton :href="route('pacientes.index')" variante="fantasma" icono="arrow_back" forma="grupo">
             Volver al listado
         </x-boton>
+
+        @if (auth()->user()->tieneRol('Gestor de quirófano'))
+            <x-boton :href="route('pacientes.edit', $paciente)" variante="contorno" icono="edit" forma="grupo">
+                Editar datos
+            </x-boton>
+        @endif
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
@@ -39,25 +45,50 @@
                         <span class="block text-xs font-semibold uppercase tracking-wider text-hu-gris-medio">Sexo</span>
                         <span class="font-semibold text-hu-azul">{{ $paciente->genero ?? 'No registrado' }}</span>
                     </div>
-                    <div class="pt-3 border-t border-hu-gris-suave/60">
+                    @if ($paciente->grupoSanguineo)
+                        <div>
+                            <span class="block text-xs font-semibold uppercase tracking-wider text-hu-gris-medio">Grupo sanguíneo</span>
+                            <span class="font-semibold text-hu-azul">{{ $paciente->grupoSanguineo->nombreGrupoSanguineo }}</span>
+                        </div>
+                    @endif
+                    <div class="pt-3 border-t border-hu-gris-suave/60 space-y-1.5">
                         <span class="block text-xs font-semibold uppercase tracking-wider text-hu-gris-medio">Contacto</span>
                         @if($paciente->telefono_numero)
-                            <div class="flex items-center gap-2 mt-1">
+                            <div class="flex items-center gap-2">
                                 <x-icono nombre="call" class="text-sm text-hu-gris-medio" />
                                 <span class="font-semibold text-hu-azul">{{ $paciente->telefono_numero }}</span>
                             </div>
                         @endif
-                        @if($paciente->contacto_email_direccion)
-                            <div class="flex items-center gap-2 mt-1">
-                                <x-icono nombre="mail" class="text-sm text-hu-gris-medio" />
-                                <span class="font-semibold text-hu-azul">{{ $paciente->contacto_email_direccion }}</span>
+                        @if($paciente->contacto_celular_numero)
+                            <div class="flex items-center gap-2">
+                                <x-icono nombre="smartphone" class="text-sm text-hu-gris-medio" />
+                                <span class="font-semibold text-hu-azul">{{ $paciente->contacto_celular_numero }}</span>
                             </div>
                         @endif
-                        @if(!$paciente->telefono_numero && !$paciente->contacto_email_direccion)
+                        @if($paciente->contacto_email_direccion)
+                            <div class="flex items-center gap-2">
+                                <x-icono nombre="mail" class="text-sm text-hu-gris-medio" />
+                                <span class="break-all font-semibold text-hu-azul">{{ $paciente->contacto_email_direccion }}</span>
+                            </div>
+                        @endif
+                        @if($paciente->direccionPersona)
+                            <div class="flex items-center gap-2">
+                                <x-icono nombre="location_on" class="text-sm text-hu-gris-medio" />
+                                <span class="font-semibold text-hu-azul">{{ $paciente->direccionPersona }}</span>
+                            </div>
+                        @endif
+                        @if(!$paciente->telefono_numero && !$paciente->contacto_celular_numero && !$paciente->contacto_email_direccion && !$paciente->direccionPersona)
                             <span class="text-hu-gris-medio text-sm">Sin datos de contacto</span>
                         @endif
                     </div>
-                    
+
+                    @if($paciente->observaciones)
+                        <div class="pt-3 border-t border-hu-gris-suave/60">
+                            <span class="block text-xs font-semibold uppercase tracking-wider text-hu-gris-medio">Observaciones</span>
+                            <p class="mt-1 whitespace-pre-line text-hu-gris">{{ $paciente->observaciones }}</p>
+                        </div>
+                    @endif
+
                     @if($paciente->es_cronico || $paciente->tiene_incapacidad || $paciente->no_acepta_donacion_sanguinea)
                         <div class="pt-3 border-t border-hu-gris-suave/60 flex flex-wrap gap-2">
                             @if($paciente->es_cronico)
@@ -72,7 +103,7 @@
                             @endif
                             @if($paciente->no_acepta_donacion_sanguinea)
                                 <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded-md">
-                                    <x-icono text-sm nombre="bloodtype" class="text-sm" /> No donación
+                                    <x-icono nombre="bloodtype" class="text-sm" /> No donación
                                 </span>
                             @endif
                         </div>
@@ -87,7 +118,7 @@
                 <x-slot:acciones>
                     <x-estado tono="info">{{ $paciente->cirugias->count() }} cirugías</x-estado>
                 </x-slot:acciones>
-                
+
                 @if ($paciente->cirugias->isEmpty())
                     <p class="py-12 text-center text-hu-gris-medio">
                         <x-icono nombre="event_busy" class="text-4xl mb-2 opacity-50 block mx-auto" />
@@ -99,11 +130,11 @@
                             @php
                                 $estado = $cirugia->cirugiaEstados->firstWhere('fechaDesasignacionCirugiaEstado', null)?->estadoCirugia?->nombreEstadoCirugia ?? 'Programada';
                                 $esPasada = $cirugia->fechaHoraCirugia && $cirugia->fechaHoraCirugia->isPast();
-                                
+
                                 $color = match(true) {
                                     $estado === 'Realizada' => 'bg-green-500',
                                     $estado === 'Suspendida' || $estado === 'Cancelada' => 'bg-red-500',
-                                    $esPasada && $estado !== 'Realizada' => 'bg-orange-500', // Pasó la fecha pero no dice realizada
+                                    $esPasada && $estado !== 'Realizada' => 'bg-orange-500',
                                     default => 'bg-hu-azul',
                                 };
                             @endphp
@@ -111,7 +142,7 @@
                                 <span class="absolute -left-[13px] top-1 flex size-6 items-center justify-center rounded-full {{ $color }} text-white ring-4 ring-white">
                                     <x-icono nombre="event" class="text-xs" />
                                 </span>
-                                
+
                                 <div class="rounded-xl border border-hu-gris-suave/60 bg-white p-4 shadow-sm hover:border-hu-azul/30 transition-colors">
                                     <div class="flex flex-wrap items-start justify-between gap-4">
                                         <div>
@@ -127,7 +158,7 @@
                                                 {{ $cirugia->tipoCirugia?->nombreTipoCirugia ?? $cirugia->descripcionCirugia ?? 'Procedimiento no especificado' }}
                                             </h3>
                                             <p class="mt-2 flex items-center gap-1 text-sm text-hu-gris-medio">
-                                                <x-icono nombre="medical_services" class="text-sm" /> 
+                                                <x-icono nombre="medical_services" class="text-sm" />
                                                 Cirujano: <span class="font-semibold">{{ $cirugia->cirujano?->persona?->nombre_completo ?? 'No asignado' }}</span>
                                             </p>
                                         </div>

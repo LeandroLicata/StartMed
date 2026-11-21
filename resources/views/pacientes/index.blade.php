@@ -4,8 +4,23 @@
 @section('subtitulo', 'Padrón de todas las personas registradas')
 
 @section('contenido')
+    @php
+        $puedeEditar = auth()->user()->tieneRol('Gestor de quirófano');
+        $hayFiltros = request()->filled('buscar')
+            || request()->filled('genero')
+            || in_array(request('es_cronico'), ['0', '1'], true);
+    @endphp
+
+    @if ($puedeEditar)
+        <div class="mb-4 flex flex-wrap items-center justify-end gap-3">
+            <x-boton :href="route('pacientes.create')" icono="person_add">
+                Nuevo paciente
+            </x-boton>
+        </div>
+    @endif
+
     <x-tarjeta titulo="Búsqueda de Pacientes" icono="search" class="mb-6">
-        <form method="GET" action="{{ route('pacientes.index') }}" class="grid gap-4 md:grid-cols-5 items-end">
+        <form method="GET" action="{{ route('pacientes.index') }}" class="grid gap-4 md:grid-cols-6 items-end">
             <div class="md:col-span-2">
                 <x-input
                     nombre="buscar"
@@ -14,7 +29,7 @@
                     placeholder="Ej: Perez, Juan o 30123456"
                 />
             </div>
-            
+
             <div>
                 <x-select
                     nombre="genero"
@@ -35,8 +50,14 @@
                 />
             </div>
 
-            <div>
-                <x-boton tipo="submit" icono="search" class="w-full">Buscar</x-boton>
+            <div class="md:col-span-2 flex items-center gap-2">
+                <x-boton tipo="submit" icono="search" class="flex-1">Buscar</x-boton>
+
+                @if ($hayFiltros)
+                    <x-boton :href="route('pacientes.index')" variante="fantasma" forma="grupo">
+                        Limpiar
+                    </x-boton>
+                @endif
             </div>
         </form>
     </x-tarjeta>
@@ -101,6 +122,17 @@
                                     {{ $paciente->contacto_email_direccion ?? '—' }}
                                 </span>
                             </p>
+
+                            @if ($paciente->direccionPersona)
+                                <p class="flex items-center justify-between gap-2">
+                                    <span class="flex items-center gap-1.5 text-hu-gris-medio">
+                                        <x-icono nombre="location_on" class="text-base" /> Dirección
+                                    </span>
+                                    <span class="truncate text-right font-semibold text-hu-azul" title="{{ $paciente->direccionPersona }}">
+                                        {{ $paciente->direccionPersona }}
+                                    </span>
+                                </p>
+                            @endif
                         </div>
 
                         <div class="flex gap-2 border-t border-hu-gris-suave/60 p-4">
@@ -109,10 +141,23 @@
                                 forma="grupo"
                                 icono="folder_open"
                                 :href="route('pacientes.show', $paciente)"
-                                class="w-full"
+                                class="flex-1"
                             >
                                 Ver historial
                             </x-boton>
+
+                            @if ($puedeEditar)
+                                <x-boton
+                                    variante="fantasma"
+                                    forma="grupo"
+                                    icono="edit"
+                                    :href="route('pacientes.edit', $paciente)"
+                                    class="px-3"
+                                    title="Editar datos del paciente"
+                                >
+                                    <span class="sr-only sm:not-sr-only">Editar</span>
+                                </x-boton>
+                            @endif
                         </div>
                     </div>
                 </x-tarjeta>
