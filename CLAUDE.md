@@ -401,8 +401,8 @@ option in the user form.
 ### Routing / frontend
 
 Server-rendered Blade — there is no React and no JSON API. The only app JavaScript is
-`resources/js/app.js`: the mobile sidebar toggle and the `<dialog>` confirmation handler
-(see Brand and UI components).
+`resources/js/app.js`: the mobile sidebar toggle, the `<dialog>` confirmation handler
+(see Brand and UI components) and the assistant widget (see Asistente).
 
 | route | role | view |
 |---|---|---|
@@ -451,7 +451,8 @@ rescheduling surgeries writes too (`CirugiaCreacionController`,
 audit trail currently covers administration only.
 
 **One door for the catalogs, a section for each module.** The sidebar carries an
-`Administración` group (`partials/nav.blade.php`, opened by the `titulo` key) with one
+`Administración` group (items declared in `App\Support\Navegacion::SECCIONES`, drawn by
+`partials/nav.blade.php`, opened by the `titulo` key) with one
 item per module — Usuarios, Consentimientos, Cuestionario preanestésico, Proveedores y
 precios, Auditoría — plus `Catálogos`, which points at `/admin`. Each item stays marked
 across its own screens through `activaEn` (`admin.usuarios.*`, …); `Catálogos` takes an
@@ -492,7 +493,8 @@ type. It also renders the index and the create form of every one.
 reactivation, never `DELETE`.
 
 **Some catalog rows are code, not data.** The app matches catalog names as literal
-strings — `Usuario::tieneRol()` looks for `'Administrador'`; the panels look for
+strings — `Usuario::tieneRol()` looks for `'Administrador'`, and the `rol:` route
+middleware, the sidebar and the assistant look for the five functional role names; the panels look for
 `'Realizada'`, `'Suspendida'`, `'Aprobada'`, `'Completada'` and the six material states
 *in precedence order*; the create-surgery and rescheduling flows look for
 `'En espera de confirmación'`, `'En espera'`, `'A reprogramar'`, `'Reprogramada'` and the
@@ -639,14 +641,58 @@ copy — no JavaScript at the call site:
 ```
 
 The handler in `resources/js/app.js` is delegated, so it covers forms added later. That
-file is still the app's entire JavaScript — keep it that way; a confirmation library
-would outweigh the whole bundle and fight the brand tokens.
+file is still the app's entire JavaScript (sidebar, confirmation, assistant widget) —
+keep it that way; a confirmation library would outweigh the whole bundle and fight the
+brand tokens.
 
 Icons are Material Symbols, loaded from a **subsetted** stylesheet. **A new icon must
 be added to the `icon_names` list of the layout that renders it or it silently will not
 render** — each of `layouts/app`, `layouts/guest` and `layouts/portal` carries its own
 list, so an icon used in the portal goes in `layouts/portal.blade.php`. The `FILL` axis
 is what makes the active nav item solid and the rest outline.
+
+### Asistente — `App\Support\Asistente`
+
+A floating chat (`<x-asistente>`, in `layouts/app` and `layouts/portal`) that explains
+**how to use the system** to each role, backed by Gemini. Staff post to `/asistente`,
+patients to `/portal/asistente` (it has to live under `/portal`: `SesionPorArea` picks the
+cookie by URL). The response is streamed plain text, painted with `textContent`.
+
+**It sees no system data — that is the design, not a missing feature.** No surgeries,
+patients or states, not even the writer's name: the Gemini free tier may use what it is
+sent to improve Google's products, and this is health data. Giving it read access (tool
+calls over `ResumenCirugia`) needs a paid tier with no-training terms and is an open team
+decision; do not add data to the prompt without that decision.
+
+- **One provider-bound class.** `ProveedorAsistente` is an interface resolved from the
+  container (same reason as `GestorDocumental`: network I/O); `ProveedorAsistenteGemini`
+  talks to the REST SSE endpoint with Laravel's `Http` client (no SDK). It makes the
+  request *before* returning the generator, so a 429 or a bad key becomes an HTTP status
+  (503 / 502) instead of a broken stream.
+- **The prompt is built from code** by `InstruccionesAsistente`: the menu per role from
+  `App\Support\Navegacion` (the list the sidebar draws — that is why it was extracted from
+  `partials/nav.blade.php`), portal tabs from `Portal\CirugiaController::SECCIONES`,
+  catalogs and protected rows from `Catalogos`. Only what code cannot say lives in
+  `resources/ayuda/{staff,paciente,gestor,cirujano,anestesista,direccion,administrador}.md`.
+  It works on role names, not a `Usuario`, so tests and the evals build it without a DB.
+- **Keep the guides honest.** A backticked path in those files must be a registered GET
+  route, a new guide must be declared in `InstruccionesAsistente::archivos()`, and every
+  role in `AYUDA_POR_ROL` must be a protected `Rol` row — `AsistenteTest` checks all three.
+  When a screen changes, update its guide in the same PR.
+- **Nothing is stored.** History lives in `sessionStorage` (keyed by area + user id) and
+  travels with each request; `AsistenteRequest` caps it (20 turns, 500 chars per user
+  message). Error logs never include what the user wrote.
+- **Rate limit `asistente`** (`AppServiceProvider::boot()`), per user rather than per IP,
+  with a separate key per limit — with the same key both limits share one counter.
+- **No key, no widget**: without `GEMINI_API_KEY` the component renders nothing and the
+  endpoint 404s. `phpunit.xml` blanks the key; tests use `Tests\Fakes\ProveedorAsistenteFalso`.
+- `bootstrap/app.php` renders JSON for the two assistant paths: otherwise a 401/422 became
+  a redirect that `fetch` followed silently, landing on the login HTML with a 200.
+
+`php artisan asistente:evaluar` runs `tests/Asistente/evals.json` against the real model
+(grounding, no invented features, no clinical advice, no echoed DNI, prompt injection).
+It is not PHPUnit because it hits the network; `AsistenteTest` only checks that its
+assertions really pass and fail against a fixed answer.
 
 ### Known gaps — do not assume these work
 

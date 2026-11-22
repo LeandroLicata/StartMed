@@ -14,7 +14,7 @@
     --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=arrow_back,assignment,call,cancel,chat,check_circle,chevron_right,draw,error,event,event_busy,history,home,info,logout,mail,no_food,notifications,pending,person,schedule,send,shield,stethoscope,upload_file,visibility,warning&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=arrow_back,assignment,call,cancel,chat,check_circle,chevron_right,close,draw,error,event,event_busy,history,home,info,logout,mail,no_food,notifications,pending,person,restart_alt,schedule,send,shield,stethoscope,upload_file,visibility,warning&display=block">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -106,6 +106,17 @@
         @include('partials.flash')
         @yield('contenido')
     </main>
+
+    {{-- Asistente de uso del portal: solo con sesion, nunca en las pantallas de ingreso. --}}
+    @if ($paciente)
+        <x-asistente
+            :url="route('portal.asistente')"
+            :clave="'asistente:portal:'.$paciente->idPersona"
+            subtitulo="Te ayudo a usar el portal"
+            bienvenida="¡Hola! Preguntame dónde encontrar algo en el portal o qué tenés que completar antes de tu cirugía."
+            aviso="No escribas datos personales ni de salud. Para consultas sobre tu cirugía, usá la pestaña Contacto."
+        />
+    @endif
 @endif
 
 {{-- El mismo dialogo de confirmacion que el staff; lo usan los forms con data-confirmar. --}}
