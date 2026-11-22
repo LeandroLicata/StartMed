@@ -73,13 +73,6 @@ class PortalAvisoCambioCoberturaTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_dar_de_baja_la_predeterminada_avisa(): void
-    {
-        $this->patch(route('portal.perfil.baja', $this->predeterminada()->idPlanObraSocial));
-
-        Mail::assertSent(AvisoCambioCobertura::class, fn (AvisoCambioCobertura $mail) => $mail->coberturaNueva === null);
-    }
-
     public function test_sin_cirugias_pendientes_no_avisa(): void
     {
         Cirugia::where('idPersonaPaciente', $this->maria->idPersona)

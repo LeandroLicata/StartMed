@@ -14,7 +14,7 @@
     --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=accessible,add,add_circle,arrow_back,arrow_forward,assignment,badge,bloodtype,call,cancel,chat,check_circle,chevron_right,close,delete,description,draw,edit,edit_note,error,event,event_busy,folder_open,groups,history,home,info,inventory_2,key,lock,logout,mail,manage_accounts,medical_services,meeting_room,menu,monitoring,more_vert,no_food,pending,person,personal_injury,restart_alt,restore,save,schedule,science,search,search_off,send,settings,shield,stethoscope,swap_horiz,today,upload_file,vaccines,visibility,warning&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=accessible,add,add_circle,arrow_back,arrow_forward,assignment,badge,bloodtype,call,cancel,chat,check_circle,chevron_right,close,delete,description,draw,edit,edit_note,error,event,event_busy,folder_open,groups,history,home,info,inventory_2,key,location_on,lock,logout,mail,manage_accounts,medical_services,meeting_room,menu,monitoring,more_vert,no_food,pending,person,person_add,personal_injury,restart_alt,restore,save,schedule,science,search,search_off,send,settings,shield,smartphone,stethoscope,swap_horiz,today,upload_file,vaccines,visibility,warning&display=block">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -53,6 +53,11 @@
         <div class="border-t border-white/10 px-5 py-4">
             <p class="text-[11px] uppercase tracking-widest text-white/40">StartMed</p>
             <p class="text-xs text-white/60">Gestión de cirugías</p>
+            @if ($versionApp = \App\Support\VersionApp::actual())
+                <p class="mt-1 font-mono text-[11px] text-white/40" title="Versión desplegada según el repositorio">
+                    {{ $versionApp }}
+                </p>
+            @endif
         </div>
     </aside>
 

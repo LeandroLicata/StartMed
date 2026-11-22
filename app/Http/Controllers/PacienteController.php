@@ -2,58 +2,106 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FormularioPersona;
+use App\Http\Requests\PersonaRequest;
 use App\Models\Persona;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PacienteController extends Controller
 {
+    use FormularioPersona;
+
     /**
-     * Display a listing of the resource.
+     * Listado y busqueda de pacientes activos.
      */
     public function index(Request $request): View
     {
-        $query = Persona::query();
+        $query = Persona::query()
+            ->with('tipoDocumento')
+            ->whereNull('fechaHoraBajaPersona');
 
-        // Búsqueda por nombre, apellido o DNI
-        if ($search = $request->query('buscar')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('nombres', 'like', "%{$search}%")
-                    ->orWhere('apellidos', 'like', "%{$search}%")
-                    ->orWhere('documento', 'like', "%{$search}%");
-            });
+        // Búsqueda por nombre, apellido o DNI (incluye DNI con puntos o espacios).
+        if ($search = trim((string) $request->query('buscar', ''))) {
+            $query->buscar($search);
         }
 
-        // Filtro por genero
-        if ($genero = $request->query('genero')) {
-            if (in_array($genero, ['M', 'F', 'X'])) {
-                $query->where('genero', $genero);
-            }
+        // Filtro por género.
+        if (in_array($genero = $request->query('genero'), ['M', 'F', 'X'], true)) {
+            $query->where('genero', $genero);
         }
 
-        // Filtro por crónico
-        if ($request->has('es_cronico') && $request->query('es_cronico') !== '') {
-            $query->where('es_cronico', $request->query('es_cronico'));
+        // Filtro por crónico: ConvertEmptyStringsToNull convierte "" a null,
+        // por eso validamos explícitamente contra '0' y '1'.
+        $esCronico = $request->query('es_cronico');
+        if (in_array($esCronico, ['0', '1', 0, 1], true)) {
+            $query->where('es_cronico', (bool) $esCronico);
         }
 
-        // Filtramos para asegurar que traemos personas que no están dadas de baja
-        $query->whereNull('fechaHoraBajaPersona');
-
-        $pacientes = $query->orderBy('apellidos')->orderBy('nombres')->paginate(20)->withQueryString();
+        $pacientes = $query
+            ->orderBy('apellidos')
+            ->orderBy('nombres')
+            ->paginate(20)
+            ->withQueryString();
 
         return view('pacientes.index', compact('pacientes'));
     }
 
+    public function create(): View
+    {
+        return view('pacientes.formulario', [
+            'paciente' => null,
+            ...$this->catalogosPersona(),
+        ]);
+    }
+
+    public function store(PersonaRequest $request): RedirectResponse
+    {
+        $persona = $this->crearPersonaAuditada($request->validated());
+
+        return redirect()
+            ->route('pacientes.show', $persona)
+            ->with('exito', 'Paciente '.$persona->nombre_completo.' registrado correctamente.');
+    }
+
     /**
-     * Display the specified resource.
+     * Ficha del paciente y su historial de cirugias.
      */
     public function show(Persona $paciente): View
     {
-        // Cargar las cirugías donde la persona es el paciente
-        $paciente->load(['cirugias' => function ($q) {
-            $q->orderBy('fechaHoraCirugia', 'desc');
-        }, 'cirugias.tipoCirugia', 'cirugias.cirujano.persona', 'cirugias.cirugiaEstados.estadoCirugia']);
+        $paciente->load([
+            'tipoDocumento',
+            'grupoSanguineo',
+            'cirugias' => fn ($q) => $q->orderBy('fechaHoraCirugia', 'desc'),
+            'cirugias.tipoCirugia',
+            'cirugias.cirujano.persona',
+            'cirugias.cirugiaEstados.estadoCirugia',
+        ]);
 
-        return view('pacientes.show', compact('paciente'));
+        $puedeGestionarCoberturas = auth()->user()?->tieneRol('Gestor de quirófano') ?? false;
+
+        return view('pacientes.show', [
+            'paciente' => $paciente,
+            'puedeGestionarCoberturas' => $puedeGestionarCoberturas,
+            ...$this->datosCoberturasPersona($paciente, $puedeGestionarCoberturas),
+        ]);
+    }
+
+    public function edit(Persona $paciente): View
+    {
+        return view('pacientes.formulario', [
+            'paciente' => $paciente,
+            ...$this->catalogosPersona(),
+        ]);
+    }
+
+    public function update(PersonaRequest $request, Persona $paciente): RedirectResponse
+    {
+        $this->actualizarPersonaAuditada($paciente, $request->validated());
+
+        return redirect()
+            ->route('pacientes.show', $paciente)
+            ->with('exito', 'Datos del paciente actualizados correctamente.');
     }
 }

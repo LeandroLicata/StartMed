@@ -63,6 +63,7 @@ final class Navegacion
             'etiqueta' => 'Pacientes',
             'icono' => 'groups',
             'ruta' => 'pacientes.index',
+            'activaEn' => 'pacientes.*',
             'roles' => ['Gestor de quirófano', 'Cirujano', 'Anestesista'],
         ],
         [
@@ -96,6 +97,13 @@ final class Navegacion
             'ruta' => 'admin.usuarios.index',
             'activaEn' => 'admin.usuarios.*',
             'titulo' => 'Administración',
+            'roles' => ['Administrador'],
+        ],
+        [
+            'etiqueta' => 'Personas',
+            'icono' => 'badge',
+            'ruta' => 'admin.personas.index',
+            'activaEn' => 'admin.personas.*',
             'roles' => ['Administrador'],
         ],
         [

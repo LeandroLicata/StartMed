@@ -122,8 +122,8 @@ hid coverages the patient still saw as current in the portal.
 
 At most one current coverage per patient has `esPredeterminadaPlanObraSocial`; the
 portal keeps it that way inside a transaction. **Create coverages only through
-`PlanObraSocial::agregar()`** — the portal, the create-surgery form and rescheduling all
-do. It marks the new one as the default when the patient has no current default, so the
+`PlanObraSocial::agregar()`** — the gestor's patient screen and the admin's Personas
+screen (`CoberturaPersonaController`), the create-surgery form and rescheduling all do. It marks the new one as the default when the patient has no current default, so the
 gestor's forms always have something to preselect. Both of them (create-surgery and the
 reschedule modal) list the default first and preselect it.
 
@@ -736,11 +736,10 @@ assertions really pass and fail against a fixed answer.
   `ConfigConsentimiento` (`/admin/consentimientos`), `ConfigTipoExamenPreAnestesico*`
   (`/admin/cuestionario`) and `MaterialProveedor` / `MaterialProveedorTipoMedida`
   (`/admin/precios`) are date-ranged or nested, so the map would have flattened them.
-  `PlanObraSocial` has no `/admin` screen on purpose: it is a patient's coverage, so the
-  patient manages it from the portal profile (`/portal/perfil`) — see current and past
-  coverages, mark the default one, end one and add a new one.
-- **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
-  disabled; a `Persona` who is not staff has no screen of its own.
+  `PlanObraSocial` is not a catalog either: coverages are added and ended from the
+  patient's record — the gestor in `/pacientes/{paciente}`, the admin in
+  `/admin/personas/{persona}/editar` (shared partial `persona-obras-sociales`). From the
+  portal profile the patient can only see them and choose the default one.
 - **Gender is not shown in the patient profile.** `Persona.genero` exists (one letter,
   nullable) and the demo seeds it, but `/portal/perfil` neither shows nor edits it: the
   requirements leave it «A definir» (read-only like the DNI? editable? which values?).

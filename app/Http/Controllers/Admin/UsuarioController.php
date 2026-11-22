@@ -21,10 +21,9 @@ use Illuminate\View\View;
  * Alta y mantenimiento de los usuarios del sistema.
  *
  * Un usuario no es una fila sola: cuelga de la cadena Persona -> Personal ->
- * Usuario, y los roles viven en RolPersonal con su propio historial. Hasta
- * ahora esa cadena solo la sabia armar DatabaseSeeder; aca se hace desde la
- * aplicacion, siempre dentro de una transaccion para no dejar una Persona
- * suelta si algo falla mas abajo.
+ * Usuario, y los roles viven en RolPersonal con su propio historial. En el
+ * alta tambien permite vincular una Persona existente (por ?persona={id})
+ * para darle acceso y roles sin duplicar su ficha.
  */
 class UsuarioController extends Controller
 {
@@ -78,9 +77,27 @@ class UsuarioController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View|RedirectResponse
     {
-        return view('admin.usuarios.formulario', $this->datosDelFormulario(null));
+        $personaExistente = null;
+
+        if ($idPersona = $request->integer('persona')) {
+            $personaExistente = Persona::with('personal.usuario')->findOrFail($idPersona);
+
+            if ($personaExistente->fechaHoraBajaPersona !== null) {
+                return redirect()
+                    ->route('admin.personas.index')
+                    ->with('error', 'No podés crear un usuario para una persona dada de baja.');
+            }
+
+            if ($usuarioExistente = $personaExistente->personal?->usuario) {
+                return redirect()
+                    ->route('admin.usuarios.edit', $usuarioExistente)
+                    ->with('aviso', 'Esta persona ya tiene el usuario '.$usuarioExistente->nombreUsuario.'. Podés editar sus roles acá.');
+            }
+        }
+
+        return view('admin.usuarios.formulario', $this->datosDelFormulario(null, $personaExistente));
     }
 
     public function store(UsuarioRequest $request): RedirectResponse
@@ -88,20 +105,32 @@ class UsuarioController extends Controller
         $datos = $request->validated();
 
         DB::transaction(function () use ($datos) {
-            $persona = Persona::create([
+            $datosPersona = [
                 'tipo_documento_id' => $datos['tipo_documento_id'],
                 'documento' => $datos['documento'],
                 'apellidos' => $datos['apellidos'],
                 'nombres' => $datos['nombres'],
-            ]);
+                'contacto_email_direccion' => $datos['contacto_email_direccion'],
+                'telefono_numero' => $datos['telefono_numero'],
+                'direccionPersona' => $datos['direccionPersona'],
+            ];
 
-            $personal = Personal::create([
-                'idPersona' => $persona->idPersona,
-                'legajoPersonal' => $datos['legajoPersonal'] ?? null,
-                'matriculaProvincial' => $datos['matriculaProvincial'] ?? null,
-                'matriculaNacional' => $datos['matriculaNacional'] ?? null,
-                'mailInstitucional' => $datos['mailInstitucional'] ?? null,
-            ]);
+            if (! empty($datos['persona_id'])) {
+                $persona = Persona::findOrFail($datos['persona_id']);
+                $persona->update($datosPersona);
+            } else {
+                $persona = Persona::create($datosPersona);
+            }
+
+            $personal = Personal::updateOrCreate(
+                ['idPersona' => $persona->idPersona],
+                [
+                    'legajoPersonal' => $datos['legajoPersonal'] ?? null,
+                    'matriculaProvincial' => $datos['matriculaProvincial'] ?? null,
+                    'matriculaNacional' => $datos['matriculaNacional'] ?? null,
+                    'mailInstitucional' => $datos['mailInstitucional'] ?? null,
+                ],
+            );
 
             $usuario = Usuario::create([
                 'idPersonal' => $personal->idPersonal,
@@ -152,6 +181,9 @@ class UsuarioController extends Controller
                 'documento' => $datos['documento'],
                 'apellidos' => $datos['apellidos'],
                 'nombres' => $datos['nombres'],
+                'contacto_email_direccion' => $datos['contacto_email_direccion'],
+                'telefono_numero' => $datos['telefono_numero'],
+                'direccionPersona' => $datos['direccionPersona'],
             ]);
 
             $personal->update([
@@ -258,13 +290,20 @@ class UsuarioController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function datosDelFormulario(?Usuario $usuario): array
+    private function datosDelFormulario(?Usuario $usuario, ?Persona $personaExistente = null): array
     {
         $personal = $usuario?->personal;
-        $persona = $personal?->persona;
+        $persona = $personal?->persona ?? $personaExistente;
+        $dniPorDefecto = $persona === null
+            ? TipoDocumento::query()
+                ->where('nombreTipoDocumento', 'DNI')
+                ->whereNull('fechaBajaTipoDocumento')
+                ->value('idTipoDocumento')
+            : null;
 
         return [
             'usuario' => $usuario,
+            'personaExistente' => $personaExistente,
             'tiposDocumento' => TipoDocumento::query()
                 ->whereNull('fechaBajaTipoDocumento')
                 ->orderBy('nombreTipoDocumento')
@@ -276,10 +315,13 @@ class UsuarioController extends Controller
                 ->get(),
             'rolesActuales' => $personal?->rolesVigentes->pluck('idRol')->all() ?? [],
             'valores' => [
-                'tipo_documento_id' => $persona?->tipo_documento_id,
+                'tipo_documento_id' => $persona?->tipo_documento_id ?? $dniPorDefecto,
                 'documento' => $persona?->documento,
                 'apellidos' => $persona?->apellidos,
                 'nombres' => $persona?->nombres,
+                'contacto_email_direccion' => $persona?->contacto_email_direccion,
+                'telefono_numero' => $persona?->telefono_numero,
+                'direccionPersona' => $persona?->direccionPersona,
                 'legajoPersonal' => $personal?->legajoPersonal,
                 'matriculaProvincial' => $personal?->matriculaProvincial,
                 'matriculaNacional' => $personal?->matriculaNacional,

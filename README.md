@@ -746,11 +746,10 @@ resultado, el laboratorio, ni la profilaxis que debería derivar de un positivo.
 **Cuatro tablas maestras quedan fuera del ABM genérico de catálogos** —
 `ConfigConsentimiento`, `ConfigTipoExamenPreAnestesico*` y
 `MaterialProveedor`/`MaterialProveedorTipoMedida` tienen su propia pantalla (ver
-*Administración*) porque son historiadas o anidadas. `PlanObraSocial` es la única
-que todavía no tiene pantalla propia.
-
-**Los pacientes no se gestionan desde `/admin`.** El ítem "Pacientes" del menú
-sigue deshabilitado; una `Persona` que no es personal no tiene pantalla propia.
+*Administración*) porque son historiadas o anidadas. `PlanObraSocial` tampoco es un
+catálogo: las coberturas se cargan y se dan de baja desde la ficha de la persona (el gestor
+en `/pacientes`, el administrador en `/admin/personas`); desde el portal el paciente solo
+elige cuál es la predeterminada.
 
 ---
 
