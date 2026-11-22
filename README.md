@@ -524,6 +524,11 @@ pide un tier pago con términos de no-entrenamiento y es una decisión de equipo
   free tier como techo de gasto: al agotarse la cuota Gemini responde 429 y el widget avisa.
 - **Sin `GEMINI_API_KEY` el widget no aparece** y el endpoint da 404: un clon nuevo funciona
   entero sin cuenta. La suite nunca le habla a Gemini (`phpunit.xml` deja la clave vacía).
+- **Botones «Ir a …».** Cuando la respuesta nombra una pantalla con su dirección
+  («Agenda (/agenda)»), el widget agrega un botón para ir. El modelo no decide a dónde lleva:
+  el servidor manda una lista blanca por usuario (`DestinosAsistente`), con pantallas GET sin
+  parámetros a las que ese usuario puede entrar según el middleware de la ruta. Una dirección
+  inventada o ajena no genera botón. Al llegar a la otra pantalla, el panel se reabre con la charla.
 
 ### Evals
 

@@ -141,9 +141,76 @@ if (asistente) {
         lista.scrollTop = lista.scrollHeight;
     };
 
+    /*
+     * Botones «Ir a …». data-destinos es una lista blanca que arma el servidor
+     * (DestinosAsistente): pantallas a las que este usuario puede entrar. Se
+     * ofrece un boton por cada direccion de la lista que aparezca en la
+     * respuesta; lo que el modelo invente no esta en la lista y no genera nada.
+     */
+    const destinos = (() => {
+        try {
+            const lista = JSON.parse(asistente.dataset.destinos ?? '{}');
+            return lista && typeof lista === 'object' && !Array.isArray(lista) ? lista : {};
+        } catch {
+            return {};
+        }
+    })();
+
+    const MAX_BOTONES = 3;
+    const claveAbierto = `${clave}:abierto`;
+
+    const escapar = (literal) => literal.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
+
+    // La direccion tiene que estar entera: /admin no matchea dentro de /admin/usuarios.
+    const patronDe = (direccion) => new RegExp('(^|[^\\w/])' + escapar(direccion) + '(?![\\w/-])');
+
+    const destinosEn = (contenido) => Object.keys(destinos)
+        .map((direccion) => ({ direccion, posicion: contenido.search(patronDe(direccion)) }))
+        .filter(({ direccion, posicion }) => posicion >= 0 && direccion !== window.location.pathname)
+        .sort((a, b) => a.posicion - b.posicion)
+        .slice(0, MAX_BOTONES)
+        .map(({ direccion }) => direccion);
+
+    const agregarBotones = (parrafo, contenido) => {
+        const encontrados = destinosEn(contenido);
+
+        if (encontrados.length === 0) return;
+
+        const fila = document.createElement('div');
+        fila.className = 'flex max-w-[85%] flex-wrap gap-1.5';
+
+        encontrados.forEach((direccion) => {
+            const enlace = document.createElement('a');
+            enlace.href = direccion;
+            enlace.className = 'inline-flex items-center gap-0.5 rounded-full border border-hu-azul/30 bg-white py-1 pl-3 pr-2 '
+                + 'text-xs font-semibold text-hu-azul transition-colors hover:border-hu-dorado hover:bg-hu-azul-tenue';
+            enlace.textContent = `Ir a ${destinos[direccion]}`;
+
+            const flecha = document.createElement('span');
+            flecha.className = 'material-symbols-rounded text-base';
+            flecha.setAttribute('aria-hidden', 'true');
+            flecha.textContent = 'chevron_right';
+            enlace.append(flecha);
+
+            // Al llegar a la otra pantalla, el panel se reabre con la charla.
+            enlace.addEventListener('click', () => {
+                try {
+                    sessionStorage.setItem(claveAbierto, '1');
+                } catch {
+                    // Sin storage el panel simplemente arranca cerrado.
+                }
+            });
+
+            fila.append(enlace);
+        });
+
+        parrafo.after(fila);
+        bajar();
+    };
+
     const burbuja = (rol, contenido, error = false) => {
         const item = document.createElement('li');
-        item.className = rol === 'usuario' ? 'flex justify-end' : 'flex justify-start';
+        item.className = rol === 'usuario' ? 'flex justify-end' : 'flex flex-col items-start gap-1.5';
 
         const parrafo = document.createElement('p');
         parrafo.className = rol === 'usuario'
@@ -163,7 +230,11 @@ if (asistente) {
     const pintar = () => {
         lista.replaceChildren();
         burbuja('asistente', bienvenida);
-        mensajes.forEach((mensaje) => burbuja(mensaje.rol, mensaje.texto));
+        mensajes.forEach((mensaje) => {
+            const parrafo = burbuja(mensaje.rol, mensaje.texto);
+
+            if (mensaje.rol === 'asistente') agregarBotones(parrafo, mensaje.texto);
+        });
     };
 
     const mostrarAsistente = (visible) => {
@@ -229,6 +300,7 @@ if (asistente) {
             acumulado = (acumulado + decodificador.decode()).trim() || GENERICO;
             respuesta.textContent = acumulado;
             mensajes.push({ rol: 'asistente', texto: acumulado });
+            agregarBotones(respuesta, acumulado);
         } catch (error) {
             // La pregunta que fallo sale del historial; queda a la vista para
             // poder copiarla, pero no viaja en el proximo pedido.
@@ -275,4 +347,14 @@ if (asistente) {
     });
 
     pintar();
+
+    // Se llego aca desde un boton «Ir a …»: el panel sigue abierto.
+    try {
+        if (sessionStorage.getItem(claveAbierto) === '1') {
+            sessionStorage.removeItem(claveAbierto);
+            mostrarAsistente(true);
+        }
+    } catch {
+        // Sin storage, arranca cerrado.
+    }
 }

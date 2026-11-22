@@ -4,6 +4,8 @@
     // Clave de sessionStorage: tiene que distinguir area y usuario, para que
     // otra persona que entre en la misma pestaña no herede la conversacion.
     'clave',
+    // 'staff' o 'portal': decide a que pantallas puede ofrecer un boton «Ir a».
+    'area' => 'staff',
     'subtitulo' => 'Te ayudo a usar StartMed',
     'bienvenida' => '¡Hola! Preguntame cómo hacer algo en el sistema o qué significa lo que ves en pantalla.',
     'aviso' => 'No escribas datos de pacientes. Respondo sobre el uso del sistema, no veo cirugías ni historias clínicas.',
@@ -14,10 +16,18 @@
     dibuja si hay GEMINI_API_KEY: sin clave el endpoint responde 404, asi que
     un boton que no anda es peor que no mostrarlo.
 
-    Los iconos (chat, close, restart_alt, send) tienen que estar en el
-    icon_names del layout que lo incluye.
+    Los iconos (chat, chevron_right, close, restart_alt, send) tienen que estar
+    en el icon_names del layout que lo incluye.
+
+    data-destinos es la lista blanca de pantallas a las que la respuesta puede
+    llevar con un boton (ver App\Support\Asistente\DestinosAsistente). El
+    modelo no la ve ni la decide.
 --}}
 @if (\App\Http\Controllers\AsistenteController::habilitado())
+    @php($destinos = $area === 'portal'
+        ? \App\Support\Asistente\DestinosAsistente::paraPaciente()
+        : \App\Support\Asistente\DestinosAsistente::paraStaff(auth()->user()))
+
     <div
         id="asistente"
         data-url="{{ $url }}"
@@ -25,6 +35,7 @@
         data-clave="{{ $clave }}"
         data-bienvenida="{{ $bienvenida }}"
         data-max-mensajes="{{ config('asistente.max_mensajes') }}"
+        data-destinos="{{ json_encode($destinos, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }}"
         class="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 print:hidden"
     >
         <section
