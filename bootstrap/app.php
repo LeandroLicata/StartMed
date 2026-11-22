@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CirugiaDelEquipo;
 use App\Http\Middleware\CirugiaDelPaciente;
 use App\Http\Middleware\SesionPorArea;
 use App\Http\Middleware\VerificarRol;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'rol' => VerificarRol::class,
             'cirugia.del.paciente' => CirugiaDelPaciente::class,
+            'cirugia.del.equipo' => CirugiaDelEquipo::class,
         ]);
 
         // Cookie de sesion propia para el portal: ver SesionPorArea. Tiene que

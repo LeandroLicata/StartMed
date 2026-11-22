@@ -44,7 +44,7 @@
                 // El menu solo ofrece lo que la ruta acepta: un boton que
                 // termina en 403 es peor que no mostrarlo.
                 $puedeGestionar = auth()->user()->tieneRol('Gestor de quirófano');
-                $puedeRequerir = auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano', 'Anestesista');
+                $puedeRequerir = $puedeModificarComoEquipo;
                 $puedeCancelar = $puedeGestionar && $caso->estado() !== 'Suspendida';
             @endphp
 
@@ -529,7 +529,7 @@
         @endphp
 
         {{-- Modal Editar Preparación --}}
-        @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+        @if ($puedeModificarComoCirujano)
         <dialog id="modal-preparacion"
                 class="m-auto w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl
                        backdrop:bg-black/50 backdrop:backdrop-blur-sm
@@ -654,7 +654,7 @@
         @endif
 
         @php
-            $puedeEditarPreparacion = auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano');
+            $puedeEditarPreparacion = $puedeModificarComoCirujano;
         @endphp
         <section class="mt-6 rounded-2xl border border-hu-gris-suave/70 bg-white shadow-sm">
             <header class="flex items-center justify-between gap-4 border-b border-hu-gris-suave/70 px-5 py-4">
@@ -738,7 +738,7 @@
     @if ($tabActivo === 'estudios')
         <x-tarjeta titulo="Estudios prequirúrgicos" icono="science">
             <x-slot:acciones>
-                @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano', 'Anestesista'))
+                @if ($puedeModificarComoEquipo)
                     <x-boton tipo="button" variante="contorno" class="!px-3 !py-1.5 !text-xs" onclick="document.getElementById('modal-agregar-estudio').showModal()">
                         <x-icono nombre="add" class="text-sm" /> Agregar estudio
                     </x-boton>
@@ -768,7 +768,7 @@
                             {{ $estudio->fechaSubidaCirugiaTipoEstudio ? 'Subido' : 'Pendiente' }}
                         </x-estado>
                         
-                        @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano', 'Anestesista'))
+                        @if ($puedeModificarComoEquipo)
                             {{-- Botón Subir Archivo. Elegir el archivo dispara el envío sin
                                  ningún paso intermedio, así que si ya hay uno subido pedimos
                                  confirmación antes de reemplazarlo: no se puede volver a ver
@@ -866,7 +866,7 @@
     @if ($tabActivo === 'materiales')
         <div class="mb-4 flex items-center justify-between">
             <h2 class="text-lg font-bold text-hu-azul">Materiales y presupuesto</h2>
-            @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+            @if ($puedeModificarComoCirujano)
                 <x-boton tipo="button" onclick="document.getElementById('modal-agregar-material').showModal()">
                     <x-icono nombre="add" class="text-sm" /> Agregar material
                 </x-boton>
@@ -897,7 +897,7 @@
                                 <th class="px-3 pb-2 font-semibold">Proveedor</th>
                                 <th class="px-3 pb-2 font-semibold">Cantidad</th>
                                 <th class="px-5 pb-2 text-right font-semibold">Subtotal</th>
-                                @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                                @if ($puedeModificarComoCirujano)
                                     <th class="px-5 pb-2 text-right font-semibold"></th>
                                 @endif
                             </tr>
@@ -919,7 +919,7 @@
                                     <td class="px-5 py-2.5 text-right font-semibold text-hu-azul">
                                         USD {{ number_format((float) $pedido->subtotalPedidoMaterial, 2, ',', '.') }}
                                     </td>
-                                    @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                                    @if ($puedeModificarComoCirujano)
                                         <td class="px-5 py-2.5 text-right">
                                             <div class="flex items-center justify-end gap-2">
                                                 <button type="button" onclick="document.getElementById('modal-editar-material-{{ $pedido->idPedidoMaterial }}').showModal()" class="text-hu-gris-medio hover:text-hu-azul transition-colors" title="Editar cantidad">
@@ -967,7 +967,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="border-t-2 border-hu-azul/20">
-                                <td colspan="{{ auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano') ? 4 : 3 }}" class="px-5 pt-3 text-right text-sm font-semibold">Total</td>
+                                <td colspan="{{ $puedeModificarComoCirujano ? 4 : 3 }}" class="px-5 pt-3 text-right text-sm font-semibold">Total</td>
                                 <td class="px-5 pt-3 text-right text-base font-black text-hu-azul">
                                     USD {{ number_format($caso->importeMateriales(), 2, ',', '.') }}
                                 </td>
@@ -1043,7 +1043,7 @@
     @if ($tabActivo === 'hemoderivados')
         <div class="mb-4 flex items-center justify-between">
             <h2 class="text-lg font-bold text-hu-azul">Pedidos de hemoderivados</h2>
-            @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano', 'Anestesista'))
+            @if ($puedeModificarComoEquipo)
                 <x-boton tipo="button" onclick="abrirModalNuevoPedido()">
                     <x-icono nombre="add" class="text-sm" /> Nuevo pedido
                 </x-boton>
@@ -1109,7 +1109,7 @@
                                         $estadoItemId = $estadoItemObj?->idEstadoPedidoTipoHemoderivado;
                                         $estadoItemStr = $estadoItemObj?->estadoPedidoTipoHemoderivado?->nombreEstadoPedidoTipoHemoderivado ?? 'Solicitado';
                                     @endphp
-                                    @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano', 'Anestesista'))
+                                    @if ($puedeModificarComoEquipo)
                                         <form action="{{ route('cirugias.hemoderivados.componente.estado', [$caso->cirugia, $item]) }}" method="POST" class="inline-block">
                                             @csrf
                                             @method('PATCH')
@@ -1161,7 +1161,7 @@
             <x-tarjeta titulo="Hisopado SAMR" icono="science">
                 @if ($hisopado)
                     <x-slot:acciones>
-                        @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                        @if ($puedeModificarComoCirujano)
                             <button
                                 type="button"
                                 onclick="document.getElementById('modal-hisopado').showModal()"
@@ -1230,7 +1230,7 @@
                     </dl>
 
                     {{-- Botones de resultado: solo visibles si está Pendiente y el usuario puede registrar --}}
-                    @if ($hisopado['estado'] === 'Pendiente' && auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                    @if ($hisopado['estado'] === 'Pendiente' && $puedeModificarComoCirujano)
                         <div class="mt-4 flex gap-2 border-t border-hu-gris-suave/60 pt-4">
                             <button
                                 type="button"
@@ -1257,7 +1257,7 @@
 
             <x-tarjeta titulo="Profilaxis antibiótica" icono="vaccines">
                 <x-slot:acciones>
-                    @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                    @if ($puedeModificarComoCirujano)
                         <button
                             type="button"
                             onclick="document.getElementById('modal-agregar-profilaxis').showModal()"
@@ -1303,7 +1303,7 @@
             <div class="lg:col-span-2 space-y-5">
                 <x-tarjeta titulo="Timeline autorización" icono="monitoring">
                     <x-slot:acciones>
-                        @if (auth()->user()->tieneRol('Gestor de quirófano', 'Cirujano'))
+                        @if ($puedeModificarComoCirujano)
                             <x-boton tipo="button" variante="contorno" class="!px-3 !py-1.5 !text-xs" onclick="document.getElementById('modal-estado-autorizacion').showModal()">
                                 Actualizar estado
                             </x-boton>

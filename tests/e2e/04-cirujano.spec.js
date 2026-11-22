@@ -294,10 +294,11 @@ test.describe('Rol: Cirujano (perez)', () => {
     expect(resp.status()).toBe(200);
   });
 
-  // Brecha de permisos detectada en análisis QA: en /cirugias/{id}, CirugiaController
-  // valida el rol 'Cirujano' por middleware pero no verifica que $cirugia->idPersonalCirujano
-  // coincida con el cirujano logueado (a diferencia de AnestesistaController::autorizarCirugia).
-  test.fixme('8. [Bug conocido] Un cirujano no debería poder editar la preparación de una cirugía asignada a otro cirujano (/cirugias/3 de lopez)', async ({ page }) => {
+  // Detectado en análisis QA y corregido: las escrituras sobre /cirugias/{id} pasan por
+  // el middleware cirugia.del.equipo (Usuario::puedeModificarCirugia). El 403 del lado
+  // del servidor lo cubre CirugiaAccionesTest; acá se verifica que la vista no ofrezca
+  // el botón.
+  test('8. Un cirujano no puede editar la preparación de una cirugía asignada a otro cirujano (/cirugias/3 de lopez)', async ({ page }) => {
     await loginStaff(page, 'perez', 'demo1234');
     await page.goto('/cirugias/3?tab=preparacion');
     await expect(page.getByRole('button', { name: 'Editar preparación' })).toHaveCount(0);

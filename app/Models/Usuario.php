@@ -88,6 +88,50 @@ class Usuario extends Authenticatable
     }
 
     /**
+     * Si puede modificar esta cirugia, ademas de poder entrar a la pantalla.
+     *
+     * El gestor de quirofano (y el administrador, por el comodin de `tieneRol`)
+     * modifica cualquiera: organizar las cirugias es su trabajo. Cirujano y
+     * anestesista, solo aquellas en las que son el titular; tener el rol no
+     * alcanza, porque si no cualquier cirujano editaba la cirugia de otro.
+     *
+     * `$rolesDelEquipo` dice cuales de esos dos roles admite la accion: una
+     * accion que el anestesista no puede hacer no se habilita porque el
+     * usuario sea el anestesista titular de la cirugia.
+     *
+     * Es la unica copia de la regla: la aplica el middleware
+     * `cirugia.del.equipo` en las rutas y la consulta la vista del expediente
+     * para no mostrar botones que darian 403.
+     */
+    public function puedeModificarCirugia(Cirugia $cirugia, string ...$rolesDelEquipo): bool
+    {
+        if ($this->tieneRol('Gestor de quirófano')) {
+            return true;
+        }
+
+        $idPersonal = $this->personal?->idPersonal;
+
+        if ($idPersonal === null) {
+            return false;
+        }
+
+        $titulares = [
+            'Cirujano' => $cirugia->idPersonalCirujano,
+            'Anestesista' => $cirugia->idPersonalAnestesista,
+        ];
+
+        foreach ($rolesDelEquipo as $rol) {
+            if (isset($titulares[$rol])
+                && (int) $titulares[$rol] === (int) $idPersonal
+                && $this->tieneRolPropio($rol)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Panel al que se manda al usuario despues de iniciar sesion. Cada rol
      * tiene el suyo, asi que no se puede mandar a todos al mismo lado.
      *
