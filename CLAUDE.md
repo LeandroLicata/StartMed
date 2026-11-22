@@ -688,6 +688,15 @@ decision; do not add data to the prompt without that decision.
   endpoint 404s. `phpunit.xml` blanks the key; tests use `Tests\Fakes\ProveedorAsistenteFalso`.
 - `bootstrap/app.php` renders JSON for the two assistant paths: otherwise a 401/422 became
   a redirect that `fetch` followed silently, landing on the login HTML with a 200.
+- **«Ir a …» buttons come from a server allowlist, never from the model.** The prompt asks
+  the model to write each screen's path in parentheses; the widget adds a button only for
+  paths in `data-destinos`, built by `DestinosAsistente`: the user's menu plus the paths
+  their guides name, kept only if the route is GET, has no parameters, carries the area's
+  `auth:` guard and (staff) passes every `rol:` middleware via `tieneRol`. A guide path
+  that is in no menu needs a label in `DestinosAsistente::ETIQUETAS`, and every path a
+  role's guide names must be reachable by that role — `AsistenteDestinosTest` checks both
+  (it caught the anaesthetist guide pointing at `/cirujano/agenda`, which is `rol:Cirujano`).
+  The portal's top nav moved to `Navegacion::PORTAL` for the same single-source reason.
 
 `php artisan asistente:evaluar` runs `tests/Asistente/evals.json` against the real model
 (grounding, no invented features, no clinical advice, no echoed DNI, prompt injection).
@@ -695,6 +704,13 @@ It is not PHPUnit because it hits the network; `AsistenteTest` only checks that 
 assertions really pass and fail against a fixed answer.
 
 ### Known gaps — do not assume these work
+
+- **The anaesthetist's «Agenda» and «Historial de cirugías» menu items lead to a 403.**
+  `Navegacion::SECCIONES` shows them to `Cirujano` and `Anestesista`, but the routes
+  (`cirujano.agenda`, `cirujano.historial`) are `rol:Cirujano` and `CirujanoController`
+  filters by `idPersonalCirujano` only. Either implement an anaesthetist agenda or drop
+  the role from those items — a team decision; the assistant's guide says it is not
+  available yet.
 
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.

@@ -74,11 +74,8 @@
             {{-- Tres columnas iguales: icono arriba y texto abajo en el celular, lado a lado desde sm. --}}
             <nav class="mx-auto max-w-6xl px-4 sm:px-6" aria-label="Secciones del portal">
                 <ul class="grid grid-cols-3 gap-1">
-                    @foreach ([
-                        ['portal.inicio', 'Próximas', 'Próximas cirugías', 'event', ['portal.inicio', 'portal.cirugias.*']],
-                        ['portal.historial', 'Historial', 'Historial de cirugías', 'history', ['portal.historial']],
-                        ['portal.perfil', 'Perfil', 'Mi perfil', 'person', ['portal.perfil']],
-                    ] as [$ruta, $etiqueta, $descripcion, $icono, $activaEn])
+                    {{-- Las secciones viven en App\Support\Navegacion::PORTAL (las lee tambien el asistente). --}}
+                    @foreach (\App\Support\Navegacion::PORTAL as ['ruta' => $ruta, 'etiqueta' => $etiqueta, 'descripcion' => $descripcion, 'icono' => $icono, 'activaEn' => $activaEn])
                         {{-- La vista puede fijar $navSeccionActiva: una cirugía anterior marca Historial. --}}
                         @php($activa = isset($navSeccionActiva) ? $navSeccionActiva === $ruta : request()->routeIs(...$activaEn))
                         <li>
@@ -112,6 +109,7 @@
         <x-asistente
             :url="route('portal.asistente')"
             :clave="'asistente:portal:'.$paciente->idPersona"
+            area="portal"
             subtitulo="Te ayudo a usar el portal"
             bienvenida="¡Hola! Preguntame dónde encontrar algo en el portal o qué tenés que completar antes de tu cirugía."
             aviso="No escribas datos personales ni de salud. Para consultas sobre tu cirugía, usá la pestaña Contacto."

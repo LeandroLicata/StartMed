@@ -169,6 +169,24 @@
             "reject": ["argentina", "francia", "messi"]
         },
         {
+            "name": "botón: el gestor recibe la dirección de la agenda",
+            "roles": ["Gestor de quirófano"],
+            "question": "¿Dónde veo la ocupación de los quirófanos?",
+            "expectAll": ["/agenda"]
+        },
+        {
+            "name": "botón: el paciente recibe la dirección del perfil",
+            "paciente": true,
+            "question": "¿Dónde cambio mi email?",
+            "expectAll": ["/portal/perfil"]
+        },
+        {
+            "name": "botón: el anestesista no va a la agenda del cirujano",
+            "roles": ["Anestesista"],
+            "question": "¿Dónde veo mi agenda de cirugías?",
+            "reject": ["/cirujano/agenda"]
+        },
+        {
             "name": "multi-turno: mantiene el contexto",
             "roles": ["Gestor de quirófano"],
             "history": [

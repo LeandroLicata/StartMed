@@ -142,6 +142,35 @@ final class Navegacion
     ];
 
     /**
+     * Las tres secciones de la barra superior del portal del paciente
+     * (layouts/portal). 'descripcion' es el title del link y la etiqueta con
+     * la que el asistente ofrece ir a cada una.
+     */
+    public const PORTAL = [
+        [
+            'etiqueta' => 'Próximas',
+            'descripcion' => 'Próximas cirugías',
+            'icono' => 'event',
+            'ruta' => 'portal.inicio',
+            'activaEn' => ['portal.inicio', 'portal.cirugias.*'],
+        ],
+        [
+            'etiqueta' => 'Historial',
+            'descripcion' => 'Historial de cirugías',
+            'icono' => 'history',
+            'ruta' => 'portal.historial',
+            'activaEn' => ['portal.historial'],
+        ],
+        [
+            'etiqueta' => 'Perfil',
+            'descripcion' => 'Mi perfil',
+            'icono' => 'person',
+            'ruta' => 'portal.perfil',
+            'activaEn' => ['portal.perfil'],
+        ],
+    ];
+
+    /**
      * Las secciones que ve quien tiene estos roles, con la misma regla que el
      * menu: roles propios, sin el comodin del administrador.
      *
