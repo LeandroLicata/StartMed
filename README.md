@@ -488,6 +488,60 @@ manual.
 
 ---
 
+## Asistente
+
+Un chat flotante (abajo a la derecha) que le explica a cada rol cómo se usa el sistema:
+dónde está cada cosa, cómo se hace un trámite, qué significa el semáforo. Está en las
+pantallas del staff y en el portal del paciente, cada uno con su propio endpoint
+(`POST /asistente`, `POST /portal/asistente`). Corre sobre la API de Gemini.
+
+**Es un asistente de uso: no ve datos del sistema.** No recibe cirugías, pacientes ni
+estados, ni siquiera el nombre de quien escribe; solo una guía y lo que el usuario tipea.
+Es a propósito: en el free tier de Gemini, Google puede usar lo que se le manda para
+mejorar sus productos, y estos son datos de salud. El widget pide no escribir datos de
+pacientes. Darle acceso a datos (por ejemplo, «¿qué le falta a la cirugía de mañana?»)
+pide un tier pago con términos de no-entrenamiento y es una decisión de equipo.
+
+```
+<x-asistente> ──fetch──► AsistenteController ──► ProveedorAsistente (interfaz)
+  historial en             valida, topes por         └─ ProveedorAsistenteGemini
+  sessionStorage           usuario, streaming
+                                   ▲
+                 InstruccionesAsistente arma el prompt según los roles
+```
+
+- **El prompt se arma desde el código.** El menú de cada rol sale de
+  `App\Support\Navegacion` (la misma lista que dibuja el sidebar), las pestañas del portal
+  de `Portal\CirugiaController::SECCIONES` y los catálogos y sus filas protegidas de
+  `Catalogos`. Lo que el código no puede decir está escrito a mano en `resources/ayuda/*.md`,
+  una guía por rol. Cada dirección que esas guías mencionan entre comillas invertidas tiene
+  que existir como ruta: `AsistenteTest` falla si no.
+- **Un solo archivo atado a Gemini.** Cambiar de proveedor es escribir otra implementación de
+  `ProveedorAsistente` y cambiar el binding en `AppServiceProvider`.
+- **No guarda nada.** El historial vive en el navegador y viaja en cada pedido (máx. 20 turnos,
+  500 caracteres por mensaje). Los logs de error nunca llevan lo que escribió el usuario.
+- **Topes:** 10 consultas por minuto y 150 por día por usuario (`config/asistente.php`), y el
+  free tier como techo de gasto: al agotarse la cuota Gemini responde 429 y el widget avisa.
+- **Sin `GEMINI_API_KEY` el widget no aparece** y el endpoint da 404: un clon nuevo funciona
+  entero sin cuenta. La suite nunca le habla a Gemini (`phpunit.xml` deja la clave vacía).
+
+### Evals
+
+Que suene bien no quiere decir que funcione. `tests/Asistente/evals.json` tiene 20 casos
+que corren contra el modelo real: que responda desde la guía, que no invente funciones que no
+existen (exportar a Excel, motivo de suspensión), que no dé indicaciones clínicas, que no
+repita un DNI, que no se deje sacar del rol y que no revele sus instrucciones.
+
+```bash
+php artisan asistente:evaluar                 # todos (gasta cuota; ~2 min por la pausa entre casos)
+php artisan asistente:evaluar --solo=paciente # los que contienen ese texto en el nombre
+```
+
+Sale con código 1 si algo falla. No es un test de PHPUnit porque sale a la red; lo que sí
+cubre PHPUnit es que las aserciones aprueben y reprueben de verdad con una respuesta fija.
+
+---
+
 ## Despliegue
 
 Hay un `Dockerfile` y un `render.yaml` (Blueprint) para desplegar en
@@ -704,6 +758,7 @@ php artisan route:list             # todas las rutas
 php artisan config:clear           # después de tocar el .env
 ./vendor/bin/pint                  # formatear el código (correr antes del PR)
 php artisan test                   # la suite completa
+php artisan asistente:evaluar      # evals del asistente contra Gemini (necesita GEMINI_API_KEY)
 ```
 
 ---

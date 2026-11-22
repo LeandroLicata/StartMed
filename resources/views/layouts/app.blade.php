@@ -14,7 +14,7 @@
     --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=accessible,add,add_circle,arrow_back,arrow_forward,assignment,badge,bloodtype,call,cancel,check_circle,chevron_right,close,delete,description,draw,edit,edit_note,error,event,event_busy,folder_open,groups,history,home,info,inventory_2,key,lock,logout,mail,manage_accounts,medical_services,meeting_room,menu,monitoring,more_vert,no_food,pending,person,personal_injury,restore,save,schedule,science,search,search_off,settings,shield,stethoscope,swap_horiz,today,upload_file,vaccines,visibility,warning&display=block">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=accessible,add,add_circle,arrow_back,arrow_forward,assignment,badge,bloodtype,call,cancel,chat,check_circle,chevron_right,close,delete,description,draw,edit,edit_note,error,event,event_busy,folder_open,groups,history,home,info,inventory_2,key,lock,logout,mail,manage_accounts,medical_services,meeting_room,menu,monitoring,more_vert,no_food,pending,person,personal_injury,restart_alt,restore,save,schedule,science,search,search_off,send,settings,shield,stethoscope,swap_horiz,today,upload_file,vaccines,visibility,warning&display=block">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -130,6 +130,11 @@
 
 {{-- Uno solo para toda la pagina; lo usa cualquier form con data-confirmar. --}}
 <x-confirmar />
+
+{{-- Asistente de uso. La clave lleva el usuario: otro que entre en esta pestaña no hereda la charla. --}}
+@auth
+    <x-asistente :url="route('asistente')" :clave="'asistente:staff:'.auth()->id()" />
+@endauth
 
 @stack('scripts')
 

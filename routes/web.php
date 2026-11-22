@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\PrecioController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\AnestesistaController;
+use App\Http\Controllers\AsistenteController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CirugiaController;
 use App\Http\Controllers\CirugiaCreacionController;
@@ -53,6 +54,12 @@ Route::middleware('guest')->group(function () {
 // nombra el suyo para no depender de cual quedo como guard por defecto.
 Route::middleware('auth:web')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+    // Asistente de uso: le explica a cada rol como se usa el sistema. No ve
+    // datos del sistema; ver App\Support\Asistente\InstruccionesAsistente.
+    Route::post('/asistente', [AsistenteController::class, 'staff'])
+        ->middleware('throttle:asistente')
+        ->name('asistente');
 
     Route::get('/dashboard', DashboardController::class)
         ->middleware('rol:Gestor de quirófano,Dirección médica')
@@ -338,6 +345,13 @@ Route::prefix('portal')->name('portal.')->group(function () {
 
     Route::middleware('auth:paciente')->group(function () {
         Route::post('/salir', [PortalAccesoController::class, 'salir'])->name('salir');
+
+        // --- Asistente de uso del portal -----------------------------------
+        // Bajo /portal y no en /asistente: SesionPorArea elige la cookie por
+        // URL, y fuera de aca no encontraria la sesion del paciente.
+        Route::post('/asistente', [AsistenteController::class, 'paciente'])
+            ->middleware('throttle:asistente')
+            ->name('asistente');
 
         // --- Cirugias: proximas e historial ---------------------------------
         Route::get('/', [PortalCirugiaController::class, 'proximas'])->name('inicio');
