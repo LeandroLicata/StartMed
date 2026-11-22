@@ -154,17 +154,19 @@ Route::middleware('auth:web')->group(function () {
             ->name('agenda.dia');
     });
 
-    Route::middleware('rol:Gestor de quirófano,Cirujano')->group(function () {
+    /*
+     * Escrituras sobre una cirugia. El rol deja entrar; `cirugia.del.equipo`
+     * exige ademas que el cirujano (o el anestesista, donde la accion lo
+     * admite) sea el titular de esa cirugia. El gestor modifica cualquiera.
+     * Ver Usuario::puedeModificarCirugia(). Una escritura nueva sobre
+     * `{cirugia}` va en uno de estos dos grupos, no en el de lecturas.
+     */
+    Route::middleware(['rol:Gestor de quirófano,Cirujano', 'cirugia.del.equipo:Cirujano'])->group(function () {
         Route::patch('/cirugias/{cirugia}/hisopado', [CirugiaController::class, 'actualizarHisopado'])
             ->name('cirugias.hisopado.actualizar');
 
         Route::patch('/cirugias/{cirugia}/hisopado/estado', [CirugiaController::class, 'actualizarEstadoHisopado'])
             ->name('cirugias.hisopado.estado');
-
-        // Firma la descarga del adjunto recien al pedirla, igual que la de los
-        // estudios. Ver App\Support\GestorDocumental.
-        Route::get('/cirugias/{cirugia}/hisopado/archivo', [CirugiaController::class, 'verArchivoHisopado'])
-            ->name('cirugias.hisopado.archivo');
 
         Route::post('/cirugias/{cirugia}/profilaxis', [CirugiaController::class, 'agregarProfilaxis'])
             ->name('cirugias.profilaxis.store');
@@ -182,7 +184,7 @@ Route::middleware('auth:web')->group(function () {
             ->name('cirugias.personal.reasignar');
     });
 
-    Route::middleware('rol:Gestor de quirófano,Cirujano,Anestesista')->group(function () {
+    Route::middleware(['rol:Gestor de quirófano,Cirujano,Anestesista', 'cirugia.del.equipo:Cirujano,Anestesista'])->group(function () {
         // Dar de alta un requerimiento (implante, hemoderivados, hisopado) lo
         // puede cualquiera del equipo, igual que cargar lo que cuelga de el.
         // Cancelar y reprogramar siguen siendo solo del gestor.
@@ -195,23 +197,11 @@ Route::middleware('auth:web')->group(function () {
         Route::patch('/cirugias/{cirugia}/estudios/{estudio}', [CirugiaController::class, 'actualizarEstudio'])
             ->name('cirugias.estudios.update');
 
-        // El resultado no se linkea directo al gestor documental: son datos de
-        // salud, y una URL de Cloudinary en el HTML se comparte sin sesion. Esta
-        // ruta firma la descarga recien al pedirla. Ver App\Support\GestorDocumental.
-        Route::get('/cirugias/{cirugia}/estudios/{estudio}/archivo', [CirugiaController::class, 'verArchivoEstudio'])
-            ->name('cirugias.estudios.archivo');
-
         Route::post('/cirugias/{cirugia}/hemoderivados', [CirugiaController::class, 'storePedidoHemoderivado'])
             ->name('cirugias.hemoderivados.store');
 
         Route::patch('/cirugias/{cirugia}/hemoderivados/{componente}/estado', [CirugiaController::class, 'actualizarEstadoComponenteHemoderivado'])
             ->name('cirugias.hemoderivados.componente.estado');
-
-        Route::get('/cirugias/api/materiales/buscar', [CirugiaController::class, 'buscarMateriales'])
-            ->name('cirugias.materiales.buscar');
-
-        Route::get('/cirugias/api/materiales/{material}/proveedores', [CirugiaController::class, 'proveedoresMaterial'])
-            ->name('cirugias.materiales.proveedores');
 
         Route::post('/cirugias/{cirugia}/materiales', [CirugiaController::class, 'storePedidoMaterial'])
             ->name('cirugias.materiales.store');
@@ -221,6 +211,31 @@ Route::middleware('auth:web')->group(function () {
 
         Route::delete('/cirugias/{cirugia}/materiales/{pedido}', [CirugiaController::class, 'destroyPedidoMaterial'])
             ->name('cirugias.materiales.destroy');
+    });
+
+    /*
+     * Lecturas: el expediente se consulta sin ser el titular, asi que lo que
+     * se ve en el tambien se descarga.
+     */
+    Route::middleware('rol:Gestor de quirófano,Cirujano')->group(function () {
+        // Firma la descarga del adjunto recien al pedirla, igual que la de los
+        // estudios. Ver App\Support\GestorDocumental.
+        Route::get('/cirugias/{cirugia}/hisopado/archivo', [CirugiaController::class, 'verArchivoHisopado'])
+            ->name('cirugias.hisopado.archivo');
+    });
+
+    Route::middleware('rol:Gestor de quirófano,Cirujano,Anestesista')->group(function () {
+        // El resultado no se linkea directo al gestor documental: son datos de
+        // salud, y una URL de Cloudinary en el HTML se comparte sin sesion. Esta
+        // ruta firma la descarga recien al pedirla. Ver App\Support\GestorDocumental.
+        Route::get('/cirugias/{cirugia}/estudios/{estudio}/archivo', [CirugiaController::class, 'verArchivoEstudio'])
+            ->name('cirugias.estudios.archivo');
+
+        Route::get('/cirugias/api/materiales/buscar', [CirugiaController::class, 'buscarMateriales'])
+            ->name('cirugias.materiales.buscar');
+
+        Route::get('/cirugias/api/materiales/{material}/proveedores', [CirugiaController::class, 'proveedoresMaterial'])
+            ->name('cirugias.materiales.proveedores');
     });
 
     Route::get('/cirugias/{cirugia}', [CirugiaController::class, 'show'])

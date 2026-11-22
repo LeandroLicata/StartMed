@@ -170,6 +170,10 @@ class CirugiaController extends Controller
             'tiposAnestesia' => TipoAnestesia::whereNull('fechaBajaTipoAnestesia')->orderBy('nombreTipoAnestesia')->get(),
             'puedeEditarEvaluacion' => $request->user()->tieneRol('Administrador')
                 || $request->user()->personal?->idPersonal === $cirugia->idPersonalAnestesista,
+            // La misma regla que `cirugia.del.equipo` aplica en las rutas, para
+            // no mostrar botones que darian 403. Una por grupo de rutas.
+            'puedeModificarComoCirujano' => $request->user()->puedeModificarCirugia($cirugia, 'Cirujano'),
+            'puedeModificarComoEquipo' => $request->user()->puedeModificarCirugia($cirugia, 'Cirujano', 'Anestesista'),
         ]);
     }
 

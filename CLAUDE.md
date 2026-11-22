@@ -387,6 +387,17 @@ still works. An admin who *does* hold a functional role sees both blocks. Anythi
 decides visibility (menus, empty states) wants `tieneRolPropio`; anything that decides
 access wants `tieneRol`.
 
+**A role lets you in; modifying a surgery also takes being on its team.** Every write
+on `/cirugias/{cirugia}` that a Cirujano or Anestesista can run carries the
+`cirugia.del.equipo:<roles>` middleware (`App\Http\Middleware\CirugiaDelEquipo`), backed
+by `Usuario::puedeModificarCirugia()`: the gestor (and the admin) modify any surgery, a
+cirujano or anestesista only the ones where they are the titular
+(`idPersonalCirujano` / `idPersonalAnestesista`). The expediente view reads the same rule
+(`$puedeModificarComoCirujano` / `$puedeModificarComoEquipo`), so it does not offer
+buttons that would 403. Reads stay open: any staff can view an expediente and download
+what it shows. `CirugiaAccionesTest::test_toda_escritura_del_equipo_sobre_una_cirugia_verifica_pertenencia`
+fails if a new write route is added outside the two route groups that apply it.
+
 `Usuario::rutaInicial()` decides where a user lands after login — panels differ per
 role, so sending everyone to `/dashboard` produced a 403 right after a correct login.
 `/` (route name `inicio`) resolves it; users with no role get the `sin-acceso` view
