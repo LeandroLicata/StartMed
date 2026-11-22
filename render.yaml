@@ -82,6 +82,8 @@ services:
         sync: false # Brevo > SMTP & API > API keys (empieza con xkeysib-); sin ella no sale ningun mail
       - key: MAIL_FROM_ADDRESS
         sync: false # tiene que ser el remitente verificado en Brevo (Senders), o Brevo rechaza el envio
+      - key: GEMINI_API_KEY
+        sync: false # asistente de uso; vacia, el widget no aparece. https://aistudio.google.com/apikey
       - key: PORTAL_DIRECCION_HOSPITAL
         sync: false # la que ve el paciente en su cirugia; vacia, no se muestra
       - key: PORTAL_WHATSAPP_HOSPITAL

@@ -42,8 +42,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // El asistente se consume con fetch: un 401 o un 422 convertido en
+        // redirect llegaria como la pagina HTML del login, con status 200.
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->is('api/*', 'asistente', 'portal/asistente'),
         );
 
         // Token CSRF vencido: un formulario que quedo abierto mas que la sesion

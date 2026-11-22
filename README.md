@@ -488,6 +488,65 @@ manual.
 
 ---
 
+## Asistente
+
+Un chat flotante (abajo a la derecha) que le explica a cada rol cómo se usa el sistema:
+dónde está cada cosa, cómo se hace un trámite, qué significa el semáforo. Está en las
+pantallas del staff y en el portal del paciente, cada uno con su propio endpoint
+(`POST /asistente`, `POST /portal/asistente`). Corre sobre la API de Gemini.
+
+**Es un asistente de uso: no ve datos del sistema.** No recibe cirugías, pacientes ni
+estados, ni siquiera el nombre de quien escribe; solo una guía y lo que el usuario tipea.
+Es a propósito: en el free tier de Gemini, Google puede usar lo que se le manda para
+mejorar sus productos, y estos son datos de salud. El widget pide no escribir datos de
+pacientes. Darle acceso a datos (por ejemplo, «¿qué le falta a la cirugía de mañana?»)
+pide un tier pago con términos de no-entrenamiento y es una decisión de equipo.
+
+```
+<x-asistente> ──fetch──► AsistenteController ──► ProveedorAsistente (interfaz)
+  historial en             valida, topes por         └─ ProveedorAsistenteGemini
+  sessionStorage           usuario, streaming
+                                   ▲
+                 InstruccionesAsistente arma el prompt según los roles
+```
+
+- **El prompt se arma desde el código.** El menú de cada rol sale de
+  `App\Support\Navegacion` (la misma lista que dibuja el sidebar), las pestañas del portal
+  de `Portal\CirugiaController::SECCIONES` y los catálogos y sus filas protegidas de
+  `Catalogos`. Lo que el código no puede decir está escrito a mano en `resources/ayuda/*.md`,
+  una guía por rol. Cada dirección que esas guías mencionan entre comillas invertidas tiene
+  que existir como ruta: `AsistenteTest` falla si no.
+- **Un solo archivo atado a Gemini.** Cambiar de proveedor es escribir otra implementación de
+  `ProveedorAsistente` y cambiar el binding en `AppServiceProvider`.
+- **No guarda nada.** El historial vive en el navegador y viaja en cada pedido (máx. 20 turnos,
+  500 caracteres por mensaje). Los logs de error nunca llevan lo que escribió el usuario.
+- **Topes:** 10 consultas por minuto y 150 por día por usuario (`config/asistente.php`), y el
+  free tier como techo de gasto: al agotarse la cuota Gemini responde 429 y el widget avisa.
+- **Sin `GEMINI_API_KEY` el widget no aparece** y el endpoint da 404: un clon nuevo funciona
+  entero sin cuenta. La suite nunca le habla a Gemini (`phpunit.xml` deja la clave vacía).
+- **Botones «Ir a …».** Cuando la respuesta nombra una pantalla con su dirección
+  («Agenda (/agenda)»), el widget agrega un botón para ir. El modelo no decide a dónde lleva:
+  el servidor manda una lista blanca por usuario (`DestinosAsistente`), con pantallas GET sin
+  parámetros a las que ese usuario puede entrar según el middleware de la ruta. Una dirección
+  inventada o ajena no genera botón. Al llegar a la otra pantalla, el panel se reabre con la charla.
+
+### Evals
+
+Que suene bien no quiere decir que funcione. `tests/Asistente/evals.json` tiene 20 casos
+que corren contra el modelo real: que responda desde la guía, que no invente funciones que no
+existen (exportar a Excel, motivo de suspensión), que no dé indicaciones clínicas, que no
+repita un DNI, que no se deje sacar del rol y que no revele sus instrucciones.
+
+```bash
+php artisan asistente:evaluar                 # todos (gasta cuota; ~2 min por la pausa entre casos)
+php artisan asistente:evaluar --solo=paciente # los que contienen ese texto en el nombre
+```
+
+Sale con código 1 si algo falla. No es un test de PHPUnit porque sale a la red; lo que sí
+cubre PHPUnit es que las aserciones aprueben y reprueben de verdad con una respuesta fija.
+
+---
+
 ## Despliegue
 
 Hay un `Dockerfile` y un `render.yaml` (Blueprint) para desplegar en
@@ -687,11 +746,10 @@ resultado, el laboratorio, ni la profilaxis que debería derivar de un positivo.
 **Cuatro tablas maestras quedan fuera del ABM genérico de catálogos** —
 `ConfigConsentimiento`, `ConfigTipoExamenPreAnestesico*` y
 `MaterialProveedor`/`MaterialProveedorTipoMedida` tienen su propia pantalla (ver
-*Administración*) porque son historiadas o anidadas. `PlanObraSocial` es la única
-que todavía no tiene pantalla propia.
-
-**Los pacientes no se gestionan desde `/admin`.** El ítem "Pacientes" del menú
-sigue deshabilitado; una `Persona` que no es personal no tiene pantalla propia.
+*Administración*) porque son historiadas o anidadas. `PlanObraSocial` tampoco es un
+catálogo: las coberturas se cargan y se dan de baja desde la ficha de la persona (el gestor
+en `/pacientes`, el administrador en `/admin/personas`); desde el portal el paciente solo
+elige cuál es la predeterminada.
 
 ---
 
@@ -704,6 +762,7 @@ php artisan route:list             # todas las rutas
 php artisan config:clear           # después de tocar el .env
 ./vendor/bin/pint                  # formatear el código (correr antes del PR)
 php artisan test                   # la suite completa
+php artisan asistente:evaluar      # evals del asistente contra Gemini (necesita GEMINI_API_KEY)
 ```
 
 ---

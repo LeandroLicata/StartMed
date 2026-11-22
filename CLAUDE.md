@@ -122,8 +122,8 @@ hid coverages the patient still saw as current in the portal.
 
 At most one current coverage per patient has `esPredeterminadaPlanObraSocial`; the
 portal keeps it that way inside a transaction. **Create coverages only through
-`PlanObraSocial::agregar()`** — the portal, the create-surgery form and rescheduling all
-do. It marks the new one as the default when the patient has no current default, so the
+`PlanObraSocial::agregar()`** — the gestor's patient screen and the admin's Personas
+screen (`CoberturaPersonaController`), the create-surgery form and rescheduling all do. It marks the new one as the default when the patient has no current default, so the
 gestor's forms always have something to preselect. Both of them (create-surgery and the
 reschedule modal) list the default first and preselect it.
 
@@ -401,7 +401,8 @@ option in the user form.
 ### Routing / frontend
 
 Server-rendered Blade — there is no React and no JSON API. The only app JavaScript is
-the mobile sidebar toggle in `resources/js/app.js`.
+`resources/js/app.js`: the mobile sidebar toggle, the `<dialog>` confirmation handler
+(see Brand and UI components) and the assistant widget (see Asistente).
 
 | route | role | view |
 |---|---|---|
@@ -415,8 +416,31 @@ the mobile sidebar toggle in `resources/js/app.js`.
 | `/admin/usuarios/…`, `/admin/consentimientos/…`, `/admin/precios/…`, `/admin/auditoria` | Administrador | `admin/*` |
 | `/admin/cuestionario/…` | Administrador, **Anestesista** | `admin/cuestionario/*` |
 
-Two layouts: `layouts/app` (sidebar + header, for authenticated screens) and
-`layouts/guest` (login). Views use `@extends` / `@section('contenido')`.
+The patient portal (guard `paciente`, see Authentication) has its own table. Route names
+are `portal.*`; everything except the access and email-confirmation links requires
+`auth:paciente`.
+
+| route | access | view |
+|---|---|---|
+| `/portal/ingresar`, `/portal/acceso/{persona}/{nonce}` | public (DNI → one-time link) | `portal/ingresar`, `portal/acceso-confirmar` |
+| `/portal/entrar-local/{documento?}` | public, **`local` only** | — (logs in as a demo patient) |
+| `/portal` (próximas), `/portal/historial` | patient | `portal/cirugias/lista` |
+| `/portal/cirugias/{cirugia}/{seccion?}` | patient, **own surgery** (else 404) | `portal/cirugias/show` + `secciones/*` |
+| `/portal/perfil` (data, contact, coverages, email) | patient | `portal/perfil` |
+| `/portal/perfil/email/confirmar/{persona}/{nonce}` | public (one-time link) | `portal/cambio-email-confirmar` |
+
+The surgery detail is one view with a tab per section, each a partial in
+`portal/cirugias/secciones/`: `resumen`, `estudios`, `preanestesica`, `preparacion`,
+`consentimiento`, `turnos`, `contacto`. They are declared in
+`Portal\CirugiaController::SECCIONES` (label + icon), which also constrains `{seccion}`;
+a new tab goes there plus its partial. Its writes (asistencia, estudios, preanestésica,
+consentimiento, contacto) are POSTs under the same `cirugias/{cirugia}` subgroup.
+
+Three layouts: `layouts/app` (sidebar + header, for staff screens), `layouts/guest`
+(staff login) and `layouts/portal` (the patient portal: top nav with Próximas /
+Historial / Perfil; with `@section('pantalla-ingreso')` it drops the nav and centres a
+card over the institutional background, for screens reachable without a session). Views
+use `@extends` / `@section('contenido')`.
 
 ### Administración — the only write side of the app
 
@@ -427,7 +451,8 @@ rescheduling surgeries writes too (`CirugiaCreacionController`,
 audit trail currently covers administration only.
 
 **One door for the catalogs, a section for each module.** The sidebar carries an
-`Administración` group (`partials/nav.blade.php`, opened by the `titulo` key) with one
+`Administración` group (items declared in `App\Support\Navegacion::SECCIONES`, drawn by
+`partials/nav.blade.php`, opened by the `titulo` key) with one
 item per module — Usuarios, Consentimientos, Cuestionario preanestésico, Proveedores y
 precios, Auditoría — plus `Catálogos`, which points at `/admin`. Each item stays marked
 across its own screens through `activaEn` (`admin.usuarios.*`, …); `Catálogos` takes an
@@ -468,7 +493,8 @@ type. It also renders the index and the create form of every one.
 reactivation, never `DELETE`.
 
 **Some catalog rows are code, not data.** The app matches catalog names as literal
-strings — `Usuario::tieneRol()` looks for `'Administrador'`; the panels look for
+strings — `Usuario::tieneRol()` looks for `'Administrador'`, and the `rol:` route
+middleware, the sidebar and the assistant look for the five functional role names; the panels look for
 `'Realizada'`, `'Suspendida'`, `'Aprobada'`, `'Completada'` and the six material states
 *in precedence order*; the create-surgery and rescheduling flows look for
 `'En espera de confirmación'`, `'En espera'`, `'A reprogramar'`, `'Reprogramada'` and the
@@ -615,14 +641,76 @@ copy — no JavaScript at the call site:
 ```
 
 The handler in `resources/js/app.js` is delegated, so it covers forms added later. That
-file is still the app's entire JavaScript — keep it that way; a confirmation library
-would outweigh the whole bundle and fight the brand tokens.
+file is still the app's entire JavaScript (sidebar, confirmation, assistant widget) —
+keep it that way; a confirmation library would outweigh the whole bundle and fight the
+brand tokens.
 
 Icons are Material Symbols, loaded from a **subsetted** stylesheet. **A new icon must
-be added to the `icon_names` list in `layouts/app.blade.php` or it silently will not
-render.** The `FILL` axis is what makes the active nav item solid and the rest outline.
+be added to the `icon_names` list of the layout that renders it or it silently will not
+render** — each of `layouts/app`, `layouts/guest` and `layouts/portal` carries its own
+list, so an icon used in the portal goes in `layouts/portal.blade.php`. The `FILL` axis
+is what makes the active nav item solid and the rest outline.
+
+### Asistente — `App\Support\Asistente`
+
+A floating chat (`<x-asistente>`, in `layouts/app` and `layouts/portal`) that explains
+**how to use the system** to each role, backed by Gemini. Staff post to `/asistente`,
+patients to `/portal/asistente` (it has to live under `/portal`: `SesionPorArea` picks the
+cookie by URL). The response is streamed plain text, painted with `textContent`.
+
+**It sees no system data — that is the design, not a missing feature.** No surgeries,
+patients or states, not even the writer's name: the Gemini free tier may use what it is
+sent to improve Google's products, and this is health data. Giving it read access (tool
+calls over `ResumenCirugia`) needs a paid tier with no-training terms and is an open team
+decision; do not add data to the prompt without that decision.
+
+- **One provider-bound class.** `ProveedorAsistente` is an interface resolved from the
+  container (same reason as `GestorDocumental`: network I/O); `ProveedorAsistenteGemini`
+  talks to the REST SSE endpoint with Laravel's `Http` client (no SDK). It makes the
+  request *before* returning the generator, so a 429 or a bad key becomes an HTTP status
+  (503 / 502) instead of a broken stream.
+- **The prompt is built from code** by `InstruccionesAsistente`: the menu per role from
+  `App\Support\Navegacion` (the list the sidebar draws — that is why it was extracted from
+  `partials/nav.blade.php`), portal tabs from `Portal\CirugiaController::SECCIONES`,
+  catalogs and protected rows from `Catalogos`. Only what code cannot say lives in
+  `resources/ayuda/{staff,paciente,gestor,cirujano,anestesista,direccion,administrador}.md`.
+  It works on role names, not a `Usuario`, so tests and the evals build it without a DB.
+- **Keep the guides honest.** A backticked path in those files must be a registered GET
+  route, a new guide must be declared in `InstruccionesAsistente::archivos()`, and every
+  role in `AYUDA_POR_ROL` must be a protected `Rol` row — `AsistenteTest` checks all three.
+  When a screen changes, update its guide in the same PR.
+- **Nothing is stored.** History lives in `sessionStorage` (keyed by area + user id) and
+  travels with each request; `AsistenteRequest` caps it (20 turns, 500 chars per user
+  message). Error logs never include what the user wrote.
+- **Rate limit `asistente`** (`AppServiceProvider::boot()`), per user rather than per IP,
+  with a separate key per limit — with the same key both limits share one counter.
+- **No key, no widget**: without `GEMINI_API_KEY` the component renders nothing and the
+  endpoint 404s. `phpunit.xml` blanks the key; tests use `Tests\Fakes\ProveedorAsistenteFalso`.
+- `bootstrap/app.php` renders JSON for the two assistant paths: otherwise a 401/422 became
+  a redirect that `fetch` followed silently, landing on the login HTML with a 200.
+- **«Ir a …» buttons come from a server allowlist, never from the model.** The prompt asks
+  the model to write each screen's path in parentheses; the widget adds a button only for
+  paths in `data-destinos`, built by `DestinosAsistente`: the user's menu plus the paths
+  their guides name, kept only if the route is GET, has no parameters, carries the area's
+  `auth:` guard and (staff) passes every `rol:` middleware via `tieneRol`. A guide path
+  that is in no menu needs a label in `DestinosAsistente::ETIQUETAS`, and every path a
+  role's guide names must be reachable by that role — `AsistenteDestinosTest` checks both
+  (it caught the anaesthetist guide pointing at `/cirujano/agenda`, which is `rol:Cirujano`).
+  The portal's top nav moved to `Navegacion::PORTAL` for the same single-source reason.
+
+`php artisan asistente:evaluar` runs `tests/Asistente/evals.json` against the real model
+(grounding, no invented features, no clinical advice, no echoed DNI, prompt injection).
+It is not PHPUnit because it hits the network; `AsistenteTest` only checks that its
+assertions really pass and fail against a fixed answer.
 
 ### Known gaps — do not assume these work
+
+- **The anaesthetist's «Agenda» and «Historial de cirugías» menu items lead to a 403.**
+  `Navegacion::SECCIONES` shows them to `Cirujano` and `Anestesista`, but the routes
+  (`cirujano.agenda`, `cirujano.historial`) are `rol:Cirujano` and `CirujanoController`
+  filters by `idPersonalCirujano` only. Either implement an anaesthetist agenda or drop
+  the role from those items — a team decision; the assistant's guide says it is not
+  available yet.
 
 - **No suspension reason.** `CirugiaEstado` records *that* a surgery was suspended, not
   *why*, so the Dirección panel cannot break suspensions down by cause.
@@ -648,11 +736,14 @@ render.** The `FILL` axis is what makes the active nav item solid and the rest o
   `ConfigConsentimiento` (`/admin/consentimientos`), `ConfigTipoExamenPreAnestesico*`
   (`/admin/cuestionario`) and `MaterialProveedor` / `MaterialProveedorTipoMedida`
   (`/admin/precios`) are date-ranged or nested, so the map would have flattened them.
-  `PlanObraSocial` has no `/admin` screen on purpose: it is a patient's coverage, so the
-  patient manages it from the portal profile (`/portal/perfil`) — see current and past
-  coverages, mark the default one, end one and add a new one.
-- **Patients are not managed from `/admin`.** The "Pacientes" nav item is still
-  disabled; a `Persona` who is not staff has no screen of its own.
+  `PlanObraSocial` is not a catalog either: coverages are added and ended from the
+  patient's record — the gestor in `/pacientes/{paciente}`, the admin in
+  `/admin/personas/{persona}/editar` (shared partial `persona-obras-sociales`). From the
+  portal profile the patient can only see them and choose the default one.
+- **Gender is not shown in the patient profile.** `Persona.genero` exists (one letter,
+  nullable) and the demo seeds it, but `/portal/perfil` neither shows nor edits it: the
+  requirements leave it «A definir» (read-only like the DNI? editable? which values?).
+  Pending a team decision, not an oversight.
 - **Nobody is told when a patient changes their transfusion refusal.** From
   `/portal/perfil` the patient edits `Persona.no_acepta_donacion_sanguinea` (the column
   name says "donación" but it means *refuses to receive* blood), and it is saved silently
