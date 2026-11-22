@@ -3,6 +3,7 @@
 @php
     $esNuevo = $usuario === null;
     $titulo = $esNuevo ? 'Nuevo usuario' : 'Editar usuario '.$usuario->nombreUsuario;
+    $personaIdOculta = old('persona_id', $personaExistente?->idPersona);
 
     // old() gana sobre lo guardado, para no perder la selección si falla la validación.
     $rolesElegidos = collect(old('roles', $rolesActuales))->map(fn ($id) => (int) $id);
@@ -13,11 +14,25 @@
 
 @section('contenido')
 
-    <div class="mb-4">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <x-boton :href="route('admin.usuarios.index')" variante="fantasma" icono="arrow_back" forma="grupo">
             Volver a usuarios
         </x-boton>
+
+        @if (! $esNuevo && $usuario->personal?->persona)
+            <x-boton :href="route('admin.personas.edit', $usuario->personal->persona)" variante="contorno" icono="badge" forma="grupo">
+                Ver ficha completa de persona
+            </x-boton>
+        @endif
     </div>
+
+    @if ($esNuevo && $personaExistente)
+        <x-alerta tipo="info" class="mb-4 max-w-3xl">
+            Estás creando un usuario para la persona existente <strong>{{ $personaExistente->nombre_completo }}</strong>
+            ({{ $personaExistente->tipoDocumento?->nombreTipoDocumento ?? 'DNI' }} {{ $personaExistente->documento }}).
+            No se duplicará su ficha ni su historial médico.
+        </x-alerta>
+    @endif
 
     <x-tarjeta :titulo="$titulo" icono="manage_accounts" class="max-w-3xl">
         <form
@@ -29,6 +44,14 @@
             @unless ($esNuevo)
                 @method('PUT')
             @endunless
+
+            @if ($esNuevo && $personaIdOculta)
+                <input type="hidden" name="persona_id" value="{{ $personaIdOculta }}">
+            @endif
+
+            @error('persona_id')
+                <x-alerta tipo="error">{{ $message }}</x-alerta>
+            @enderror
 
             {{-- Persona: los datos de la persona real detrás del usuario. --}}
             <div class="space-y-4">
@@ -63,6 +86,31 @@
                         :valor="$valores['nombres']"
                         requerido
                     />
+
+                    <x-input
+                        nombre="contacto_email_direccion"
+                        etiqueta="Mail personal"
+                        tipo="email"
+                        :valor="$valores['contacto_email_direccion']"
+                        ayuda="Sirve para entrar al portal de pacientes (por ejemplo si tiene rol Paciente)."
+                        requerido
+                    />
+
+                    <x-input
+                        nombre="telefono_numero"
+                        etiqueta="Teléfono"
+                        :valor="$valores['telefono_numero']"
+                        requerido
+                    />
+
+                    <div class="sm:col-span-2">
+                        <x-input
+                            nombre="direccionPersona"
+                            etiqueta="Dirección"
+                            :valor="$valores['direccionPersona']"
+                            requerido
+                        />
+                    </div>
                 </div>
             </div>
 

@@ -15,7 +15,7 @@ Confirmación de asistencia: en las 48 horas previas a la cirugía aparece un av
 Perfil (`/portal/perfil`):
 - Mis datos: nombre, fecha de nacimiento y grupo sanguíneo. No se editan desde el portal; si algo está mal, hay que avisar al hospital desde la pestaña Contacto de una cirugía.
 - Mis datos de contacto: celular y teléfono fijo, y la opción «No acepto recibir transfusiones de sangre».
-- Mis obras sociales: las coberturas vigentes. Se puede marcar cuál es la predeterminada, agregar una nueva (obra social, plan y número de afiliado) o dar de baja una; la baja la pasa a obras sociales anteriores y no se puede deshacer desde el portal.
+- Mis obras sociales: las coberturas vigentes y las anteriores. Desde el portal solo se puede marcar cuál es la predeterminada. Para agregar o dar de baja una cobertura hay que pedirlo en recepción del hospital o al gestor de quirófano.
 - Mi email: para cambiarlo se escribe el email nuevo y llega un enlace a esa dirección, válido por una hora; el email no cambia hasta que se confirma desde ese enlace. Al email anterior le llega un aviso del cambio.
 
 Salir cierra la sesión del portal.

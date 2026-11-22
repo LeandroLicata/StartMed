@@ -187,6 +187,18 @@
             "reject": ["/cirujano/agenda"]
         },
         {
+            "name": "gestor: alta de un paciente",
+            "roles": ["Gestor de quirófano"],
+            "question": "¿Cómo cargo un paciente nuevo sin crearle una cirugía?",
+            "expectAll": ["/pacientes/nuevo"]
+        },
+        {
+            "name": "paciente: no puede agregar obras sociales desde el portal",
+            "paciente": true,
+            "question": "¿Cómo agrego una obra social nueva?",
+            "expectAny": ["recepcion", "gestor"]
+        },
+        {
             "name": "multi-turno: mantiene el contexto",
             "roles": ["Gestor de quirófano"],
             "history": [

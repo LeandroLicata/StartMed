@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -39,6 +40,54 @@ class Persona extends Model implements AuthenticatableContract
             'es_cronico' => 'boolean',
             'no_acepta_donacion_sanguinea' => 'boolean',
         ];
+    }
+
+    /**
+     * Busca por nombre, apellido o documento (soportando DNI con puntos o
+     * espacios, y combinaciones como "Apellido Nombre").
+     */
+    public function scopeBuscar(Builder $query, string $texto, bool $incluirEmail = false): Builder
+    {
+        $texto = trim($texto);
+
+        if ($texto === '') {
+            return $query;
+        }
+
+        $soloDigitos = preg_replace('/\D/', '', $texto);
+
+        if ($soloDigitos !== '' && preg_match('/^[\d.\-\s]+$/', $texto)) {
+            return $query->where(function (Builder $q) use ($texto, $soloDigitos, $incluirEmail) {
+                $q->where('documento', 'like', "%{$texto}%")
+                    ->orWhere('documento', 'like', "%{$soloDigitos}%");
+
+                if ($incluirEmail) {
+                    $q->orWhere('contacto_email_direccion', 'like', "%{$texto}%");
+                }
+            });
+        }
+
+        $tokens = preg_split('/\s+/', $texto, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        foreach ($tokens as $token) {
+            $digitos = preg_replace('/[.\-]/', '', $token);
+
+            $query->where(function (Builder $q) use ($token, $digitos, $incluirEmail) {
+                $q->where('nombres', 'like', "%{$token}%")
+                    ->orWhere('apellidos', 'like', "%{$token}%")
+                    ->orWhere('documento', 'like', "%{$token}%");
+
+                if ($digitos !== '' && $digitos !== $token) {
+                    $q->orWhere('documento', 'like', "%{$digitos}%");
+                }
+
+                if ($incluirEmail) {
+                    $q->orWhere('contacto_email_direccion', 'like', "%{$token}%");
+                }
+            });
+        }
+
+        return $query;
     }
 
     /**

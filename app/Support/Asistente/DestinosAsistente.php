@@ -32,6 +32,7 @@ final class DestinosAsistente
      */
     public const ETIQUETAS = [
         '/cirugias/nueva' => 'Nueva cirugía',
+        '/pacientes/nuevo' => 'Nuevo paciente',
         '/portal/ingresar' => 'Ingresar al portal',
     ];
 

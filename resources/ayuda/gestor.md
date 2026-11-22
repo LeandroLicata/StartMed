@@ -18,6 +18,6 @@ En el expediente, el gestor además puede:
 - Reasignar profesional desde la tarjeta Equipo quirúrgico del Resumen, que muestra solo profesionales libres en ese horario y guarda el historial de asignaciones.
 - Todo lo de las demás solapas: estudios, materiales, hemoderivados, profilaxis, autorización y preparación.
 
-Pacientes (`/pacientes`): padrón de personas registradas, con búsqueda por nombre, apellido o DNI, y la ficha de cada una con su historial de cirugías.
+Pacientes (`/pacientes`): padrón de personas registradas, con búsqueda por nombre, apellido o DNI. El gestor puede dar de alta un paciente con el botón Nuevo paciente (`/pacientes/nuevo`) y editar sus datos: documento, nombres y apellidos, fecha de nacimiento, género, grupo sanguíneo, contacto, dirección, observaciones, si es crónico y si no acepta transfusiones. La ficha de cada paciente muestra su historial de cirugías y sus obras sociales: ahí se agrega una cobertura (obra social, plan y número de afiliado), se marca la predeterminada o se da de baja una, que pasa a obras sociales anteriores. El paciente, desde su portal, solo puede elegir cuál es su predeterminada; agregar o dar de baja coberturas lo hace el gestor.
 
 Los mensajes que los pacientes mandan desde la pestaña Contacto de su portal llegan por email a los gestores de quirófano.
