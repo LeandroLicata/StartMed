@@ -88,7 +88,8 @@ class CirugiaAccionesTest extends TestCase
         $hisopado = HisopadoSarm::where('idCirugia', $cirugia->idCirugia)->firstOrFail();
         $estadoVigente = $hisopado->hisopadoSarmEstados()->whereNull('fechaFinAsignacionHisopadoSarmEstado')->firstOrFail();
 
-        $this->actingAs($this->usuario('perez'))
+        // Vidal es de López: el resultado lo carga el cirujano titular.
+        $this->actingAs($this->usuario('lopez'))
             ->patch("/cirugias/{$cirugia->idCirugia}/hisopado/estado", ['estado' => 'Negativo'])
             ->assertRedirect();
 
@@ -296,5 +297,95 @@ class CirugiaAccionesTest extends TestCase
             ->assertOk()
             ->assertSee('Cancelar Cirugía')
             ->assertSee(route('cirugias.reprogramar', $cirugia));
+    }
+
+    // --- Pertenencia: el rol deja entrar, la cirugía tiene que ser propia ----
+
+    public function test_un_cirujano_no_modifica_la_cirugia_de_otro_cirujano(): void
+    {
+        $deLopez = $this->cirugiaConHisopadoPendiente();
+
+        $this->actingAs($this->usuario('perez'))
+            ->patch("/cirugias/{$deLopez->idCirugia}/hisopado/estado", ['estado' => 'Negativo'])
+            ->assertForbidden();
+        $this->actingAs($this->usuario('perez'))
+            ->post("/cirugias/{$deLopez->idCirugia}/preparacion", ['indicaciones' => []])
+            ->assertForbidden();
+        $this->actingAs($this->usuario('perez'))
+            ->patch("/cirugias/{$deLopez->idCirugia}/requerimientos", ['requerimiento' => 'implante'])
+            ->assertForbidden();
+
+        $this->assertFalse((bool) $deLopez->fresh()->requiereImplante);
+        $vigente = HisopadoSarm::where('idCirugia', $deLopez->idCirugia)->firstOrFail()
+            ->hisopadoSarmEstados()->whereNull('fechaFinAsignacionHisopadoSarmEstado')->firstOrFail();
+        $this->assertSame('Pendiente', $vigente->estadoHisopadoSarm->nombreEstadoHisopadoSarm);
+    }
+
+    public function test_un_anestesista_no_modifica_una_cirugia_en_la_que_no_es_titular(): void
+    {
+        $cirugia = $this->cirugiaConHisopadoPendiente();
+        $cirugia->update(['idPersonalAnestesista' => null]);
+        $idTipoEstudio = TipoEstudio::where('nombreTipoEstudio', 'Coagulograma')->value('idTipoEstudio');
+
+        $this->actingAs($this->usuario('ramos'))
+            ->post("/cirugias/{$cirugia->idCirugia}/estudios", ['idTipoEstudio' => $idTipoEstudio])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('CirugiaTipoEstudio', [
+            'idCirugia' => $cirugia->idCirugia,
+            'idTipoEstudio' => $idTipoEstudio,
+        ]);
+    }
+
+    public function test_el_administrador_modifica_cualquier_cirugia(): void
+    {
+        $cirugia = $this->cirugiaConHisopadoPendiente();
+
+        $this->actingAs($this->usuario('admin'))
+            ->patch("/cirugias/{$cirugia->idCirugia}/requerimientos", ['requerimiento' => 'implante'])
+            ->assertRedirect();
+
+        $this->assertTrue($cirugia->fresh()->requiereImplante);
+    }
+
+    public function test_el_expediente_de_otro_cirujano_se_ve_pero_sin_botones_de_edicion(): void
+    {
+        $deLopez = $this->cirugiaConHisopadoPendiente();
+        $dePerez = $this->cirugiaConHemoderivados();
+
+        $this->actingAs($this->usuario('perez'))
+            ->get("/cirugias/{$deLopez->idCirugia}?tab=preparacion")
+            ->assertOk()
+            ->assertDontSee(route('cirugias.preparacion.guardar', $deLopez))
+            ->assertDontSee('Requerir Hemoderivados');
+
+        $this->actingAs($this->usuario('perez'))
+            ->get("/cirugias/{$dePerez->idCirugia}?tab=preparacion")
+            ->assertOk()
+            ->assertSee(route('cirugias.preparacion.guardar', $dePerez));
+    }
+
+    /**
+     * Guardarrail de rutas: toda escritura sobre `/cirugias/{cirugia}` que un
+     * cirujano o un anestesista puedan ejecutar tiene que verificar que la
+     * cirugía sea suya. Una ruta nueva fuera de los grupos que lo aplican
+     * falla acá en vez de reabrir el agujero.
+     */
+    public function test_toda_escritura_del_equipo_sobre_una_cirugia_verifica_pertenencia(): void
+    {
+        $sinVerificar = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(fn ($ruta) => str_starts_with($ruta->uri(), 'cirugias/{cirugia}'))
+            ->reject(fn ($ruta) => $ruta->methods() === ['GET', 'HEAD'])
+            ->filter(fn ($ruta) => collect($ruta->gatherMiddleware())->contains(
+                fn ($m) => is_string($m) && str_starts_with($m, 'rol:')
+                    && (str_contains($m, 'Cirujano') || str_contains($m, 'Anestesista'))
+            ))
+            ->reject(fn ($ruta) => collect($ruta->gatherMiddleware())->contains(
+                fn ($m) => is_string($m) && str_starts_with($m, 'cirugia.del.equipo')
+            ))
+            ->map(fn ($ruta) => implode('|', $ruta->methods()).' '.$ruta->uri())
+            ->values();
+
+        $this->assertSame([], $sinVerificar->all(), 'Rutas de escritura sin cirugia.del.equipo');
     }
 }
